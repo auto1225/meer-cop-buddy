@@ -20,42 +20,42 @@ export function LaptopStatusIcons({
     <div className="flex justify-center items-center gap-8 px-4 py-2">
       {/* MeerCOP Icon */}
       <div className="flex flex-col items-center gap-1">
-        <div className="w-10 h-10 flex items-center justify-center">
+        <div className="w-11 h-11 flex items-center justify-center">
           <img 
             src={meercopStatus ? meercopOn : meercopOff} 
             alt="MeerCOP" 
-            className="h-8 w-8 object-contain"
+            className="h-9 w-9 object-contain"
           />
         </div>
-        <span className={`text-[9px] font-bold ${meercopStatus ? 'text-foreground' : 'text-foreground/50'}`}>
+        <span className="text-[9px] font-bold text-white">
           MeerCOP
         </span>
       </div>
 
       {/* Network Icon */}
       <div className="flex flex-col items-center gap-1">
-        <div className="w-10 h-10 flex items-center justify-center">
+        <div className="w-11 h-11 flex items-center justify-center">
           <img 
             src={networkStatus ? wifiOn : wifiOff} 
             alt="Network" 
-            className="h-8 w-8 object-contain"
+            className="h-9 w-9 object-contain"
           />
         </div>
-        <span className={`text-[9px] font-bold ${networkStatus ? 'text-foreground' : 'text-foreground/50'}`}>
+        <span className="text-[9px] font-bold text-white">
           Network
         </span>
       </div>
 
       {/* Camera Icon */}
       <div className="flex flex-col items-center gap-1">
-        <div className="w-10 h-10 flex items-center justify-center">
+        <div className="w-11 h-11 flex items-center justify-center">
           <img 
             src={cameraStatus ? cameraOn : cameraOff} 
             alt="Camera" 
-            className="h-8 w-8 object-contain"
+            className="h-9 w-9 object-contain"
           />
         </div>
-        <span className={`text-[9px] font-bold ${cameraStatus ? 'text-foreground' : 'text-foreground/50'}`}>
+        <span className="text-[9px] font-bold text-white">
           Camera
         </span>
       </div>
