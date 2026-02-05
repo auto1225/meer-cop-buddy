@@ -1,12 +1,21 @@
-import { Check, X, Moon } from "lucide-react";
+import { Check, X, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ToggleButtonProps {
   isOn: boolean;
   onToggle: () => void;
+  isDarkMode?: boolean;
+  onDarkModeToggle?: () => void;
+  showDarkMode?: boolean;
 }
 
-export function ToggleButton({ isOn, onToggle }: ToggleButtonProps) {
+export function ToggleButton({ 
+  isOn, 
+  onToggle, 
+  isDarkMode = false,
+  onDarkModeToggle,
+  showDarkMode = true,
+}: ToggleButtonProps) {
   return (
     <div className="absolute bottom-3 left-0 right-0 z-30 px-4 flex items-center justify-center gap-3">
       {/* Main Toggle Button */}
@@ -34,14 +43,25 @@ export function ToggleButton({ isOn, onToggle }: ToggleButtonProps) {
         <span>MeerCOP {isOn ? 'ON' : 'OFF'}</span>
       </button>
 
-      {/* Dark Mode Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="w-10 h-10 rounded-full bg-foreground/20 hover:bg-foreground/30 text-foreground"
-      >
-        <Moon className="h-5 w-5" />
-      </Button>
+      {/* Dark Mode Button - Only visible when monitoring is ON */}
+      {showDarkMode && isOn && onDarkModeToggle && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDarkModeToggle}
+          className={`w-10 h-10 rounded-full transition-all ${
+            isDarkMode 
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+              : 'bg-foreground/20 hover:bg-foreground/30 text-foreground'
+          }`}
+        >
+          {isDarkMode ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
+      )}
     </div>
   );
 }

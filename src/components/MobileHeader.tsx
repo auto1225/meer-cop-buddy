@@ -1,20 +1,22 @@
-import { useState } from "react";
-import { Menu, Bell, Plus, LogOut, Settings, Moon } from "lucide-react";
+import { Menu, Bell, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import meercopMascot from "@/assets/meercop-mascot.png";
 
 interface MobileHeaderProps {
   deviceName?: string;
   notificationCount?: number;
   onMenuClick?: () => void;
   onSettingsClick?: () => void;
+  onNotificationClick?: () => void;
+  onAddDeviceClick?: () => void;
 }
 
 export function MobileHeader({ 
   deviceName = "Laptop1", 
   notificationCount = 0,
   onMenuClick,
-  onSettingsClick
+  onSettingsClick,
+  onNotificationClick,
+  onAddDeviceClick,
 }: MobileHeaderProps) {
   return (
     <header className="relative z-20 px-3 py-2">
@@ -42,11 +44,12 @@ export function MobileHeader({
             variant="ghost" 
             size="icon" 
             className="text-foreground hover:bg-white/20 relative"
+            onClick={onNotificationClick}
           >
             <Bell className="h-5 w-5" />
             {notificationCount > 0 && (
               <span className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full flex items-center justify-center">
-                {notificationCount}
+                {notificationCount > 9 ? "9+" : notificationCount}
               </span>
             )}
           </Button>
@@ -54,15 +57,9 @@ export function MobileHeader({
             variant="ghost" 
             size="icon" 
             className="text-foreground hover:bg-white/20"
+            onClick={onAddDeviceClick}
           >
             <Plus className="h-5 w-5" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="text-foreground hover:bg-white/20"
-          >
-            <LogOut className="h-5 w-5" />
           </Button>
         </div>
       </div>
