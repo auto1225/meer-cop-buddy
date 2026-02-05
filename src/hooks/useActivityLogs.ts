@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseShared } from "@/lib/supabase";
 
 interface ActivityLogEntry {
   id: string;
@@ -21,7 +21,7 @@ export function useActivityLogs(deviceId?: string, limit = 50) {
     try {
       setIsLoading(true);
       
-      let query = supabase
+      let query = supabaseShared
         .from("activity_logs")
         .select("*, devices(device_name)")
         .order("created_at", { ascending: false })
@@ -56,7 +56,7 @@ export function useActivityLogs(deviceId?: string, limit = 50) {
     fetchLogs();
 
     // Subscribe to realtime updates
-    const channel = supabase
+    const channel = supabaseShared
       .channel("activity-logs-changes")
       .on(
         "postgres_changes",
@@ -76,7 +76,7 @@ export function useActivityLogs(deviceId?: string, limit = 50) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabaseShared.removeChannel(channel);
     };
   }, [fetchLogs, deviceId, limit]);
 

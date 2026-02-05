@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
 import { useAlarmSystem } from "@/hooks/useAlarmSystem";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseShared } from "@/lib/supabase";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
@@ -112,7 +112,7 @@ const Index = () => {
   useEffect(() => {
     if (!currentDevice?.id) return;
 
-    const channel = supabase
+    const channel = supabaseShared
       .channel("laptop-status")
       .on(
         "postgres_changes",
@@ -130,7 +130,7 @@ const Index = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabaseShared.removeChannel(channel);
     };
   }, [currentDevice?.id]);
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 export interface Alert {
@@ -27,7 +27,7 @@ export function useAlerts(deviceId?: string) {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseShared
         .from("activity_logs")
         .select("*")
         .eq("device_id", deviceId)
@@ -49,7 +49,7 @@ export function useAlerts(deviceId?: string) {
     if (!activeAlert || !deviceId) return;
 
     try {
-      await supabase.from("activity_logs").insert({
+      await supabaseShared.from("activity_logs").insert({
         device_id: deviceId,
         event_type: "alert_stopped",
         event_data: { 
@@ -80,7 +80,7 @@ export function useAlerts(deviceId?: string) {
 
     fetchAlerts();
 
-    const channel = supabase
+    const channel = supabaseShared
       .channel("alerts-changes")
       .on(
         "postgres_changes",
@@ -113,7 +113,7 @@ export function useAlerts(deviceId?: string) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabaseShared.removeChannel(channel);
     };
   }, [deviceId, fetchAlerts]);
 
