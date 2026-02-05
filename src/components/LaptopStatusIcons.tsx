@@ -17,7 +17,7 @@ export function LaptopStatusIcons({
   cameraStatus,
 }: LaptopStatusIconsProps) {
   return (
-    <div className="flex justify-center items-center gap-8 px-4 py-2 mt-4">
+    <div className="flex justify-center items-center gap-8 px-4 py-2 mt-8">
       {/* MeerCOP Icon */}
       <div className="flex flex-col items-center gap-1">
         <div className="w-11 h-11 flex items-center justify-center">
