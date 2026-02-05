@@ -13,6 +13,7 @@ import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
+import { useCameraDetection } from "@/hooks/useCameraDetection";
 import { useAlarmSystem } from "@/hooks/useAlarmSystem";
 import { supabaseShared } from "@/lib/supabase";
 import mainBg from "@/assets/main-bg.png";
@@ -34,6 +35,8 @@ const Index = () => {
   
   const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated);
 
+  // Camera detection - auto-sync to DB
+  useCameraDetection({ deviceId: currentDevice?.id });
   // Alarm system
   const { 
     isAlarmEnabled, 
