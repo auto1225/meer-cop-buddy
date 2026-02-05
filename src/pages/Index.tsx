@@ -66,7 +66,7 @@ const Index = () => {
   }, [currentDevice?.status]);
 
   return (
-    <div className="min-h-screen max-w-[390px] mx-auto sky-background flex flex-col relative overflow-hidden">
+    <div className="w-[400px] h-[400px] mx-auto sky-background flex flex-col relative overflow-hidden">
         {/* Cloud Background */}
         <CloudBackground />
 

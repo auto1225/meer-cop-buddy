@@ -17,7 +17,7 @@ export function MobileHeader({
   onSettingsClick
 }: MobileHeaderProps) {
   return (
-    <header className="relative z-20 px-4 py-3">
+    <header className="relative z-20 px-3 py-2">
       <div className="flex items-center justify-between">
         {/* Left - Menu */}
         <Button 
@@ -31,10 +31,9 @@ export function MobileHeader({
 
         {/* Center - Logo */}
         <div className="text-center">
-          <h1 className="text-xl font-black text-foreground leading-tight">
-            Meer
+          <h1 className="text-base font-black text-foreground leading-tight">
+            Meer<span className="text-sm font-extrabold">COP</span>
           </h1>
-          <p className="text-lg font-extrabold text-foreground -mt-1">COP</p>
         </div>
 
         {/* Right - Actions */}
@@ -69,13 +68,13 @@ export function MobileHeader({
       </div>
 
       {/* Device Selector */}
-      <div className="flex justify-center mt-4">
+      <div className="flex justify-center mt-2">
         <button 
-          className="flex items-center gap-2 bg-foreground/20 hover:bg-foreground/30 px-6 py-2.5 rounded-full transition-colors"
+          className="flex items-center gap-1.5 bg-foreground/20 hover:bg-foreground/30 px-4 py-1.5 rounded-full transition-colors"
           onClick={onSettingsClick}
         >
-          <span className="text-foreground font-bold">{deviceName}</span>
-          <Settings className="h-4 w-4 text-foreground/70" />
+          <span className="text-foreground font-bold text-sm">{deviceName}</span>
+          <Settings className="h-3.5 w-3.5 text-foreground/70" />
         </button>
       </div>
     </header>

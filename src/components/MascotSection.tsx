@@ -6,16 +6,16 @@ interface MascotSectionProps {
 
 export function MascotSection({ isMonitoring }: MascotSectionProps) {
   return (
-    <div className="absolute bottom-24 left-0 right-0">
+    <div className="absolute bottom-16 left-0 right-0">
       {/* Ground */}
-      <div className="ground h-24 mx-4" />
+      <div className="ground h-12 mx-4" />
       
       {/* Mascot */}
-      <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2">
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
         <img 
           src={meercopWatching} 
           alt="MeerCOP 마스코트" 
-          className={`h-48 w-auto drop-shadow-2xl ${isMonitoring ? 'float-animation' : 'opacity-50 grayscale'}`}
+          className={`h-24 w-auto drop-shadow-2xl ${isMonitoring ? 'float-animation' : 'opacity-50 grayscale'}`}
         />
       </div>
     </div>

@@ -5,9 +5,9 @@ interface StatusMessageProps {
 
 export function StatusMessage({ deviceName, isMonitoring }: StatusMessageProps) {
   return (
-    <div className="mx-4 my-4">
-      <div className="status-card px-6 py-4 text-center">
-        <p className="text-foreground font-semibold text-base">
+    <div className="mx-3 my-2">
+      <div className="status-card px-4 py-2.5 text-center">
+        <p className="text-foreground font-semibold text-xs">
           {isMonitoring 
             ? `MeerCOP is monitoring your laptop (${deviceName}).`
             : `MeerCOP is not monitoring ${deviceName}.`
