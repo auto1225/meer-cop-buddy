@@ -85,14 +85,14 @@
 
 @layer components {
   .sky-background {
-    background: var(--gradient-sky);
+    background: linear-gradient(180deg, hsl(199 85% 60%) 0%, hsl(199 80% 55%) 50%, hsl(199 75% 50%) 100%);
     position: relative;
     overflow: hidden;
   }
 
   .cloud {
-    @apply absolute bg-white/40 rounded-full;
-    filter: blur(4px);
+    @apply absolute bg-white/50 rounded-full;
+    filter: blur(8px);
   }
 
   .status-card {
@@ -122,8 +122,8 @@
   }
 
   .ground {
-    background: linear-gradient(180deg, hsl(30 40% 45%) 0%, hsl(30 40% 35%) 100%);
-    border-radius: 50% 50% 0 0 / 20% 20% 0 0;
+    background: linear-gradient(180deg, hsl(30 50% 50%) 0%, hsl(30 45% 40%) 100%);
+    border-radius: 100% 100% 0 0 / 100% 100% 0 0;
   }
 
   .float-animation {
