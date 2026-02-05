@@ -6,6 +6,7 @@ import { LaptopMascotSection } from "@/components/LaptopMascotSection";
 import { DeviceNameBadge } from "@/components/DeviceNameBadge";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
+import { CameraModal } from "@/components/CameraModal";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
@@ -17,9 +18,10 @@ const Index = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const { devices, refetch } = useDevices();
-  const { isNetworkConnected, isCameraAvailable } = useDeviceStatus();
+  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus();
 
   // Redirect to auth if not authenticated
   useEffect(() => {
@@ -136,6 +138,14 @@ const Index = () => {
           meercopStatus={isMonitoring}
           networkStatus={isNetworkConnected}
           cameraStatus={isCameraAvailable}
+          onCameraClick={() => setIsCameraModalOpen(true)}
+        />
+
+        {/* Camera Modal */}
+        <CameraModal
+          isOpen={isCameraModalOpen}
+          onClose={() => setIsCameraModalOpen(false)}
+          onCameraStatusChange={setCameraAvailable}
         />
 
         {/* Mascot Section with Speech Bubble */}
