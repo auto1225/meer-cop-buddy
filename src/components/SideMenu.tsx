@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { DeviceSettingsPanel } from "@/components/DeviceSettingsPanel";
+import { AlarmSoundSelector } from "@/components/AlarmSoundSelector";
+import { type AlarmSoundConfig } from "@/lib/alarmSounds";
 import meercopMascot from "@/assets/meercop-mascot.png";
 
 interface Device {
@@ -22,6 +24,11 @@ interface SideMenuProps {
   currentDeviceId?: string;
   onDeviceSelect: (deviceId: string) => void;
   onDevicesRefresh?: () => void;
+  // Alarm sound props
+  availableSounds?: AlarmSoundConfig[];
+  selectedSoundId?: string;
+  onSelectSound?: (soundId: string) => void;
+  onPreviewSound?: (soundId: string) => void;
 }
 
 export function SideMenu({
@@ -31,6 +38,10 @@ export function SideMenu({
   currentDeviceId,
   onDeviceSelect,
   onDevicesRefresh,
+  availableSounds,
+  selectedSoundId,
+  onSelectSound,
+  onPreviewSound,
 }: SideMenuProps) {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
@@ -187,6 +198,16 @@ export function SideMenu({
               )}
             </div>
           </div>
+
+          {/* Alarm Sound Selector */}
+          {availableSounds && selectedSoundId && onSelectSound && onPreviewSound && (
+            <AlarmSoundSelector
+              sounds={availableSounds}
+              selectedSoundId={selectedSoundId}
+              onSelectSound={onSelectSound}
+              onPreviewSound={onPreviewSound}
+            />
+          )}
         </div>
 
         {/* Bottom Menu */}

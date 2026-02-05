@@ -37,9 +37,13 @@ const Index = () => {
   const { 
     isAlarmEnabled, 
     isAlarming, 
+    availableSounds,
+    selectedSoundId,
+    setSelectedSoundId,
     toggleAlarmEnabled, 
     startAlarm, 
-    stopAlarm 
+    stopAlarm,
+    previewSound,
   } = useAlarmSystem();
 
   // Security event handler - use ref to avoid recreating callback
@@ -178,6 +182,10 @@ const Index = () => {
           currentDeviceId={currentDevice?.id}
           onDeviceSelect={handleDeviceSelect}
           onDevicesRefresh={refetch}
+          availableSounds={availableSounds}
+          selectedSoundId={selectedSoundId}
+          onSelectSound={setSelectedSoundId}
+          onPreviewSound={previewSound}
         />
 
         {/* Header */}
