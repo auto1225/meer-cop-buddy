@@ -2,16 +2,23 @@ import { useState, useEffect, useCallback } from "react";
 import { supabaseShared } from "@/lib/supabase";
 // Using shared Supabase client (same as MeerCOP mobile app)
 
-// Shared DB schema (MeerCOP mobile app)
+// Actual DB schema
 interface Device {
   id: string;
-  user_id: string;
-  name: string;  // 'name' in shared DB, not 'device_name'
+  device_id: string;
+  device_name: string;
   device_type: string;
   status: string;
-  is_monitoring: boolean;  // shared DB uses this field
-  last_seen_at: string | null;
+  is_camera_connected: boolean | null;
+  is_network_connected: boolean | null;
+  is_streaming_requested: boolean | null;
+  is_charging: boolean | null;
   battery_level: number | null;
+  last_seen_at: string | null;
+  ip_address: string | null;
+  os_info: string | null;
+  app_version: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,22 +39,21 @@ export interface DeviceCompat {
   metadata: Record<string, unknown> | null;
 }
 
-// Convert shared DB device to compatible format for components
+// Convert DB device to compatible format for components
 function toCompatDevice(d: Device): DeviceCompat {
   return {
     id: d.id,
-    device_id: d.id,
-    device_name: d.name,
+    device_id: d.device_id,
+    device_name: d.device_name,
     device_type: d.device_type,
-    // Use is_monitoring to determine effective status for this app
-    status: d.is_monitoring ? "online" : "offline",
+    status: d.status,
     last_seen_at: d.last_seen_at,
     battery_level: d.battery_level,
-    is_charging: false,
-    ip_address: null,
-    os_info: null,
-    app_version: null,
-    metadata: null,
+    is_charging: d.is_charging || false,
+    ip_address: d.ip_address,
+    os_info: d.os_info,
+    app_version: d.app_version,
+    metadata: d.metadata,
   };
 }
 
@@ -117,8 +123,8 @@ export function useDevices() {
 
   const stats = {
     total: devices.length,
-    online: devices.filter((d) => d.is_monitoring).length,
-    offline: devices.filter((d) => !d.is_monitoring).length,
+    online: devices.filter((d) => d.status === "online").length,
+    offline: devices.filter((d) => d.status !== "online").length,
     lowBattery: devices.filter(
       (d) => d.battery_level !== null && d.battery_level < 20
     ).length,
