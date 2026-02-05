@@ -28,16 +28,29 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
   const startCamera = async () => {
     try {
       setError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user" } 
-      });
+      
+      // First, try to get any available camera (removes facingMode restriction for USB cameras)
+      let mediaStream: MediaStream | null = null;
+      
+      try {
+        // Try with basic video constraint first (works better with USB cameras)
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true,
+          audio: false
+        });
+      } catch {
+        // If that fails, try with specific constraints
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "environment" }
+        });
+      }
       
       setStream(mediaStream);
       onCameraStatusChange(true);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+        await videoRef.current.play();
       }
     } catch (err: any) {
       console.error("Camera error:", err);
