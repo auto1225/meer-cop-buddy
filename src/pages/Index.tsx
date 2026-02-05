@@ -71,9 +71,11 @@ const Index = () => {
       initialWidth={480}
       initialHeight={320}
       minWidth={320}
-      minHeight={240}
-      maxWidth={800}
-      maxHeight={600}
+      minHeight={213}
+      maxWidth={960}
+      maxHeight={640}
+      baseWidth={480}
+      baseHeight={320}
     >
       <div className="w-full h-full sky-background flex flex-col relative overflow-hidden">
         {/* Cloud Background */}
