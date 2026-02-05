@@ -13,11 +13,11 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
   const getMascotConfig = () => {
     if (isAlarming) {
       // Alert state - megaphone meercat
-      return { image: meercopAlert, sizeClass: "h-64", marginClass: "mb-[2%]" };
+      return { image: meercopAlert, sizeClass: "h-72", marginClass: "mb-[12%]" };
     }
     if (isMonitoring) {
       // Monitoring state - binoculars meercat
-      return { image: meercopMonitoring, sizeClass: "h-64", marginClass: "mb-[2%]" };
+      return { image: meercopMonitoring, sizeClass: "h-72", marginClass: "mb-[12%]" };
     }
     // Idle state - base reference size
     return { image: meercopIdle, sizeClass: "h-40", marginClass: "mb-[32%]" };
@@ -29,7 +29,7 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
     <div className="relative flex-1 flex flex-col items-center justify-end overflow-hidden">
       {/* Speech Bubble - shows different text based on monitoring state */}
       {!isAlarming && (
-        <div className="relative mb-0 z-20">
+        <div className="relative mb-2 z-20">
           <div className="bg-white rounded-2xl px-4 py-2 shadow-lg relative">
             <p className="text-foreground font-bold text-[11px] text-center whitespace-nowrap">
               {isMonitoring ? (
