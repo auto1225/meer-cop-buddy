@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseShared } from "@/lib/supabase";
 
 interface Device {
   id: string;
@@ -24,7 +24,7 @@ export function useDevices() {
   const fetchDevices = useCallback(async () => {
     try {
       setIsLoading(true);
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabaseShared
         .from("devices")
         .select("*")
         .order("last_seen_at", { ascending: false, nullsFirst: false });
@@ -48,7 +48,7 @@ export function useDevices() {
     fetchDevices();
 
     // Subscribe to realtime updates
-    const channel = supabase
+    const channel = supabaseShared
       .channel("devices-changes")
       .on(
         "postgres_changes",
@@ -77,7 +77,7 @@ export function useDevices() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabaseShared.removeChannel(channel);
     };
   }, [fetchDevices]);
 
