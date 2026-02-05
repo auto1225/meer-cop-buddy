@@ -19,14 +19,14 @@ export function LaptopStatusIcons({
   onCameraClick,
 }: LaptopStatusIconsProps) {
   return (
-    <div className="flex justify-center items-center gap-8 px-4 py-2 mt-8">
+    <div className="flex justify-center items-center gap-8 px-4 py-2 mt-4">
       {/* MeerCOP Icon */}
       <div className="flex flex-col items-center gap-1">
-        <div className="w-11 h-11 flex items-center justify-center">
+        <div className="w-12 h-12 flex items-center justify-center">
           <img 
             src={meercopStatus ? meercopOn : meercopOff} 
             alt="MeerCOP" 
-            className="h-9 w-9 object-contain"
+            className="h-10 w-10 object-contain"
           />
         </div>
         <span className="text-[9px] font-bold text-white">
@@ -36,11 +36,11 @@ export function LaptopStatusIcons({
 
       {/* Network Icon */}
       <div className="flex flex-col items-center gap-1">
-        <div className="w-11 h-11 flex items-center justify-center">
+        <div className="w-12 h-12 flex items-center justify-center">
           <img 
             src={networkStatus ? wifiOn : wifiOff} 
             alt="Network" 
-            className="h-9 w-9 object-contain"
+            className="h-10 w-10 object-contain"
           />
         </div>
         <span className="text-[9px] font-bold text-white">
@@ -53,11 +53,11 @@ export function LaptopStatusIcons({
         onClick={onCameraClick}
         className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
       >
-        <div className="w-11 h-11 flex items-center justify-center">
+        <div className="w-12 h-12 flex items-center justify-center">
           <img 
             src={cameraStatus ? cameraOn : cameraOff} 
             alt="Camera" 
-            className="h-9 w-9 object-contain"
+            className="h-10 w-10 object-contain"
           />
         </div>
         <span className="text-[9px] font-bold text-white">
