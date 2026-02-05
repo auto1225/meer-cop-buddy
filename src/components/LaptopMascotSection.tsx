@@ -29,7 +29,7 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
     <div className="relative flex-1 flex flex-col items-center justify-end overflow-hidden">
       {/* Speech Bubble - shows different text based on monitoring state */}
       {!isAlarming && (
-        <div className="relative mb-1 z-20">
+        <div className={`relative z-20 ${isMonitoring ? '-mb-4' : 'mb-1'}`}>
           <div className="bg-white rounded-2xl px-4 py-2 shadow-lg relative">
             <p className="text-foreground font-bold text-[11px] text-center whitespace-nowrap">
               {isMonitoring ? (
