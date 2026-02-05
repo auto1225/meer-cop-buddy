@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { supabaseShared } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SensorSettings, DEFAULT_SENSOR_SETTINGS } from "@/hooks/useSensorDetection";
 
@@ -59,17 +59,19 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     setIsSaving(true);
     try {
       if (isNewDevice) {
-        // Create new device - only use fields that exist in the external DB
-        const { error } = await supabaseShared
+        // Create new device
+        const deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const { error } = await supabase
           .from("devices")
           .insert({
+            device_id: deviceId,
             device_name: deviceName,
             device_type: settings.deviceType,
             status: "offline",
             metadata: {
               sensorSettings: settings,
             },
-          } as any);
+          });
 
         if (error) throw error;
 
@@ -79,7 +81,7 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
         });
       } else if (device) {
         // Update existing device
-        const { error } = await supabaseShared
+        const { error } = await supabase
           .from("devices")
           .update({
             device_name: deviceName,
@@ -234,7 +236,7 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
                 키보드 감지
               </Label>
             </div>
-            {settings.keyboard && settings.deviceType === "desktop" && (
+            {settings.keyboard && (
               <div className="flex gap-2 ml-7">
                 <button
                   onClick={() => updateSetting("keyboardType", "wired")}
