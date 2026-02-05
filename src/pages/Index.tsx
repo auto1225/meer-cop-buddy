@@ -8,6 +8,7 @@ import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { CameraModal } from "@/components/CameraModal";
 import { AlertOverlay } from "@/components/AlertOverlay";
+import { AutoBroadcaster } from "@/components/AutoBroadcaster";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
@@ -167,6 +168,9 @@ const Index = () => {
           backgroundPosition: 'center bottom',
         }}
       >
+        {/* Auto Broadcaster - listens for streaming requests from smartphone */}
+        <AutoBroadcaster deviceId={currentDevice?.id} />
+
         {/* Alert Overlay - shows when alarm is triggered */}
         <AlertOverlay
           isActive={isAlarming}
