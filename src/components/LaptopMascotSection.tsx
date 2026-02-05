@@ -1,15 +1,28 @@
 import meercopIdle from "@/assets/meercop-idle.png";
-import meercopWatching from "@/assets/meercop-watching.png";
+import meercopMonitoring from "@/assets/meercop-monitoring.png";
+import meercopAlert from "@/assets/meercop-alert.png";
 
 interface LaptopMascotSectionProps {
   isMonitoring: boolean;
+  isAlarming?: boolean;
 }
 
-export function LaptopMascotSection({ isMonitoring }: LaptopMascotSectionProps) {
+export function LaptopMascotSection({ isMonitoring, isAlarming = false }: LaptopMascotSectionProps) {
+  // Determine which mascot image to show
+  const getMascotImage = () => {
+    if (isAlarming) {
+      return meercopAlert; // Alert state - megaphone meercat
+    }
+    if (isMonitoring) {
+      return meercopMonitoring; // Monitoring state - binoculars meercat
+    }
+    return meercopIdle; // Idle state
+  };
+
   return (
     <div className="relative flex-1 flex flex-col items-center justify-end overflow-hidden">
       {/* Speech Bubble - only show when not monitoring */}
-      {!isMonitoring && (
+      {!isMonitoring && !isAlarming && (
         <div className="relative mb-2 z-20">
           <div className="bg-white rounded-2xl px-4 py-2 shadow-lg relative">
             <p className="text-foreground font-bold text-[11px] text-center whitespace-nowrap">
@@ -24,9 +37,11 @@ export function LaptopMascotSection({ isMonitoring }: LaptopMascotSectionProps) 
       {/* Mascot - positioned to stand on top of the rock */}
       <div className="relative z-10 mb-[32%]">
         <img 
-          src={isMonitoring ? meercopWatching : meercopIdle}
+          src={getMascotImage()}
           alt="MeerCOP Mascot"
-          className="h-40 object-contain drop-shadow-xl transition-all duration-500"
+          className={`h-40 object-contain drop-shadow-xl transition-all duration-500 ${
+            isAlarming ? 'animate-bounce' : ''
+          }`}
         />
       </div>
     </div>
