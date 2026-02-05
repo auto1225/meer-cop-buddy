@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { X, Camera, Video } from "lucide-react";
+import { X, Camera, Video, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCamera } from "@/hooks/useCamera";
 
@@ -17,6 +17,7 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     snapshot,
     error,
     isStarted,
+    isLoading,
     startCamera,
     reset,
     takeSnapshot,
@@ -24,7 +25,6 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     clearSnapshot,
   } = useCamera({ onStatusChange: onCameraStatusChange });
 
-  // Cleanup on close
   useEffect(() => {
     if (!isOpen) reset();
   }, [isOpen, reset]);
@@ -39,7 +39,6 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
       <div className="bg-primary rounded-2xl overflow-hidden max-w-md w-full">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/20">
           <h2 className="font-bold text-lg text-white">카메라</h2>
           <Button
@@ -52,30 +51,40 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
           </Button>
         </div>
 
-        {/* Content */}
         <div className="p-4 space-y-4">
           {!isStarted ? (
             <div className="aspect-video bg-black/50 rounded-xl flex flex-col items-center justify-center gap-4">
-              <Video className="w-12 h-12 text-white/50" />
-              <p className="text-white/70 text-center px-4">
-                카메라를 시작하려면 아래 버튼을 눌러주세요
-              </p>
-              <Button
-                onClick={startCamera}
-                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold"
-              >
-                <Camera className="w-4 h-4 mr-2" />
-                카메라 시작
-              </Button>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-12 h-12 text-white/50 animate-spin" />
+                  <p className="text-white/70 text-center">카메라 연결 중...</p>
+                </>
+              ) : (
+                <>
+                  <Video className="w-12 h-12 text-white/50" />
+                  <p className="text-white/70 text-center px-4">
+                    카메라를 시작하려면 아래 버튼을 눌러주세요
+                  </p>
+                  <Button
+                    onClick={startCamera}
+                    className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold"
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    카메라 시작
+                  </Button>
+                </>
+              )}
             </div>
           ) : error ? (
-            <div className="aspect-video bg-black/50 rounded-xl flex flex-col items-center justify-center gap-4">
-              <p className="text-white/70 text-center px-4 whitespace-pre-line">{error}</p>
+            <div className="aspect-video bg-black/50 rounded-xl flex flex-col items-center justify-center gap-4 p-4">
+              <p className="text-white/70 text-center whitespace-pre-line text-sm">{error}</p>
               <Button
                 onClick={startCamera}
+                disabled={isLoading}
                 variant="outline"
                 className="bg-white/10 border-white/20 text-white hover:bg-white/20"
               >
+                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 다시 시도
               </Button>
             </div>
@@ -105,7 +114,7 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
                 autoPlay
                 playsInline
                 muted
-                className="w-full rounded-xl bg-black aspect-video"
+                className="w-full rounded-xl bg-black aspect-video object-cover"
               />
               <Button
                 onClick={takeSnapshot}
