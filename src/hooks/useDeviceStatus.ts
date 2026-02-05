@@ -30,6 +30,37 @@ export function useDeviceStatus() {
     };
   }, []);
 
+  // Auto-detect camera availability using enumerateDevices (no permission needed)
+  useEffect(() => {
+    const checkCameraAvailability = async () => {
+      try {
+        if (!navigator.mediaDevices?.enumerateDevices) {
+          return;
+        }
+        
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasCamera = devices.some(device => device.kind === "videoinput");
+        setStatus((prev) => ({ ...prev, isCameraAvailable: hasCamera }));
+      } catch (error) {
+        console.log("Camera detection failed:", error);
+      }
+    };
+
+    // Initial check
+    checkCameraAvailability();
+
+    // Listen for device changes (camera plugged/unplugged)
+    const handleDeviceChange = () => {
+      checkCameraAvailability();
+    };
+
+    navigator.mediaDevices?.addEventListener?.("devicechange", handleDeviceChange);
+
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.("devicechange", handleDeviceChange);
+    };
+  }, []);
+
   const setCameraAvailable = useCallback((available: boolean) => {
     setStatus((prev) => ({ ...prev, isCameraAvailable: available }));
   }, []);
