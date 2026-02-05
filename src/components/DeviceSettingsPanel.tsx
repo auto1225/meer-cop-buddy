@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Laptop, Monitor, Save, X } from "lucide-react";
+import { Laptop, Monitor, Save, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,11 +17,12 @@ interface Device {
 
 interface DeviceSettingsPanelProps {
   device: Device | null;
+  isNewDevice?: boolean;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-export function DeviceSettingsPanel({ device, onClose, onUpdate }: DeviceSettingsPanelProps) {
+export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUpdate }: DeviceSettingsPanelProps) {
   const { toast } = useToast();
   const [deviceName, setDeviceName] = useState(device?.device_name || "");
   const [isSaving, setIsSaving] = useState(false);
@@ -39,32 +40,67 @@ export function DeviceSettingsPanel({ device, onClose, onUpdate }: DeviceSetting
       if (meta?.sensorSettings) {
         setSettings(meta.sensorSettings);
       }
+    } else if (isNewDevice) {
+      setDeviceName("");
+      setSettings(DEFAULT_SENSOR_SETTINGS);
     }
-  }, [device]);
+  }, [device, isNewDevice]);
 
   const handleSave = async () => {
-    if (!device) return;
-    
+    if (!deviceName.trim()) {
+      toast({
+        title: "입력 오류",
+        description: "디바이스 이름을 입력해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const { error } = await supabaseShared
-        .from("devices")
-        .update({
-          device_name: deviceName,
-          device_type: settings.deviceType,
-          metadata: {
-            ...(device.metadata as Record<string, unknown> || {}),
-            sensorSettings: settings,
-          },
-        })
-        .eq("id", device.id);
+      if (isNewDevice) {
+        // Create new device
+        const deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const { error } = await supabaseShared
+          .from("devices")
+          .insert({
+            device_id: deviceId,
+            device_name: deviceName,
+            device_type: settings.deviceType,
+            status: "offline",
+            metadata: {
+              sensorSettings: settings,
+            },
+          });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "저장 완료",
-        description: "디바이스 설정이 저장되었습니다.",
-      });
+        toast({
+          title: "디바이스 등록 완료",
+          description: "새 디바이스가 등록되었습니다.",
+        });
+      } else if (device) {
+        // Update existing device
+        const { error } = await supabaseShared
+          .from("devices")
+          .update({
+            device_name: deviceName,
+            device_type: settings.deviceType,
+            metadata: {
+              ...(device.metadata as Record<string, unknown> || {}),
+              sensorSettings: settings,
+            },
+          })
+          .eq("id", device.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "저장 완료",
+          description: "디바이스 설정이 저장되었습니다.",
+        });
+      }
+      
       onUpdate();
       onClose();
     } catch (error: any) {
@@ -82,13 +118,13 @@ export function DeviceSettingsPanel({ device, onClose, onUpdate }: DeviceSetting
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  if (!device) return null;
-
   return (
     <div className="absolute inset-0 bg-primary z-60 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/20">
-        <h2 className="font-bold text-lg text-white">디바이스 설정</h2>
+        <h2 className="font-bold text-lg text-white">
+          {isNewDevice ? "디바이스 등록" : "디바이스 설정"}
+        </h2>
         <Button
           variant="ghost"
           size="icon"
@@ -285,8 +321,8 @@ export function DeviceSettingsPanel({ device, onClose, onUpdate }: DeviceSetting
           disabled={isSaving}
           className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold"
         >
-          <Save className="w-4 h-4 mr-2" />
-          {isSaving ? "저장 중..." : "저장하기"}
+          {isNewDevice ? <Plus className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+          {isSaving ? "저장 중..." : isNewDevice ? "디바이스 등록" : "저장하기"}
         </Button>
       </div>
     </div>
