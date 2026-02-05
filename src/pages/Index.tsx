@@ -18,7 +18,7 @@ const Index = () => {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   
-  const { devices } = useDevices();
+  const { devices, refetch } = useDevices();
 
   // Redirect to auth if not authenticated
   useEffect(() => {
@@ -117,6 +117,7 @@ const Index = () => {
           devices={devices}
           currentDeviceId={currentDevice?.id}
           onDeviceSelect={handleDeviceSelect}
+          onDevicesRefresh={refetch}
         />
 
         {/* Header */}

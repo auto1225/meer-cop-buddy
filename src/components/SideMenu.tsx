@@ -1,37 +1,40 @@
-import { X, User, Laptop, HelpCircle, LogOut, Settings, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { X, User, Laptop, HelpCircle, LogOut, Settings, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { DeviceSettingsPanel } from "@/components/DeviceSettingsPanel";
 import meercopMascot from "@/assets/meercop-mascot.png";
 
 interface Device {
   id: string;
   device_name: string;
+  device_type: string;
   status: string;
   battery_level: number | null;
+  metadata: Record<string, unknown> | null;
 }
 
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  userEmail?: string;
-  memberId?: string;
   devices: Device[];
   currentDeviceId?: string;
   onDeviceSelect: (deviceId: string) => void;
+  onDevicesRefresh?: () => void;
 }
 
 export function SideMenu({
   isOpen,
   onClose,
-  userEmail = "user@example.com",
-  memberId = "1",
   devices,
   currentDeviceId,
   onDeviceSelect,
+  onDevicesRefresh,
 }: SideMenuProps) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
   const handleSignOut = async () => {
     await signOut();
@@ -39,7 +42,25 @@ export function SideMenu({
     navigate("/auth");
   };
 
+  const handleEditDevice = (device: Device, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingDevice(device);
+  };
+
+  const handleDeviceSettingsClose = () => {
+    setEditingDevice(null);
+  };
+
+  const handleDeviceUpdate = () => {
+    onDevicesRefresh?.();
+  };
+
   if (!isOpen) return null;
+
+  // Get user display info
+  const userEmail = user?.email || "게스트";
+  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || userEmail.split("@")[0];
+  const userAvatar = user?.user_metadata?.avatar_url;
 
   return (
     <>
@@ -51,6 +72,15 @@ export function SideMenu({
 
       {/* Menu Panel */}
       <div className="absolute left-0 top-0 bottom-0 w-[70%] max-w-[280px] z-50 bg-primary text-primary-foreground flex flex-col animate-slide-in">
+        {/* Device Settings Panel (overlay) */}
+        {editingDevice && (
+          <DeviceSettingsPanel
+            device={editingDevice}
+            onClose={handleDeviceSettingsClose}
+            onUpdate={handleDeviceUpdate}
+          />
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/20">
           <div className="flex items-center gap-2">
@@ -70,16 +100,24 @@ export function SideMenu({
           </Button>
         </div>
 
-        {/* User Info */}
+        {/* User Profile Info */}
         <div className="p-4 border-b border-white/20">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6" />
-            </div>
+            {userAvatar ? (
+              <img 
+                src={userAvatar} 
+                alt="프로필" 
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <User className="w-6 h-6" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold truncate">{userEmail}</p>
-              <p className="text-xs text-white/70">Normal Member</p>
-              <p className="text-xs text-white/70">ID: {memberId}</p>
+              <p className="text-sm font-bold truncate">{userName}</p>
+              <p className="text-xs text-white/70 truncate">{userEmail}</p>
+              <p className="text-xs text-white/50">Normal Member</p>
             </div>
           </div>
         </div>
@@ -98,30 +136,37 @@ export function SideMenu({
                 </p>
               ) : (
                 devices.map((device) => (
-                  <button
+                  <div
                     key={device.id}
-                    onClick={() => {
-                      onDeviceSelect(device.id);
-                      onClose();
-                    }}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors ${
+                    className={`flex items-center justify-between p-3 rounded-xl transition-colors ${
                       device.id === currentDeviceId
                         ? "bg-secondary text-secondary-foreground"
                         : "bg-white/10 hover:bg-white/20"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        onDeviceSelect(device.id);
+                        onClose();
+                      }}
+                      className="flex items-center gap-2 flex-1 text-left"
+                    >
                       <Laptop className="w-4 h-4" />
-                      <div className="text-left">
+                      <div>
                         <p className="text-sm font-bold">{device.device_name}</p>
                         <p className="text-xs opacity-70">
                           {device.status === "online" ? "온라인" : "오프라인"}
                           {device.battery_level !== null && ` · ${device.battery_level}%`}
                         </p>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                    </button>
+                    <button
+                      onClick={(e) => handleEditDevice(device, e)}
+                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))
               )}
             </div>

@@ -13,6 +13,7 @@ interface Device {
   ip_address: string | null;
   os_info: string | null;
   app_version: string | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export function useDevices() {
@@ -29,7 +30,11 @@ export function useDevices() {
         .order("last_seen_at", { ascending: false, nullsFirst: false });
 
       if (fetchError) throw fetchError;
-      setDevices(data || []);
+      const typedDevices = (data || []).map((d) => ({
+        ...d,
+        metadata: d.metadata as Record<string, unknown> | null,
+      }));
+      setDevices(typedDevices);
       setError(null);
     } catch (err) {
       console.error("Error fetching devices:", err);
