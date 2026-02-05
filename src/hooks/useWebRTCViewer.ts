@@ -146,12 +146,13 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
+      // Send SDP as plain object with type and sdp string
       await supabaseShared.from("webrtc_signaling").insert({
         device_id: deviceId,
         session_id: sessionId,
         type: "offer",
         sender_type: "viewer",
-        data: { sdp: offer },
+        data: { sdp: { type: offer.type, sdp: offer.sdp } },
       });
 
       console.log("[WebRTC Viewer] Sent offer");

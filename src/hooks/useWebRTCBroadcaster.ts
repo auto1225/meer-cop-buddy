@@ -71,13 +71,14 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     // Handle ICE candidates
     pc.onicecandidate = async (event) => {
       if (event.candidate) {
-        console.log("[WebRTC Broadcaster] Sending ICE candidate");
+        const candidateJson = event.candidate.toJSON();
+        console.log("[WebRTC Broadcaster] Sending ICE candidate:", candidateJson.candidate?.substring(0, 50));
         await supabaseShared.from("webrtc_signaling").insert({
           device_id: currentDeviceId,
           session_id: sessionId,
           type: "ice-candidate",
           sender_type: "broadcaster",
-          data: { candidate: event.candidate.toJSON() },
+          data: { candidate: candidateJson },
         });
       }
     };
@@ -97,12 +98,13 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
+      // Send SDP as plain object with type and sdp string
       await supabaseShared.from("webrtc_signaling").insert({
         device_id: currentDeviceId,
         session_id: sessionId,
         type: "offer",
         sender_type: "broadcaster",
-        data: { sdp: offer },
+        data: { sdp: { type: offer.type, sdp: offer.sdp } },
       });
 
       console.log(`[WebRTC Broadcaster] Sent offer to ${sessionId}`);
