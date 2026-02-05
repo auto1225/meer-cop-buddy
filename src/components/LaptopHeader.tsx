@@ -23,7 +23,6 @@ export function LaptopHeader({ onMenuClick, onNotificationClick }: LaptopHeaderP
 
         {/* Center - Logo */}
         <div className="text-center flex flex-col items-center">
-          <span className="text-[7px] text-foreground/70 font-medium leading-tight">MeerCOP ver 1.0.6</span>
           <img 
             src={meercopLogo} 
             alt="MeerCOP" 
