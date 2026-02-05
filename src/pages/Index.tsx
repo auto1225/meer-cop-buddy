@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
 import { LaptopStatusMessage } from "@/components/LaptopStatusMessage";
-import { CloudBackground } from "@/components/CloudBackground";
 import { LaptopMascotSection } from "@/components/LaptopMascotSection";
 import { DeviceNameBadge } from "@/components/DeviceNameBadge";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { useDevices } from "@/hooks/useDevices";
 import { supabase } from "@/integrations/supabase/client";
+import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -74,19 +74,23 @@ const Index = () => {
 
   return (
     <ResizableContainer
-      initialWidth={400}
-      initialHeight={300}
-      minWidth={280}
-      minHeight={210}
-      maxWidth={800}
-      maxHeight={600}
-      baseWidth={400}
-      baseHeight={300}
+      initialWidth={300}
+      initialHeight={520}
+      minWidth={200}
+      minHeight={347}
+      maxWidth={450}
+      maxHeight={780}
+      baseWidth={300}
+      baseHeight={520}
     >
-      <div className="w-full h-full sky-background flex flex-col relative overflow-hidden">
-        {/* Cloud Background */}
-        <CloudBackground />
-
+      <div 
+        className="w-full h-full flex flex-col relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${mainBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center bottom',
+        }}
+      >
         {/* Side Menu */}
         <SideMenu
           isOpen={isSideMenuOpen}
