@@ -12,12 +12,12 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
   // Determine which mascot image to show and its size class
   const getMascotConfig = () => {
     if (isAlarming) {
-      // Alert state - megaphone meercat (scale up to match idle size)
-      return { image: meercopAlert, sizeClass: "h-44" };
+      // Alert state - megaphone meercat (scale up to match idle size visually)
+      return { image: meercopAlert, sizeClass: "h-52" };
     }
     if (isMonitoring) {
-      // Monitoring state - binoculars meercat (scale up to match idle size)
-      return { image: meercopMonitoring, sizeClass: "h-44" };
+      // Monitoring state - binoculars meercat (scale up to match idle size visually)
+      return { image: meercopMonitoring, sizeClass: "h-52" };
     }
     // Idle state - base reference size
     return { image: meercopIdle, sizeClass: "h-40" };
