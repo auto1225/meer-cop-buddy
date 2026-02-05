@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
@@ -7,9 +7,12 @@ import { DeviceNameBadge } from "@/components/DeviceNameBadge";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { CameraModal } from "@/components/CameraModal";
+import { AlertOverlay } from "@/components/AlertOverlay";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
+import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
+import { useAlarmSystem } from "@/hooks/useAlarmSystem";
 import { supabase } from "@/integrations/supabase/client";
 import mainBg from "@/assets/main-bg.png";
 
@@ -20,8 +23,46 @@ const Index = () => {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+  const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices();
   const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus();
+
+  // Alarm system
+  const { 
+    isAlarmEnabled, 
+    isAlarming, 
+    toggleAlarmEnabled, 
+    startAlarm, 
+    stopAlarm 
+  } = useAlarmSystem();
+
+  // Security event handler
+  const handleSecurityEvent = useCallback((event: SecurityEvent) => {
+    console.log("[Security] Event detected:", event.type, "Photos:", event.photos.length);
+    setCurrentEventType(event.type);
+    startAlarm();
+    
+    // TODO: Send event and photos to MeerCOP mobile app via Supabase
+    // This would involve uploading photos to storage and creating an alert record
+  }, [startAlarm]);
+
+  // Security surveillance
+  const { 
+    isActive: isSurveillanceActive,
+    startSurveillance, 
+    stopSurveillance 
+  } = useSecuritySurveillance({
+    onEventDetected: handleSecurityEvent,
+    bufferDuration: 10, // Keep 10 seconds of photos
+    captureInterval: 1000, // Capture every 1 second
+    mouseSensitivity: 50, // Require 50px movement to trigger
+  });
+
+  // Handle alarm dismiss
+  const handleAlarmDismiss = useCallback(() => {
+    stopAlarm();
+    setCurrentEventType(undefined);
+  }, [stopAlarm]);
 
   // Redirect to auth if not authenticated
   useEffect(() => {
@@ -44,12 +85,20 @@ const Index = () => {
     }
   }, [devices, currentDeviceId]);
 
-  // Sync monitoring status with device status
+  // Sync monitoring status with device status and start/stop surveillance
   useEffect(() => {
     if (currentDevice) {
-      setIsMonitoring(currentDevice.status === "online");
+      const newMonitoringState = currentDevice.status === "online";
+      setIsMonitoring(newMonitoringState);
+      
+      // Start or stop surveillance based on monitoring state
+      if (newMonitoringState && !isSurveillanceActive) {
+        startSurveillance();
+      } else if (!newMonitoringState && isSurveillanceActive) {
+        stopSurveillance();
+      }
     }
-  }, [currentDevice?.status]);
+  }, [currentDevice?.status, isSurveillanceActive, startSurveillance, stopSurveillance]);
 
   const handleDeviceSelect = (deviceId: string) => {
     setCurrentDeviceId(deviceId);
@@ -113,6 +162,13 @@ const Index = () => {
           backgroundPosition: 'center bottom',
         }}
       >
+        {/* Alert Overlay - shows when alarm is triggered */}
+        <AlertOverlay
+          isActive={isAlarming}
+          onDismiss={handleAlarmDismiss}
+          eventType={currentEventType}
+        />
+
         {/* Side Menu */}
         <SideMenu
           isOpen={isSideMenuOpen}
@@ -126,6 +182,8 @@ const Index = () => {
         {/* Header */}
         <LaptopHeader 
           onMenuClick={() => setIsSideMenuOpen(true)}
+          soundEnabled={isAlarmEnabled}
+          onSoundToggle={toggleAlarmEnabled}
         />
 
         {/* Device Name Badge */}
@@ -149,7 +207,10 @@ const Index = () => {
         />
 
         {/* Mascot Section with Speech Bubble */}
-        <LaptopMascotSection isMonitoring={isMonitoring} />
+        <LaptopMascotSection 
+          isMonitoring={isMonitoring} 
+          isAlarming={isAlarming}
+        />
       </div>
     </ResizableContainer>
   );

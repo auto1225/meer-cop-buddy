@@ -3,22 +3,14 @@ import { Button } from "@/components/ui/button";
 import meercopLogo from "@/assets/meercop-logo.png";
 import soundOn from "@/assets/sound-on.png";
 import soundOff from "@/assets/sound-off.png";
-import { useState } from "react";
 
 interface LaptopHeaderProps {
   onMenuClick?: () => void;
-  onSoundToggle?: (enabled: boolean) => void;
+  soundEnabled?: boolean;
+  onSoundToggle?: () => void;
 }
 
-export function LaptopHeader({ onMenuClick, onSoundToggle }: LaptopHeaderProps) {
-  const [soundEnabled, setSoundEnabled] = useState(false);
-
-  const handleSoundToggle = () => {
-    const newState = !soundEnabled;
-    setSoundEnabled(newState);
-    onSoundToggle?.(newState);
-  };
-
+export function LaptopHeader({ onMenuClick, soundEnabled = true, onSoundToggle }: LaptopHeaderProps) {
   return (
     <header className="relative z-20 px-3 py-1.5">
       <div className="flex items-center justify-between">
@@ -41,16 +33,16 @@ export function LaptopHeader({ onMenuClick, onSoundToggle }: LaptopHeaderProps) 
           />
         </div>
 
-        {/* Right - Sound Toggle */}
+        {/* Right - Sound Toggle (alarm enable/disable) */}
         <Button 
           variant="ghost" 
           size="icon" 
           className="hover:bg-white/20 h-8 w-8"
-          onClick={handleSoundToggle}
+          onClick={onSoundToggle}
         >
           <img 
             src={soundEnabled ? soundOn : soundOff} 
-            alt={soundEnabled ? "Sound On" : "Sound Off"} 
+            alt={soundEnabled ? "경보음 켜짐" : "경보음 꺼짐"} 
             className="h-5 w-5 object-contain"
           />
         </Button>
