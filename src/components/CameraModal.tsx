@@ -15,6 +15,7 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarted, setIsStarted] = useState(false);
+  const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
 
   // Cleanup on close
   useEffect(() => {
@@ -31,6 +32,19 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     try {
       setError(null);
       setIsStarted(true);
+      
+      // First enumerate devices to debug
+      if (navigator.mediaDevices?.enumerateDevices) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === "videoinput");
+        setAvailableDevices(videoDevices);
+        console.log("Available video devices:", videoDevices);
+        
+        if (videoDevices.length === 0) {
+          setError("감지된 카메라가 없습니다. 브라우저가 카메라에 접근할 수 있는지 확인해주세요.\n\n(Lovable 프리뷰에서는 카메라가 차단될 수 있습니다. 앱을 퍼블리시한 후 테스트해주세요.)");
+          return;
+        }
+      }
       
       // getUserMedia called directly in click handler - no intermediate async
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -50,11 +64,13 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
       onCameraStatusChange(false);
       
       if (err.name === "NotAllowedError") {
-        setError("카메라 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.");
+        setError("카메라 권한이 거부되었습니다.\n\n브라우저 설정에서 권한을 허용해주세요.");
       } else if (err.name === "NotFoundError") {
-        setError("카메라를 찾을 수 없습니다. USB 카메라가 연결되어 있는지 확인해주세요.");
+        setError("카메라를 찾을 수 없습니다.\n\n• USB 카메라가 제대로 연결되어 있는지 확인해주세요.\n• 다른 앱이 카메라를 사용 중인지 확인해주세요.\n• Lovable 프리뷰에서는 카메라가 차단될 수 있습니다. 앱을 퍼블리시한 후 테스트해주세요.");
+      } else if (err.name === "NotReadableError") {
+        setError("카메라가 이미 사용 중입니다.\n\n다른 앱에서 카메라를 사용하고 있는지 확인해주세요.");
       } else {
-        setError(`카메라 오류: ${err.message || "접근할 수 없습니다."}`);
+        setError(`카메라 오류: ${err.name}\n${err.message || "접근할 수 없습니다."}`);
       }
     }
   };
