@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Camera } from "lucide-react";
+import { X, Camera, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CameraModalProps {
@@ -14,36 +14,29 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isStarted, setIsStarted] = useState(false);
 
+  // Cleanup on close
   useEffect(() => {
-    if (isOpen) {
-      startCamera();
-    }
-
-    return () => {
+    if (!isOpen) {
       stopCamera();
-    };
+      setIsStarted(false);
+      setSnapshot(null);
+      setError(null);
+    }
   }, [isOpen]);
 
-  const startCamera = async () => {
+  // CRITICAL: This must be called directly from a click handler
+  const handleStartCamera = async () => {
     try {
       setError(null);
+      setIsStarted(true);
       
-      // First, try to get any available camera (removes facingMode restriction for USB cameras)
-      let mediaStream: MediaStream | null = null;
-      
-      try {
-        // Try with basic video constraint first (works better with USB cameras)
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: true,
-          audio: false
-        });
-      } catch {
-        // If that fails, try with specific constraints
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: "environment" }
-        });
-      }
+      // getUserMedia called directly in click handler - no intermediate async
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: true,
+        audio: false
+      });
       
       setStream(mediaStream);
       onCameraStatusChange(true);
@@ -59,9 +52,9 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
       if (err.name === "NotAllowedError") {
         setError("카메라 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.");
       } else if (err.name === "NotFoundError") {
-        setError("카메라를 찾을 수 없습니다.");
+        setError("카메라를 찾을 수 없습니다. USB 카메라가 연결되어 있는지 확인해주세요.");
       } else {
-        setError("카메라에 접근할 수 없습니다.");
+        setError(`카메라 오류: ${err.message || "접근할 수 없습니다."}`);
       }
     }
   };
@@ -103,6 +96,7 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     stopCamera();
     setSnapshot(null);
     setError(null);
+    setIsStarted(false);
     onClose();
   };
 
@@ -126,9 +120,31 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {error ? (
-            <div className="aspect-video bg-black/50 rounded-xl flex items-center justify-center">
+          {!isStarted ? (
+            // Initial state - show button to start camera (direct user gesture)
+            <div className="aspect-video bg-black/50 rounded-xl flex flex-col items-center justify-center gap-4">
+              <Video className="w-12 h-12 text-white/50" />
+              <p className="text-white/70 text-center px-4">
+                카메라를 시작하려면 아래 버튼을 눌러주세요
+              </p>
+              <Button
+                onClick={handleStartCamera}
+                className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold"
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                카메라 시작
+              </Button>
+            </div>
+          ) : error ? (
+            <div className="aspect-video bg-black/50 rounded-xl flex flex-col items-center justify-center gap-4">
               <p className="text-white/70 text-center px-4">{error}</p>
+              <Button
+                onClick={handleStartCamera}
+                variant="outline"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              >
+                다시 시도
+              </Button>
             </div>
           ) : snapshot ? (
             <div className="space-y-4">
@@ -160,7 +176,7 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
                 autoPlay
                 playsInline
                 muted
-                className="w-full rounded-xl bg-black"
+                className="w-full rounded-xl bg-black aspect-video"
               />
               <Button
                 onClick={takeSnapshot}
