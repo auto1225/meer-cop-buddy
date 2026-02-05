@@ -59,19 +59,17 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     setIsSaving(true);
     try {
       if (isNewDevice) {
-        // Create new device
-        const deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Create new device - only use fields that exist in the external DB
         const { error } = await supabaseShared
           .from("devices")
           .insert({
-            device_id: deviceId,
             device_name: deviceName,
             device_type: settings.deviceType,
             status: "offline",
             metadata: {
               sensorSettings: settings,
             },
-          });
+          } as any);
 
         if (error) throw error;
 
