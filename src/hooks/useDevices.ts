@@ -77,7 +77,7 @@ export function useDevices() {
       .subscribe();
 
     return () => {
-      supabaseShared.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
   }, [fetchDevices]);
 
