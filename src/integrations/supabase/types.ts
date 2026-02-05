@@ -46,6 +46,35 @@ export type Database = {
           },
         ]
       }
+      camera_snapshots: {
+        Row: {
+          created_at: string
+          device_id: string
+          id: string
+          image_url: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          id?: string
+          image_url: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          image_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "camera_snapshots_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           app_version: string | null

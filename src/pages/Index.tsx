@@ -205,6 +205,7 @@ const Index = () => {
           isOpen={isCameraModalOpen}
           onClose={() => setIsCameraModalOpen(false)}
           onCameraStatusChange={setCameraAvailable}
+          deviceId={currentDevice?.id}
         />
 
         {/* Mascot Section with Speech Bubble */}
