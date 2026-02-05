@@ -34,14 +34,13 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     }
   }, [stream]);
 
-  // Direct click handler - getUserMedia MUST be first
+  // Direct click handler - getUserMedia MUST be the FIRST thing called
   const handleStartCamera = async () => {
-    setError(null);
-    setIsStarted(true);
+    console.log("[CameraModal] Button clicked, requesting camera immediately...");
     
     try {
-      console.log("[CameraModal] Requesting camera...");
-      
+      // CRITICAL: getUserMedia must be the VERY FIRST async operation
+      // No state updates before this!
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: true,
         audio: false
@@ -49,10 +48,14 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
       
       console.log("[CameraModal] Got stream:", mediaStream.getVideoTracks().map(t => `${t.label} (${t.readyState})`));
       
+      // Only update state AFTER successfully getting the stream
+      setError(null);
       setStream(mediaStream);
+      setIsStarted(true);
       onCameraStatusChange(true);
     } catch (err: any) {
       console.error("[CameraModal] Camera error:", err.name, err.message);
+      setIsStarted(true);
       onCameraStatusChange(false);
       
       if (err.name === "NotAllowedError") {
