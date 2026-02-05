@@ -25,7 +25,13 @@ const Index = () => {
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices();
-  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus();
+  
+  // Get the current device
+  const currentDevice = currentDeviceId 
+    ? devices.find(d => d.id === currentDeviceId) 
+    : devices[0];
+  
+  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id);
 
   // Alarm system
   const { 
@@ -70,11 +76,6 @@ const Index = () => {
       navigate("/auth");
     }
   }, [isAuthenticated, authLoading, navigate]);
-  
-  // Get the current device
-  const currentDevice = currentDeviceId 
-    ? devices.find(d => d.id === currentDeviceId) 
-    : devices[0];
 
   // Set initial device
   useEffect(() => {

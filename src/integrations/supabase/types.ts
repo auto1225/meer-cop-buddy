@@ -56,7 +56,9 @@ export type Database = {
           device_type: string
           id: string
           ip_address: string | null
+          is_camera_connected: boolean | null
           is_charging: boolean | null
+          is_network_connected: boolean | null
           last_seen_at: string | null
           metadata: Json | null
           os_info: string | null
@@ -72,7 +74,9 @@ export type Database = {
           device_type?: string
           id?: string
           ip_address?: string | null
+          is_camera_connected?: boolean | null
           is_charging?: boolean | null
+          is_network_connected?: boolean | null
           last_seen_at?: string | null
           metadata?: Json | null
           os_info?: string | null
@@ -88,7 +92,9 @@ export type Database = {
           device_type?: string
           id?: string
           ip_address?: string | null
+          is_camera_connected?: boolean | null
           is_charging?: boolean | null
+          is_network_connected?: boolean | null
           last_seen_at?: string | null
           metadata?: Json | null
           os_info?: string | null

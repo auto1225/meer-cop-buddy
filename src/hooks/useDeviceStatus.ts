@@ -1,24 +1,58 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabaseShared } from "@/lib/supabase";
 
 interface DeviceStatus {
   isNetworkConnected: boolean;
   isCameraAvailable: boolean;
 }
 
-export function useDeviceStatus() {
+export function useDeviceStatus(deviceId?: string) {
   const [status, setStatus] = useState<DeviceStatus>({
     isNetworkConnected: navigator.onLine,
     isCameraAvailable: false,
   });
+  
+  const deviceIdRef = useRef(deviceId);
+  deviceIdRef.current = deviceId;
+
+  // Update DB with current status
+  const updateDeviceStatusInDB = useCallback(async (
+    networkConnected: boolean, 
+    cameraConnected: boolean
+  ) => {
+    const currentDeviceId = deviceIdRef.current;
+    if (!currentDeviceId) return;
+
+    try {
+      await supabaseShared
+        .from("devices")
+        .update({
+          is_network_connected: networkConnected,
+          is_camera_connected: cameraConnected,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", currentDeviceId);
+    } catch (error) {
+      console.error("Failed to update device status in DB:", error);
+    }
+  }, []);
 
   useEffect(() => {
     // Network connectivity detection
     const handleOnline = () => {
-      setStatus((prev) => ({ ...prev, isNetworkConnected: true }));
+      setStatus((prev) => {
+        const newStatus = { ...prev, isNetworkConnected: true };
+        updateDeviceStatusInDB(true, prev.isCameraAvailable);
+        return newStatus;
+      });
     };
 
     const handleOffline = () => {
-      setStatus((prev) => ({ ...prev, isNetworkConnected: false }));
+      setStatus((prev) => {
+        const newStatus = { ...prev, isNetworkConnected: false };
+        updateDeviceStatusInDB(false, prev.isCameraAvailable);
+        return newStatus;
+      });
     };
 
     window.addEventListener("online", handleOnline);
@@ -28,7 +62,7 @@ export function useDeviceStatus() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, []);
+  }, [updateDeviceStatusInDB]);
 
   // Auto-detect camera availability using enumerateDevices (no permission needed)
   useEffect(() => {
@@ -44,7 +78,12 @@ export function useDeviceStatus() {
         const hasCamera = devices.some(device => device.kind === "videoinput");
         
         if (isMounted) {
-          setStatus((prev) => ({ ...prev, isCameraAvailable: hasCamera }));
+          setStatus((prev) => {
+            if (prev.isCameraAvailable !== hasCamera) {
+              updateDeviceStatusInDB(prev.isNetworkConnected, hasCamera);
+            }
+            return { ...prev, isCameraAvailable: hasCamera };
+          });
         }
       } catch (error) {
         console.log("Camera detection failed:", error);
@@ -69,11 +108,21 @@ export function useDeviceStatus() {
         navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
       }
     };
-  }, []);
+  }, [updateDeviceStatusInDB]);
+
+  // Initial sync to DB when deviceId becomes available
+  useEffect(() => {
+    if (deviceId) {
+      updateDeviceStatusInDB(status.isNetworkConnected, status.isCameraAvailable);
+    }
+  }, [deviceId, updateDeviceStatusInDB, status.isNetworkConnected, status.isCameraAvailable]);
 
   const setCameraAvailable = useCallback((available: boolean) => {
-    setStatus((prev) => ({ ...prev, isCameraAvailable: available }));
-  }, []);
+    setStatus((prev) => {
+      updateDeviceStatusInDB(prev.isNetworkConnected, available);
+      return { ...prev, isCameraAvailable: available };
+    });
+  }, [updateDeviceStatusInDB]);
 
   return {
     isNetworkConnected: status.isNetworkConnected,
