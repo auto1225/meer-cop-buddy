@@ -5,6 +5,7 @@ import { StatusMessage } from "@/components/StatusMessage";
 import { ToggleButton } from "@/components/ToggleButton";
 import { CloudBackground } from "@/components/CloudBackground";
 import { MascotSection } from "@/components/MascotSection";
+import { ResizableContainer } from "@/components/ResizableContainer";
 import { useDevices } from "@/hooks/useDevices";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -66,7 +67,15 @@ const Index = () => {
   }, [currentDevice?.status]);
 
   return (
-    <div className="w-[400px] h-[400px] mx-auto sky-background flex flex-col relative overflow-hidden">
+    <ResizableContainer
+      initialWidth={480}
+      initialHeight={320}
+      minWidth={320}
+      minHeight={240}
+      maxWidth={800}
+      maxHeight={600}
+    >
+      <div className="w-full h-full sky-background flex flex-col relative overflow-hidden">
         {/* Cloud Background */}
         <CloudBackground />
 
@@ -99,7 +108,8 @@ const Index = () => {
 
         {/* Toggle Button */}
         <ToggleButton isOn={isMonitoring} onToggle={handleToggle} />
-    </div>
+      </div>
+    </ResizableContainer>
   );
 };
 
