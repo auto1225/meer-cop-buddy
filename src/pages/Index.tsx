@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
@@ -36,15 +36,15 @@ const Index = () => {
     stopAlarm 
   } = useAlarmSystem();
 
-  // Security event handler
+  // Security event handler - use ref to avoid recreating callback
+  const startAlarmRef = useRef(startAlarm);
+  startAlarmRef.current = startAlarm;
+
   const handleSecurityEvent = useCallback((event: SecurityEvent) => {
     console.log("[Security] Event detected:", event.type, "Photos:", event.photos.length);
     setCurrentEventType(event.type);
-    startAlarm();
-    
-    // TODO: Send event and photos to MeerCOP mobile app via Supabase
-    // This would involve uploading photos to storage and creating an alert record
-  }, [startAlarm]);
+    startAlarmRef.current();
+  }, []);
 
   // Security surveillance
   const { 
@@ -53,9 +53,9 @@ const Index = () => {
     stopSurveillance 
   } = useSecuritySurveillance({
     onEventDetected: handleSecurityEvent,
-    bufferDuration: 10, // Keep 10 seconds of photos
-    captureInterval: 1000, // Capture every 1 second
-    mouseSensitivity: 50, // Require 50px movement to trigger
+    bufferDuration: 10,
+    captureInterval: 1000,
+    mouseSensitivity: 50,
   });
 
   // Handle alarm dismiss
@@ -75,8 +75,6 @@ const Index = () => {
   const currentDevice = currentDeviceId 
     ? devices.find(d => d.id === currentDeviceId) 
     : devices[0];
-  
-  const isOnline = currentDevice?.status === "online";
 
   // Set initial device
   useEffect(() => {
@@ -85,7 +83,7 @@ const Index = () => {
     }
   }, [devices, currentDeviceId]);
 
-  // Sync monitoring status with device status and start/stop surveillance
+  // Sync monitoring status with device status
   useEffect(() => {
     if (currentDevice) {
       const newMonitoringState = currentDevice.status === "online";
@@ -93,23 +91,22 @@ const Index = () => {
     }
   }, [currentDevice?.status]);
 
-  // Start/stop surveillance based on monitoring state (separate effect to avoid loops)
+  // Start/stop surveillance based on monitoring state
   useEffect(() => {
     if (isMonitoring && !isSurveillanceActive) {
       startSurveillance();
     } else if (!isMonitoring && isSurveillanceActive) {
       stopSurveillance();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMonitoring]);
+  }, [isMonitoring, isSurveillanceActive, startSurveillance, stopSurveillance]);
 
-  const handleDeviceSelect = (deviceId: string) => {
+  const handleDeviceSelect = useCallback((deviceId: string) => {
     setCurrentDeviceId(deviceId);
     const device = devices.find(d => d.id === deviceId);
     if (device) {
       setIsMonitoring(device.status === "online");
     }
-  };
+  }, [devices]);
 
   // Subscribe to realtime status changes
   useEffect(() => {
@@ -126,7 +123,6 @@ const Index = () => {
           filter: `id=eq.${currentDevice.id}`,
         },
         (payload) => {
-          // Shared DB uses is_monitoring field
           const isMonitoringNow = (payload.new as { is_monitoring: boolean }).is_monitoring;
           setIsMonitoring(isMonitoringNow);
         }
@@ -138,7 +134,7 @@ const Index = () => {
     };
   }, [currentDevice?.id]);
 
-  // Show loading while checking auth
+  // Show loading while checking auth - ALL HOOKS MUST BE ABOVE THIS LINE
   if (authLoading) {
     return (
       <div className="min-h-screen sky-background flex items-center justify-center">
