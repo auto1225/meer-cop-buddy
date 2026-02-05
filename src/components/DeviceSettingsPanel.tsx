@@ -61,17 +61,16 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
       if (isNewDevice) {
         // Create new device
         const deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const insertData = {
+          device_id: deviceId,
+          device_name: deviceName,
+          device_type: settings.deviceType,
+          status: "offline",
+          metadata: JSON.parse(JSON.stringify({ sensorSettings: settings })),
+        };
         const { error } = await supabase
           .from("devices")
-          .insert({
-            device_id: deviceId,
-            device_name: deviceName,
-            device_type: settings.deviceType,
-            status: "offline",
-            metadata: {
-              sensorSettings: settings,
-            },
-          });
+          .insert(insertData);
 
         if (error) throw error;
 
@@ -81,16 +80,17 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
         });
       } else if (device) {
         // Update existing device
+        const updateData = {
+          device_name: deviceName,
+          device_type: settings.deviceType,
+          metadata: JSON.parse(JSON.stringify({
+            ...(device.metadata || {}),
+            sensorSettings: settings,
+          })),
+        };
         const { error } = await supabase
           .from("devices")
-          .update({
-            device_name: deviceName,
-            device_type: settings.deviceType,
-            metadata: {
-              ...(device.metadata as Record<string, unknown> || {}),
-              sensorSettings: settings,
-            },
-          })
+          .update(updateData)
           .eq("id", device.id);
 
         if (error) throw error;
