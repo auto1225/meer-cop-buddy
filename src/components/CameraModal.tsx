@@ -15,7 +15,6 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarted, setIsStarted] = useState(false);
-  const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
 
   // Cleanup on close
   useEffect(() => {
@@ -27,45 +26,43 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     }
   }, [isOpen]);
 
-  // CRITICAL: getUserMedia must be first async call in click handler
+  // Set video srcObject when stream changes - same pattern as woojoojoochawebsite
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      console.log("[CameraModal] Attaching stream to video element");
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  // Direct click handler - getUserMedia MUST be first
   const handleStartCamera = async () => {
     setError(null);
+    setIsStarted(true);
     
     try {
-      // Request camera FIRST before any state updates
+      console.log("[CameraModal] Requesting camera...");
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
+        video: true,
         audio: false
       });
       
-      console.log("Camera stream obtained:", mediaStream.getVideoTracks().map(t => t.label));
+      console.log("[CameraModal] Got stream:", mediaStream.getVideoTracks().map(t => `${t.label} (${t.readyState})`));
       
       setStream(mediaStream);
-      setIsStarted(true);
       onCameraStatusChange(true);
-      
-      // Set srcObject after state update
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
-      }, 0);
     } catch (err: any) {
-      console.error("Camera error:", err);
-      setIsStarted(true);
+      console.error("[CameraModal] Camera error:", err.name, err.message);
       onCameraStatusChange(false);
       
       if (err.name === "NotAllowedError") {
-        setError("카메라 권한이 거부되었습니다.\n\n브라우저 설정에서 권한을 허용해주세요.");
+        setError("카메라 권한이 거부되었습니다.\n\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하여 카메라 권한을 허용해주세요.");
       } else if (err.name === "NotFoundError") {
-        setError("카메라를 찾을 수 없습니다.\n\nUSB 카메라가 연결되어 있는지 확인해주세요.");
+        setError("카메라를 찾을 수 없습니다.\n\n다른 브라우저(Chrome 권장)에서 시도해보세요.");
       } else if (err.name === "NotReadableError") {
-        setError("카메라가 이미 사용 중입니다.\n\n다른 앱에서 카메라를 사용하고 있는지 확인해주세요.");
+        setError("카메라가 이미 사용 중입니다.\n\n다른 앱이나 탭에서 카메라를 종료해주세요.");
       } else {
-        setError(`카메라 오류: ${err.name}\n${err.message || "접근할 수 없습니다."}`);
+        setError(`카메라 오류: ${err.name}\n${err.message}`);
       }
     }
   };
