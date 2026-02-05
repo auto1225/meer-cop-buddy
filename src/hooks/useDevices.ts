@@ -2,23 +2,19 @@ import { useState, useEffect, useCallback } from "react";
 import { supabaseShared } from "@/lib/supabase";
 // Using shared Supabase client (same as MeerCOP mobile app)
 
-// Actual DB schema
+// Smartphone DB schema (sltxwkdvaapyeosikegj.supabase.co)
 interface Device {
   id: string;
-  device_id: string;
-  device_name: string;
+  user_id: string;
+  name: string;  // Smartphone DB uses 'name', not 'device_name'
   device_type: string;
   status: string;
+  is_monitoring: boolean;
   is_camera_connected: boolean | null;
   is_network_connected: boolean | null;
   is_streaming_requested: boolean | null;
-  is_charging: boolean | null;
   battery_level: number | null;
   last_seen_at: string | null;
-  ip_address: string | null;
-  os_info: string | null;
-  app_version: string | null;
-  metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,21 +35,21 @@ export interface DeviceCompat {
   metadata: Record<string, unknown> | null;
 }
 
-// Convert DB device to compatible format for components
+// Convert smartphone DB device to compatible format for components
 function toCompatDevice(d: Device): DeviceCompat {
   return {
     id: d.id,
-    device_id: d.device_id,
-    device_name: d.device_name,
+    device_id: d.id,  // Use id as device_id for compatibility
+    device_name: d.name,  // Map 'name' to 'device_name'
     device_type: d.device_type,
-    status: d.status,
+    status: d.is_monitoring ? "online" : d.status,
     last_seen_at: d.last_seen_at,
     battery_level: d.battery_level,
-    is_charging: d.is_charging || false,
-    ip_address: d.ip_address,
-    os_info: d.os_info,
-    app_version: d.app_version,
-    metadata: d.metadata,
+    is_charging: false,
+    ip_address: null,
+    os_info: null,
+    app_version: null,
+    metadata: null,
   };
 }
 
@@ -123,8 +119,8 @@ export function useDevices() {
 
   const stats = {
     total: devices.length,
-    online: devices.filter((d) => d.status === "online").length,
-    offline: devices.filter((d) => d.status !== "online").length,
+    online: devices.filter((d) => d.is_monitoring || d.status === "online").length,
+    offline: devices.filter((d) => !d.is_monitoring && d.status !== "online").length,
     lowBattery: devices.filter(
       (d) => d.battery_level !== null && d.battery_level < 20
     ).length,

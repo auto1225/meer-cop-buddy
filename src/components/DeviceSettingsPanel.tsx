@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { SensorSettings, DEFAULT_SENSOR_SETTINGS } from "@/hooks/useSensorDetection";
 
 interface Device {
@@ -24,6 +25,7 @@ interface DeviceSettingsPanelProps {
 
 export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUpdate }: DeviceSettingsPanelProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [deviceName, setDeviceName] = useState(device?.device_name || "");
   const [isSaving, setIsSaving] = useState(false);
   
@@ -59,16 +61,18 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     setIsSaving(true);
     try {
       if (isNewDevice) {
-        // Create new device
-        const deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Create new device in smartphone DB schema
+        if (!user?.id) {
+          throw new Error("로그인이 필요합니다.");
+        }
         const insertData = {
-          device_id: deviceId,
-          device_name: deviceName,
+          user_id: user.id,
+          name: deviceName,  // Smartphone DB uses 'name'
           device_type: settings.deviceType,
           status: "offline",
-          metadata: JSON.parse(JSON.stringify({ sensorSettings: settings })),
+          is_monitoring: false,
         };
-        const { error } = await supabase
+        const { error } = await supabaseShared
           .from("devices")
           .insert(insertData);
 
@@ -79,16 +83,12 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
           description: "새 디바이스가 등록되었습니다.",
         });
       } else if (device) {
-        // Update existing device
+        // Update existing device in smartphone DB schema
         const updateData = {
-          device_name: deviceName,
+          name: deviceName,  // Smartphone DB uses 'name'
           device_type: settings.deviceType,
-          metadata: JSON.parse(JSON.stringify({
-            ...(device.metadata || {}),
-            sensorSettings: settings,
-          })),
         };
-        const { error } = await supabase
+        const { error } = await supabaseShared
           .from("devices")
           .update(updateData)
           .eq("id", device.id);

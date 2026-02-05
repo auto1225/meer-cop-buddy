@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 export function useDarkMode(deviceId?: string) {
@@ -22,7 +22,7 @@ export function useDarkMode(deviceId?: string) {
 
     try {
       // Update device metadata with dark mode state
-      const { error } = await supabase
+      const { error } = await supabaseShared
         .from("devices")
         .update({ 
           metadata: { dark_mode: newDarkMode }
@@ -32,7 +32,7 @@ export function useDarkMode(deviceId?: string) {
       if (error) throw error;
 
       // Log the activity
-      await supabase.from("activity_logs").insert({
+      await supabaseShared.from("activity_logs").insert({
         device_id: deviceId,
         event_type: newDarkMode ? "dark_mode_on" : "dark_mode_off",
         event_data: { triggered_by: "web_app" },
