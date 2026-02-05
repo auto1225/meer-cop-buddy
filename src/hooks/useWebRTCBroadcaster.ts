@@ -39,13 +39,20 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     }
   }, []);
 
-  // Create peer connection for a viewer
-  const createPeerConnection = useCallback(async (sessionId: string) => {
+  // Create peer connection for a viewer and send offer
+  const createPeerConnectionAndOffer = useCallback(async (sessionId: string) => {
     if (!streamRef.current) {
       console.error("[WebRTC Broadcaster] No stream available");
       return null;
     }
 
+    // Check if peer already exists
+    if (peersRef.current.has(sessionId)) {
+      console.log(`[WebRTC Broadcaster] Peer ${sessionId} already exists`);
+      return peersRef.current.get(sessionId)!.pc;
+    }
+
+    console.log(`[WebRTC Broadcaster] Creating peer connection for ${sessionId}`);
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     // Add local stream tracks
@@ -77,36 +84,50 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     peersRef.current.set(sessionId, { sessionId, pc });
     setViewerCount(peersRef.current.size);
 
-    return pc;
-  }, [deviceId, cleanupPeer]);
-
-  // Handle incoming offer from viewer
-  const handleOffer = useCallback(async (sessionId: string, offer: RTCSessionDescriptionInit) => {
-    console.log(`[WebRTC Broadcaster] Received offer from ${sessionId}`);
-
-    const pc = await createPeerConnection(sessionId);
-    if (!pc) return;
-
+    // Create and send offer
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
 
-      // Send answer
       await supabaseShared.from("webrtc_signaling").insert({
         device_id: deviceId,
         session_id: sessionId,
-        type: "answer",
+        type: "offer",
         sender_type: "broadcaster",
-        data: { sdp: answer },
+        data: { sdp: offer },
       });
 
-      console.log(`[WebRTC Broadcaster] Sent answer to ${sessionId}`);
+      console.log(`[WebRTC Broadcaster] Sent offer to ${sessionId}`);
     } catch (err) {
-      console.error("[WebRTC Broadcaster] Error handling offer:", err);
+      console.error("[WebRTC Broadcaster] Error creating offer:", err);
       cleanupPeer(sessionId);
+      return null;
     }
-  }, [deviceId, createPeerConnection, cleanupPeer]);
+
+    return pc;
+  }, [deviceId, cleanupPeer]);
+
+  // Handle viewer join - create offer and send it
+  const handleViewerJoin = useCallback(async (sessionId: string) => {
+    console.log(`[WebRTC Broadcaster] Viewer joined: ${sessionId}`);
+    await createPeerConnectionAndOffer(sessionId);
+  }, [createPeerConnectionAndOffer]);
+
+  // Handle incoming answer from viewer
+  const handleAnswer = useCallback(async (sessionId: string, answer: RTCSessionDescriptionInit) => {
+    console.log(`[WebRTC Broadcaster] Received answer from ${sessionId}`);
+    
+    const peer = peersRef.current.get(sessionId);
+    if (peer) {
+      try {
+        await peer.pc.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log(`[WebRTC Broadcaster] Set remote description for ${sessionId}`);
+      } catch (err) {
+        console.error("[WebRTC Broadcaster] Error setting remote description:", err);
+        cleanupPeer(sessionId);
+      }
+    }
+  }, [cleanupPeer]);
 
   // Handle incoming ICE candidate from viewer
   const handleIceCandidate = useCallback(async (sessionId: string, candidate: RTCIceCandidateInit) => {
@@ -156,8 +177,10 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           // Only process messages from viewers
           if (record.sender_type !== "viewer") return;
 
-          if (record.type === "offer") {
-            await handleOffer(record.session_id, record.data.sdp);
+          if (record.type === "viewer-join") {
+            await handleViewerJoin(record.session_id);
+          } else if (record.type === "answer") {
+            await handleAnswer(record.session_id, record.data.sdp);
           } else if (record.type === "ice-candidate") {
             await handleIceCandidate(record.session_id, record.data.candidate);
           }
@@ -168,7 +191,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     channelRef.current = channel;
     setIsBroadcasting(true);
     console.log("[WebRTC Broadcaster] Started broadcasting");
-  }, [deviceId, isBroadcasting, handleOffer, handleIceCandidate]);
+  }, [deviceId, isBroadcasting, handleViewerJoin, handleAnswer, handleIceCandidate]);
 
   // Stop broadcasting
   const stopBroadcasting = useCallback(async () => {
