@@ -34,27 +34,31 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     }
   }, [stream]);
 
-  // Direct click handler - same pattern as useWebRTC
+  // Direct click handler with device enumeration for debugging
   const handleStartCamera = async () => {
     console.log("[CameraModal] Button clicked, requesting camera immediately...");
     
     try {
-      // Request audio AND video together - same as useWebRTC
+      // First, enumerate devices to see what's available
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      console.log("[CameraModal] Available video devices:", videoDevices.map(d => ({ 
+        deviceId: d.deviceId.substring(0, 8) + '...', 
+        label: d.label || '(no label - permissions needed)',
+        groupId: d.groupId.substring(0, 8) + '...'
+      })));
+      
+      if (videoDevices.length === 0) {
+        console.log("[CameraModal] No video devices found, trying getUserMedia anyway...");
+      }
+      
+      // Try with minimal constraints first
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
         video: true,
+        audio: false,
       });
       
       console.log("[CameraModal] Got stream:", mediaStream.getVideoTracks().map(t => `${t.label} (${t.readyState})`));
-      
-      // Mute audio immediately since we only need video
-      mediaStream.getAudioTracks().forEach(track => {
-        track.enabled = false;
-      });
       
       setError(null);
       setStream(mediaStream);
@@ -62,15 +66,25 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
       onCameraStatusChange(true);
     } catch (err: any) {
       console.error("[CameraModal] Camera error:", err.name, err.message);
+      
+      // Log more details about the error
+      console.log("[CameraModal] Error details:", {
+        name: err.name,
+        message: err.message,
+        constraint: err.constraint,
+      });
+      
       setIsStarted(true);
       onCameraStatusChange(false);
       
       if (err.name === "NotAllowedError") {
         setError("카메라 권한이 거부되었습니다.\n\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하여 카메라 권한을 허용해주세요.");
       } else if (err.name === "NotFoundError") {
-        setError("카메라를 찾을 수 없습니다.\n\n다른 브라우저(Chrome 권장)에서 시도해보세요.");
+        setError("카메라를 찾을 수 없습니다.\n\n1. 카메라가 연결되어 있는지 확인하세요\n2. 다른 앱에서 카메라를 사용 중인지 확인하세요\n3. 브라우저를 재시작해보세요");
       } else if (err.name === "NotReadableError") {
         setError("카메라가 이미 사용 중입니다.\n\n다른 앱이나 탭에서 카메라를 종료해주세요.");
+      } else if (err.name === "OverconstrainedError") {
+        setError(`카메라 설정 오류: ${err.constraint}\n\n다른 카메라를 시도해보세요.`);
       } else {
         setError(`카메라 오류: ${err.name}\n${err.message}`);
       }
