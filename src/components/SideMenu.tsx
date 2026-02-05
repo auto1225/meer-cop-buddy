@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, User, Laptop, HelpCircle, LogOut, Settings, ChevronRight, Pencil } from "lucide-react";
+import { X, User, Laptop, HelpCircle, LogOut, Settings, ChevronRight, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +35,7 @@ export function SideMenu({
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  const [isAddingDevice, setIsAddingDevice] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -49,10 +50,15 @@ export function SideMenu({
 
   const handleDeviceSettingsClose = () => {
     setEditingDevice(null);
+    setIsAddingDevice(false);
   };
 
   const handleDeviceUpdate = () => {
     onDevicesRefresh?.();
+  };
+
+  const handleAddDevice = () => {
+    setIsAddingDevice(true);
   };
 
   if (!isOpen) return null;
@@ -73,9 +79,10 @@ export function SideMenu({
       {/* Menu Panel */}
       <div className="absolute left-0 top-0 bottom-0 w-[70%] max-w-[280px] z-50 bg-primary text-primary-foreground flex flex-col animate-slide-in">
         {/* Device Settings Panel (overlay) */}
-        {editingDevice && (
+        {(editingDevice || isAddingDevice) && (
           <DeviceSettingsPanel
             device={editingDevice}
+            isNewDevice={isAddingDevice}
             onClose={handleDeviceSettingsClose}
             onUpdate={handleDeviceUpdate}
           />
@@ -130,8 +137,17 @@ export function SideMenu({
               내 디바이스
             </h3>
             <div className="space-y-2">
+              {/* Add Device Button */}
+              <button
+                onClick={handleAddDevice}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-secondary/20 hover:bg-secondary/30 text-white border border-dashed border-white/30 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-bold">디바이스 추가</span>
+              </button>
+
               {devices.length === 0 ? (
-                <p className="text-sm text-white/50 text-center py-4">
+                <p className="text-sm text-white/50 text-center py-2">
                   등록된 디바이스가 없습니다.
                 </p>
               ) : (
