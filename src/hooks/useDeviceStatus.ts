@@ -24,19 +24,22 @@ export function useDeviceStatus() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Camera availability detection
+    // Camera availability detection - need to request permission first
     const checkCameraAvailability = async () => {
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           setStatus((prev) => ({ ...prev, isCameraAvailable: false }));
           return;
         }
 
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const hasCamera = devices.some((device) => device.kind === "videoinput");
-        setStatus((prev) => ({ ...prev, isCameraAvailable: hasCamera }));
+        // Try to get camera access to properly detect devices
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        
+        // Camera is available - stop the stream immediately
+        stream.getTracks().forEach(track => track.stop());
+        setStatus((prev) => ({ ...prev, isCameraAvailable: true }));
       } catch (error) {
-        console.error("Error checking camera availability:", error);
+        console.log("Camera not available or permission denied:", error);
         setStatus((prev) => ({ ...prev, isCameraAvailable: false }));
       }
     };
