@@ -92,37 +92,28 @@ const Index = () => {
     }
   }, [devices, currentDeviceId]);
 
-  // Sync monitoring status with device status
-  useEffect(() => {
-    if (currentDevice) {
-      const newMonitoringState = currentDevice.status === "online";
-      setIsMonitoring(newMonitoringState);
-    }
-  }, [currentDevice?.status]);
-
-  // Start/stop surveillance based on monitoring state
-  useEffect(() => {
-    if (isMonitoring && !isSurveillanceActive) {
-      startSurveillance();
-    } else if (!isMonitoring && isSurveillanceActive) {
-      stopSurveillance();
-    }
-  }, [isMonitoring, isSurveillanceActive, startSurveillance, stopSurveillance]);
-
-  const handleDeviceSelect = useCallback((deviceId: string) => {
-    setCurrentDeviceId(deviceId);
-    const device = devices.find(d => d.id === deviceId);
-    if (device) {
-      setIsMonitoring(device.status === "online");
-    }
-  }, [devices]);
-
-  // Subscribe to realtime status changes
+  // Subscribe to monitoring status from smartphone via DB
+  // Only start surveillance when smartphone requests it
   useEffect(() => {
     if (!currentDevice?.id) return;
 
+    // Fetch initial monitoring status from device metadata
+    const fetchMonitoringStatus = async () => {
+      const { data } = await supabaseShared
+        .from("devices")
+        .select("metadata")
+        .eq("id", currentDevice.id)
+        .maybeSingle();
+      
+      const isMonitoringFromDB = (data?.metadata as { is_monitoring?: boolean })?.is_monitoring ?? false;
+      setIsMonitoring(isMonitoringFromDB);
+    };
+
+    fetchMonitoringStatus();
+
+    // Subscribe to realtime changes
     const channel = supabaseShared
-      .channel("laptop-status")
+      .channel("laptop-monitoring-status")
       .on(
         "postgres_changes",
         {
@@ -132,8 +123,10 @@ const Index = () => {
           filter: `id=eq.${currentDevice.id}`,
         },
         (payload) => {
-          const isMonitoringNow = (payload.new as { is_monitoring: boolean }).is_monitoring;
-          setIsMonitoring(isMonitoringNow);
+          const metadata = (payload.new as { metadata?: { is_monitoring?: boolean } }).metadata;
+          const isMonitoringFromDB = metadata?.is_monitoring ?? false;
+          console.log("[Index] Monitoring status changed from DB:", isMonitoringFromDB);
+          setIsMonitoring(isMonitoringFromDB);
         }
       )
       .subscribe();
@@ -142,6 +135,21 @@ const Index = () => {
       supabaseShared.removeChannel(channel);
     };
   }, [currentDevice?.id]);
+
+  // Start/stop surveillance based on monitoring state from DB
+  useEffect(() => {
+    if (isMonitoring && !isSurveillanceActive) {
+      console.log("[Index] Starting surveillance (requested by smartphone)");
+      startSurveillance();
+    } else if (!isMonitoring && isSurveillanceActive) {
+      console.log("[Index] Stopping surveillance");
+      stopSurveillance();
+    }
+  }, [isMonitoring, isSurveillanceActive, startSurveillance, stopSurveillance]);
+
+  const handleDeviceSelect = useCallback((deviceId: string) => {
+    setCurrentDeviceId(deviceId);
+  }, []);
 
   // Show loading while checking auth - ALL HOOKS MUST BE ABOVE THIS LINE
   if (authLoading) {
