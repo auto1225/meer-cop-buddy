@@ -193,7 +193,7 @@ const Index = () => {
 
         {/* Status Icons - Real device status */}
         <LaptopStatusIcons
-          meercopStatus={isMonitoring}
+          meercopStatus={isAuthenticated}
           networkStatus={isNetworkConnected}
           cameraStatus={isCameraAvailable}
           onCameraClick={() => setIsCameraModalOpen(true)}
