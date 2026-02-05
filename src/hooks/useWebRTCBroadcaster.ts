@@ -157,6 +157,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       .delete()
       .eq("device_id", currentDeviceId);
 
+    console.log(`[WebRTC Broadcaster] Subscribing to signaling for device: ${currentDeviceId}`);
+
     // Subscribe to signaling channel
     const channel = supabaseShared
       .channel(`webrtc-${currentDeviceId}`)
@@ -169,6 +171,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           filter: `device_id=eq.${currentDeviceId}`,
         },
         async (payload) => {
+          console.log(`[WebRTC Broadcaster] Received signaling payload:`, payload);
+          
           const record = payload.new as {
             session_id: string;
             type: string;
@@ -189,7 +193,12 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log(`[WebRTC Broadcaster] Channel status: ${status}`, err || '');
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[WebRTC Broadcaster] Channel error:', err);
+        }
+      });
 
     channelRef.current = channel;
     setIsBroadcasting(true);
