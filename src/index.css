@@ -2,65 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-/* MeerCOP Design System - Dark monitoring theme with cyan accents */
+/* MeerCOP Design System - Navy blue + Yellow/Gold theme matching brand */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 96%;
+    --background: 220 25% 97%;
+    --foreground: 222 47% 15%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 96%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 15%;
 
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 96%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 15%;
 
-    --primary: 187 85% 53%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 222 47% 25%;
+    --primary-foreground: 45 100% 60%;
 
-    --secondary: 222 30% 14%;
-    --secondary-foreground: 210 40% 90%;
+    --secondary: 45 100% 55%;
+    --secondary-foreground: 222 47% 15%;
 
-    --muted: 222 30% 12%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 220 20% 92%;
+    --muted-foreground: 220 15% 45%;
 
-    --accent: 187 85% 53%;
-    --accent-foreground: 222 47% 6%;
+    --accent: 45 100% 55%;
+    --accent-foreground: 222 47% 15%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     --success: 142 71% 45%;
-    --success-foreground: 222 47% 6%;
+    --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 6%;
+    --warning-foreground: 222 47% 15%;
 
-    --border: 222 30% 18%;
-    --input: 222 30% 15%;
-    --ring: 187 85% 53%;
+    --border: 220 20% 88%;
+    --input: 220 20% 92%;
+    --ring: 45 100% 55%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
+
+    /* Brand Colors */
+    --brand-navy: 222 47% 25%;
+    --brand-navy-dark: 222 50% 18%;
+    --brand-yellow: 45 100% 55%;
+    --brand-gold: 40 90% 50%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(187 85% 53%) 0%, hsl(199 89% 48%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(222 47% 10%) 0%, hsl(222 47% 7%) 100%);
-    --gradient-glow: radial-gradient(ellipse at center, hsl(187 85% 53% / 0.15) 0%, transparent 70%);
+    --gradient-brand: linear-gradient(135deg, hsl(222 47% 25%) 0%, hsl(222 50% 35%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(45 100% 55%) 0%, hsl(40 90% 50%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 25% 98%) 100%);
 
     /* Shadows */
-    --shadow-glow: 0 0 20px hsl(187 85% 53% / 0.3);
-    --shadow-card: 0 4px 24px hsl(222 47% 4% / 0.5);
+    --shadow-brand: 0 4px 20px hsl(222 47% 25% / 0.15);
+    --shadow-card: 0 2px 12px hsl(222 47% 15% / 0.08);
+    --shadow-glow: 0 0 20px hsl(45 100% 55% / 0.3);
 
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 187 85% 53%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 30% 14%;
-    --sidebar-accent-foreground: 210 40% 90%;
-    --sidebar-border: 222 30% 18%;
-    --sidebar-ring: 187 85% 53%;
+    --sidebar-background: 222 47% 25%;
+    --sidebar-foreground: 220 25% 95%;
+    --sidebar-primary: 45 100% 55%;
+    --sidebar-primary-foreground: 222 47% 15%;
+    --sidebar-accent: 222 45% 32%;
+    --sidebar-accent-foreground: 220 25% 95%;
+    --sidebar-border: 222 40% 35%;
+    --sidebar-ring: 45 100% 55%;
   }
 }
 
@@ -71,7 +78,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Nunito', system-ui, sans-serif;
   }
 
   code, pre {
@@ -80,9 +87,19 @@
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
+  .brand-card {
+    @apply bg-card border border-border rounded-2xl;
     background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .brand-header {
+    background: var(--gradient-brand);
+  }
+
+  .brand-badge {
+    background: var(--gradient-accent);
+    @apply text-primary font-bold;
   }
 
   .glow-effect {
@@ -94,11 +111,11 @@
   }
 
   .status-offline {
-    @apply bg-destructive text-destructive-foreground;
+    @apply bg-destructive/10 text-destructive;
   }
 
   .status-warning {
-    @apply bg-warning text-warning-foreground;
+    @apply bg-warning/10 text-warning;
   }
 
   .pulse-online {
@@ -126,6 +143,19 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  .float-animation {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
     }
   }
 }
