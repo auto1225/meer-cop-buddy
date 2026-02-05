@@ -22,7 +22,7 @@ export function LaptopMascotSection({ isMonitoring }: LaptopMascotSectionProps) 
       )}
       
       {/* Mascot - positioned to stand on top of the rock */}
-      <div className="relative z-10 mb-[22%]">
+      <div className="relative z-10 mb-[32%]">
         <img 
           src={isMonitoring ? meercopWatching : meercopIdle}
           alt="MeerCOP Mascot"
