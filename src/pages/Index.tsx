@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
-import { LaptopStatusMessage } from "@/components/LaptopStatusMessage";
 import { LaptopMascotSection } from "@/components/LaptopMascotSection";
 import { DeviceNameBadge } from "@/components/DeviceNameBadge";
 import { ResizableContainer } from "@/components/ResizableContainer";
@@ -117,10 +116,7 @@ const Index = () => {
           cameraStatus={isMonitoring}
         />
 
-        {/* Status Message */}
-        <LaptopStatusMessage isMonitoring={isMonitoring} />
-
-        {/* Mascot Section */}
+        {/* Mascot Section with Speech Bubble */}
         <LaptopMascotSection isMonitoring={isMonitoring} />
       </div>
     </ResizableContainer>
