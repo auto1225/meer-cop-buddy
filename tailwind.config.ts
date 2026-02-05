@@ -29,6 +29,10 @@ export default {
           yellow: "hsl(var(--brand-yellow))",
           gold: "hsl(var(--brand-gold))",
         },
+        device: {
+          bg: "hsl(var(--device-bg))",
+          border: "hsl(var(--device-border))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

@@ -8,7 +8,7 @@ interface ToggleButtonProps {
 
 export function ToggleButton({ isOn, onToggle }: ToggleButtonProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 px-6 py-6 flex items-center justify-center gap-4">
+    <div className="absolute bottom-6 left-0 right-0 z-30 px-6 flex items-center justify-center gap-4">
       {/* Main Toggle Button */}
       <button
         onClick={onToggle}
