@@ -1,5 +1,7 @@
 import { X, User, Laptop, HelpCircle, LogOut, Settings, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import meercopMascot from "@/assets/meercop-mascot.png";
 
 interface Device {
@@ -28,6 +30,15 @@ export function SideMenu({
   currentDeviceId,
   onDeviceSelect,
 }: SideMenuProps) {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    onClose();
+    navigate("/auth");
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -127,7 +138,10 @@ export function SideMenu({
             <Settings className="w-5 h-5" />
             <span className="text-sm font-semibold">설정</span>
           </button>
-          <button className="w-full flex items-center gap-3 p-4 hover:bg-white/10 transition-colors text-destructive-foreground">
+          <button 
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 p-4 hover:bg-white/10 transition-colors text-destructive-foreground"
+          >
             <LogOut className="w-5 h-5" />
             <span className="text-sm font-semibold">로그아웃</span>
           </button>
