@@ -12,7 +12,7 @@ export function DeviceNameBadge({ deviceName, onEdit }: DeviceNameBadgeProps) {
         onClick={onEdit}
         className="flex items-center gap-1.5 bg-muted hover:bg-muted/80 transition-colors px-3 py-1 rounded-full shadow-sm"
       >
-        <span className="text-foreground font-bold text-[11px]">{deviceName}</span>
+        <span className="text-secondary font-bold text-[11px]">{deviceName}</span>
         <Pencil className="h-3 w-3 text-foreground/70" />
       </button>
     </div>
