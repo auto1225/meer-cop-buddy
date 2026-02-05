@@ -66,9 +66,7 @@ const Index = () => {
   }, [currentDevice?.status]);
 
   return (
-    <div className="min-h-screen bg-device-bg flex items-center justify-center p-4">
-      {/* Mobile Container */}
-      <div className="w-full max-w-[390px] h-[844px] sky-background flex flex-col relative rounded-[3rem] overflow-hidden shadow-2xl border-8 border-device-border">
+    <div className="min-h-screen max-w-[390px] mx-auto sky-background flex flex-col relative overflow-hidden">
         {/* Cloud Background */}
         <CloudBackground />
 
@@ -101,7 +99,6 @@ const Index = () => {
 
         {/* Toggle Button */}
         <ToggleButton isOn={isMonitoring} onToggle={handleToggle} />
-      </div>
     </div>
   );
 };
