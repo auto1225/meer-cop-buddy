@@ -8,6 +8,7 @@ import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
+import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { supabase } from "@/integrations/supabase/client";
 import mainBg from "@/assets/main-bg.png";
 
@@ -17,8 +18,8 @@ const Index = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
-  
   const { devices, refetch } = useDevices();
+  const { isNetworkConnected, isCameraAvailable } = useDeviceStatus();
 
   // Redirect to auth if not authenticated
   useEffect(() => {
@@ -130,11 +131,11 @@ const Index = () => {
           deviceName={currentDevice?.device_name || "Laptop1"}
         />
 
-        {/* Status Icons - Only 3 icons for laptop version */}
+        {/* Status Icons - Real device status */}
         <LaptopStatusIcons
           meercopStatus={isMonitoring}
-          networkStatus={isOnline || isMonitoring}
-          cameraStatus={isMonitoring}
+          networkStatus={isNetworkConnected}
+          cameraStatus={isCameraAvailable}
         />
 
         {/* Mascot Section with Speech Bubble */}
