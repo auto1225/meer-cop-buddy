@@ -78,10 +78,10 @@ export function ResizableContainer({
   }, [size, minWidth, minHeight, maxWidth, maxHeight, baseWidth, baseHeight]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/30 p-4">
+    <div className="flex items-center justify-center min-h-screen bg-transparent p-0">
       <div
         ref={containerRef}
-        className="relative rounded-2xl overflow-hidden shadow-2xl"
+        className="relative overflow-hidden"
         style={{ width: size.width, height: size.height }}
       >
         {/* Scaled Content */}
@@ -99,14 +99,9 @@ export function ResizableContainer({
         {/* Resize Handle */}
         <div
           onMouseDown={handleMouseDown}
-          className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-center justify-center bg-foreground/30 hover:bg-foreground/50 rounded-tl-xl transition-colors z-50"
+          className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center bg-foreground/20 hover:bg-foreground/40 rounded-tl-lg transition-colors z-50"
         >
-          <GripVertical className="h-4 w-4 text-white rotate-[-45deg]" />
-        </div>
-
-        {/* Size Indicator */}
-        <div className="absolute top-2 right-2 bg-foreground/40 text-white text-[10px] font-mono px-2 py-0.5 rounded-full z-50">
-          {Math.round(scale * 100)}%
+          <GripVertical className="h-3 w-3 text-white rotate-[-45deg]" />
         </div>
       </div>
     </div>
