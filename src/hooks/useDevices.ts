@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabaseShared } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Device {
   id: string;
