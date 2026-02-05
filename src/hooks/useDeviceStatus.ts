@@ -6,7 +6,7 @@ interface DeviceStatus {
   isCameraAvailable: boolean;
 }
 
-export function useDeviceStatus(deviceId?: string) {
+export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
   const [status, setStatus] = useState<DeviceStatus>({
     isNetworkConnected: navigator.onLine,
     isCameraAvailable: false,
@@ -36,6 +36,53 @@ export function useDeviceStatus(deviceId?: string) {
       console.error("Failed to update device status in DB:", error);
     }
   }, []);
+
+  // Update device online/offline status based on authentication
+  const updateDeviceOnlineStatus = useCallback(async (isOnline: boolean) => {
+    const currentDeviceId = deviceIdRef.current;
+    if (!currentDeviceId) return;
+
+    try {
+      await supabaseShared
+        .from("devices")
+        .update({
+          status: isOnline ? "online" : "offline",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", currentDeviceId);
+      console.log(`[DeviceStatus] Updated status to ${isOnline ? "online" : "offline"}`);
+    } catch (error) {
+      console.error("Failed to update device online status:", error);
+    }
+  }, []);
+
+  // Sync status when authentication changes
+  useEffect(() => {
+    if (deviceId && isAuthenticated !== undefined) {
+      updateDeviceOnlineStatus(isAuthenticated);
+    }
+  }, [deviceId, isAuthenticated, updateDeviceOnlineStatus]);
+
+  // Handle page unload - set offline
+  useEffect(() => {
+    if (!deviceId) return;
+
+    const handleBeforeUnload = () => {
+      // Use sendBeacon for reliable unload requests
+      const url = `https://sltxwkdvaapyeosikegj.supabase.co/rest/v1/devices?id=eq.${deviceId}`;
+      const data = JSON.stringify({
+        status: "offline",
+        updated_at: new Date().toISOString(),
+      });
+      
+      navigator.sendBeacon(url, new Blob([data], { type: 'application/json' }));
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [deviceId]);
 
   useEffect(() => {
     // Network connectivity detection

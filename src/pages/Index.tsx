@@ -31,7 +31,7 @@ const Index = () => {
     ? devices.find(d => d.id === currentDeviceId) 
     : devices[0];
   
-  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id);
+  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated);
 
   // Alarm system
   const { 
