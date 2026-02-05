@@ -73,14 +73,14 @@ const Index = () => {
 
   return (
     <ResizableContainer
-      initialWidth={480}
-      initialHeight={320}
-      minWidth={320}
-      minHeight={213}
-      maxWidth={960}
-      maxHeight={640}
-      baseWidth={480}
-      baseHeight={320}
+      initialWidth={400}
+      initialHeight={300}
+      minWidth={280}
+      minHeight={210}
+      maxWidth={800}
+      maxHeight={600}
+      baseWidth={400}
+      baseHeight={300}
     >
       <div className="w-full h-full sky-background flex flex-col relative overflow-hidden">
         {/* Cloud Background */}
