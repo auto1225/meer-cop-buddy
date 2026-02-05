@@ -49,6 +49,9 @@
     --sky-light: 199 85% 75%;
     --brand-yellow: 68 100% 64%;
     --brand-brown: 30 40% 35%;
+    --brand-rock: 30 60% 40%;
+    --brand-rock-dark: 30 50% 30%;
+    --brand-sky-button: 199 70% 55%;
 
     /* Gradients */
     --gradient-sky: linear-gradient(180deg, hsl(199 92% 56%) 0%, hsl(199 85% 65%) 100%);

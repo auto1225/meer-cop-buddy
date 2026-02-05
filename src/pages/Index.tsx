@@ -4,6 +4,7 @@ import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
 import { LaptopStatusMessage } from "@/components/LaptopStatusMessage";
 import { CloudBackground } from "@/components/CloudBackground";
 import { LaptopMascotSection } from "@/components/LaptopMascotSection";
+import { DeviceNameBadge } from "@/components/DeviceNameBadge";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { useDevices } from "@/hooks/useDevices";
@@ -98,6 +99,11 @@ const Index = () => {
         {/* Header */}
         <LaptopHeader 
           onMenuClick={() => setIsSideMenuOpen(true)}
+        />
+
+        {/* Device Name Badge */}
+        <DeviceNameBadge 
+          deviceName={currentDevice?.device_name || "Laptop1"}
         />
 
         {/* Status Icons - Only 3 icons for laptop version */}
