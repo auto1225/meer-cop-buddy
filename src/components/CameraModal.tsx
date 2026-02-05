@@ -34,21 +34,28 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     }
   }, [stream]);
 
-  // Direct click handler - getUserMedia MUST be the FIRST thing called
+  // Direct click handler - same pattern as useWebRTC
   const handleStartCamera = async () => {
     console.log("[CameraModal] Button clicked, requesting camera immediately...");
     
     try {
-      // CRITICAL: getUserMedia must be the VERY FIRST async operation
-      // No state updates before this!
+      // Request audio AND video together - same as useWebRTC
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: true,
-        audio: false
       });
       
       console.log("[CameraModal] Got stream:", mediaStream.getVideoTracks().map(t => `${t.label} (${t.readyState})`));
       
-      // Only update state AFTER successfully getting the stream
+      // Mute audio immediately since we only need video
+      mediaStream.getAudioTracks().forEach(track => {
+        track.enabled = false;
+      });
+      
       setError(null);
       setStream(mediaStream);
       setIsStarted(true);
