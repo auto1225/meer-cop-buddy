@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseShared } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ResizableContainer } from "@/components/ResizableContainer";
@@ -42,7 +42,7 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { error } = await supabaseShared.auth.signUp({
           email,
           password,
           options: {
@@ -68,7 +68,7 @@ export default function Auth() {
           setIsSignUp(false);
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabaseShared.auth.signInWithPassword({
           email,
           password,
         });
