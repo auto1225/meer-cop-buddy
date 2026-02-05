@@ -27,29 +27,35 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange }: CameraMod
     }
   }, [isOpen]);
 
-  // CRITICAL: This must be called directly from a click handler
+  // CRITICAL: getUserMedia must be first async call in click handler
   const handleStartCamera = async () => {
+    setError(null);
+    
     try {
-      setError(null);
-      setIsStarted(true);
-      
-      // getUserMedia directly - don't check enumerateDevices first
-      // (enumerateDevices can return empty before permission is granted)
+      // Request camera FIRST before any state updates
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: true,
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false
       });
       
       console.log("Camera stream obtained:", mediaStream.getVideoTracks().map(t => t.label));
       
       setStream(mediaStream);
+      setIsStarted(true);
       onCameraStatusChange(true);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      // Set srcObject after state update
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 0);
     } catch (err: any) {
       console.error("Camera error:", err);
+      setIsStarted(true);
       onCameraStatusChange(false);
       
       if (err.name === "NotAllowedError") {
