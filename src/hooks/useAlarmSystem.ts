@@ -58,75 +58,82 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop }: UseAlarmSystemOpti
     
     oscillator.start();
     
-    // Apply pattern based on config
+    // Apply pattern based on config - 강력한 보안 경보 패턴
     switch (config.pattern) {
-      case 'siren':
-        // Alternating between two frequencies
-        let isHigh = true;
-        alarmIntervalRef.current = setInterval(() => {
-          if (oscillatorRef.current) {
-            oscillatorRef.current.frequency.value = isHigh ? config.baseFrequency : config.altFrequency;
-            isHigh = !isHigh;
-          }
-        }, config.interval);
+      case 'police':
+        // 경찰 사이렌 - 부드럽게 오르내리는 주파수
+        const policeStep = () => {
+          if (!oscillatorRef.current || !audioContextRef.current) return;
+          const time = audioContextRef.current.currentTime;
+          const freq = config.baseFrequency + 
+            Math.sin(time * Math.PI * 2 / (config.interval / 1000)) * 
+            (config.altFrequency - config.baseFrequency) / 2;
+          oscillatorRef.current.frequency.value = freq;
+          animationFrameRef.current = requestAnimationFrame(policeStep);
+        };
+        policeStep();
         break;
-        
-      case 'beep':
-        // On/off beeping
-        let isOn = true;
+
+      case 'klaxon':
+        // 클랙슨 - 강한 on/off 비프
+        let klaxonOn = true;
         alarmIntervalRef.current = setInterval(() => {
           if (gainRef.current) {
-            gainRef.current.gain.value = isOn ? config.volume : 0;
-            isOn = !isOn;
+            gainRef.current.gain.value = klaxonOn ? config.volume : 0;
+            klaxonOn = !klaxonOn;
           }
         }, config.interval);
         break;
-        
-      case 'pulse':
-        // Smooth pulsing volume
-        const pulseStep = () => {
-          if (!gainRef.current || !audioContextRef.current) return;
-          const time = audioContextRef.current.currentTime;
-          gainRef.current.gain.value = (Math.sin(time * Math.PI * 2 / (config.interval / 1000)) + 1) * config.volume / 2;
-          animationFrameRef.current = requestAnimationFrame(pulseStep);
-        };
-        pulseStep();
-        break;
-        
-      case 'warble':
-        // Rapid frequency wobble
-        const warbleStep = () => {
+
+      case 'air-raid':
+        // 공습 사이렌 - 천천히 상승 후 하강
+        const airRaidStep = () => {
           if (!oscillatorRef.current || !audioContextRef.current) return;
           const time = audioContextRef.current.currentTime;
-          const freq = config.baseFrequency + Math.sin(time * Math.PI * 2 / (config.interval / 1000)) * (config.altFrequency - config.baseFrequency) / 2;
+          const cycle = (time * 1000 % config.interval) / config.interval;
+          // 0->0.5: 상승, 0.5->1: 하강
+          const freq = cycle < 0.5 
+            ? config.baseFrequency + (config.altFrequency - config.baseFrequency) * (cycle * 2)
+            : config.altFrequency - (config.altFrequency - config.baseFrequency) * ((cycle - 0.5) * 2);
           oscillatorRef.current.frequency.value = freq;
-          animationFrameRef.current = requestAnimationFrame(warbleStep);
+          animationFrameRef.current = requestAnimationFrame(airRaidStep);
         };
-        warbleStep();
+        airRaidStep();
         break;
-        
-      case 'ascending':
-        // Gradually ascending frequency
-        const ascendStep = () => {
-          if (!oscillatorRef.current || !audioContextRef.current) return;
-          const time = audioContextRef.current.currentTime;
-          const progress = (time * 1000 % config.interval) / config.interval;
-          oscillatorRef.current.frequency.value = config.baseFrequency + (config.altFrequency - config.baseFrequency) * progress;
-          animationFrameRef.current = requestAnimationFrame(ascendStep);
-        };
-        ascendStep();
+
+      case 'intruder':
+        // 침입자 경보 - 빠르게 교대하는 주파수
+        let intruderHigh = true;
+        alarmIntervalRef.current = setInterval(() => {
+          if (oscillatorRef.current) {
+            oscillatorRef.current.frequency.value = intruderHigh ? config.baseFrequency : config.altFrequency;
+            intruderHigh = !intruderHigh;
+          }
+        }, config.interval);
         break;
-        
-      case 'descending':
-        // Gradually descending frequency
-        const descendStep = () => {
-          if (!oscillatorRef.current || !audioContextRef.current) return;
-          const time = audioContextRef.current.currentTime;
-          const progress = (time * 1000 % config.interval) / config.interval;
-          oscillatorRef.current.frequency.value = config.baseFrequency - (config.baseFrequency - config.altFrequency) * progress;
-          animationFrameRef.current = requestAnimationFrame(descendStep);
-        };
-        descendStep();
+
+      case 'panic':
+        // 비상 경보 - 매우 빠른 교대 + 볼륨 펄스
+        let panicState = 0;
+        alarmIntervalRef.current = setInterval(() => {
+          if (oscillatorRef.current && gainRef.current) {
+            panicState = (panicState + 1) % 4;
+            oscillatorRef.current.frequency.value = panicState < 2 ? config.baseFrequency : config.altFrequency;
+            gainRef.current.gain.value = (panicState % 2 === 0) ? config.volume : config.volume * 0.7;
+          }
+        }, config.interval);
+        break;
+
+      case 'siren':
+      default:
+        // 기본 사이렌 - 두 주파수 교대
+        let sirenHigh = true;
+        alarmIntervalRef.current = setInterval(() => {
+          if (oscillatorRef.current) {
+            oscillatorRef.current.frequency.value = sirenHigh ? config.baseFrequency : config.altFrequency;
+            sirenHigh = !sirenHigh;
+          }
+        }, config.interval);
         break;
     }
   }, [getAudioContext]);
