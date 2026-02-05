@@ -27,6 +27,12 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const streamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<string, PeerConnection>>(new Map());
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const deviceIdRef = useRef(deviceId);
+
+  // Keep deviceId ref updated
+  useEffect(() => {
+    deviceIdRef.current = deviceId;
+  }, [deviceId]);
 
   // Clean up a specific peer connection
   const cleanupPeer = useCallback((sessionId: string) => {
@@ -41,6 +47,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
   // Create peer connection for a viewer and send offer
   const createPeerConnectionAndOffer = useCallback(async (sessionId: string) => {
+    const currentDeviceId = deviceIdRef.current;
+    
     if (!streamRef.current) {
       console.error("[WebRTC Broadcaster] No stream available");
       return null;
@@ -65,7 +73,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       if (event.candidate) {
         console.log("[WebRTC Broadcaster] Sending ICE candidate");
         await supabaseShared.from("webrtc_signaling").insert({
-          device_id: deviceId,
+          device_id: currentDeviceId,
           session_id: sessionId,
           type: "ice-candidate",
           sender_type: "broadcaster",
@@ -90,7 +98,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       await pc.setLocalDescription(offer);
 
       await supabaseShared.from("webrtc_signaling").insert({
-        device_id: deviceId,
+        device_id: currentDeviceId,
         session_id: sessionId,
         type: "offer",
         sender_type: "broadcaster",
@@ -105,13 +113,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     }
 
     return pc;
-  }, [deviceId, cleanupPeer]);
-
-  // Handle viewer join - create offer and send it
-  const handleViewerJoin = useCallback(async (sessionId: string) => {
-    console.log(`[WebRTC Broadcaster] Viewer joined: ${sessionId}`);
-    await createPeerConnectionAndOffer(sessionId);
-  }, [createPeerConnectionAndOffer]);
+  }, [cleanupPeer]);
 
   // Handle incoming answer from viewer
   const handleAnswer = useCallback(async (sessionId: string, answer: RTCSessionDescriptionInit) => {
@@ -144,8 +146,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
   // Start broadcasting
   const startBroadcasting = useCallback(async (stream: MediaStream) => {
-    if (isBroadcasting) return;
-
+    const currentDeviceId = deviceIdRef.current;
+    
     streamRef.current = stream;
     setError(null);
 
@@ -153,18 +155,18 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     await supabaseShared
       .from("webrtc_signaling")
       .delete()
-      .eq("device_id", deviceId);
+      .eq("device_id", currentDeviceId);
 
     // Subscribe to signaling channel
     const channel = supabaseShared
-      .channel(`webrtc-${deviceId}`)
+      .channel(`webrtc-${currentDeviceId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "webrtc_signaling",
-          filter: `device_id=eq.${deviceId}`,
+          filter: `device_id=eq.${currentDeviceId}`,
         },
         async (payload) => {
           const record = payload.new as {
@@ -178,7 +180,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           if (record.sender_type !== "viewer") return;
 
           if (record.type === "viewer-join") {
-            await handleViewerJoin(record.session_id);
+            console.log(`[WebRTC Broadcaster] Viewer joined: ${record.session_id}`);
+            await createPeerConnectionAndOffer(record.session_id);
           } else if (record.type === "answer") {
             await handleAnswer(record.session_id, record.data.sdp);
           } else if (record.type === "ice-candidate") {
@@ -191,10 +194,12 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     channelRef.current = channel;
     setIsBroadcasting(true);
     console.log("[WebRTC Broadcaster] Started broadcasting");
-  }, [deviceId, isBroadcasting, handleViewerJoin, handleAnswer, handleIceCandidate]);
+  }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate]);
 
   // Stop broadcasting
   const stopBroadcasting = useCallback(async () => {
+    const currentDeviceId = deviceIdRef.current;
+    
     // Close all peer connections
     peersRef.current.forEach((peer) => {
       peer.pc.close();
@@ -211,22 +216,25 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     await supabaseShared
       .from("webrtc_signaling")
       .delete()
-      .eq("device_id", deviceId);
+      .eq("device_id", currentDeviceId);
 
     streamRef.current = null;
     setIsBroadcasting(false);
     setViewerCount(0);
     console.log("[WebRTC Broadcaster] Stopped broadcasting");
-  }, [deviceId]);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (isBroadcasting) {
-        stopBroadcasting();
+      if (channelRef.current) {
+        supabaseShared.removeChannel(channelRef.current);
       }
+      peersRef.current.forEach((peer) => {
+        peer.pc.close();
+      });
     };
-  }, [isBroadcasting, stopBroadcasting]);
+  }, []);
 
   return {
     isBroadcasting,
