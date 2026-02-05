@@ -66,39 +66,42 @@ const Index = () => {
   }, [currentDevice?.status]);
 
   return (
-    <div className="min-h-screen sky-background flex flex-col relative">
-      {/* Cloud Background */}
-      <CloudBackground />
+    <div className="min-h-screen bg-device-bg flex items-center justify-center p-4">
+      {/* Mobile Container */}
+      <div className="w-full max-w-[390px] h-[844px] sky-background flex flex-col relative rounded-[3rem] overflow-hidden shadow-2xl border-8 border-device-border">
+        {/* Cloud Background */}
+        <CloudBackground />
 
-      {/* Header */}
-      <MobileHeader 
-        deviceName={deviceName}
-        notificationCount={stats.lowBattery}
-      />
+        {/* Header */}
+        <MobileHeader 
+          deviceName={deviceName}
+          notificationCount={stats.lowBattery}
+        />
 
-      {/* Status Icons */}
-      <StatusIcons
-        laptopStatus={isMonitoring}
-        meercopStatus={isMonitoring}
-        networkStatus={isOnline || isMonitoring}
-        cameraStatus={isMonitoring}
-        batteryLevel={batteryLevel}
-      />
+        {/* Status Icons */}
+        <StatusIcons
+          laptopStatus={isMonitoring}
+          meercopStatus={isMonitoring}
+          networkStatus={isOnline || isMonitoring}
+          cameraStatus={isMonitoring}
+          batteryLevel={batteryLevel}
+        />
 
-      {/* Status Message */}
-      <StatusMessage 
-        deviceName={deviceName}
-        isMonitoring={isMonitoring}
-      />
+        {/* Status Message */}
+        <StatusMessage 
+          deviceName={deviceName}
+          isMonitoring={isMonitoring}
+        />
 
-      {/* Spacer */}
-      <div className="flex-1" />
+        {/* Spacer */}
+        <div className="flex-1" />
 
-      {/* Mascot Section */}
-      <MascotSection isMonitoring={isMonitoring} />
+        {/* Mascot Section */}
+        <MascotSection isMonitoring={isMonitoring} />
 
-      {/* Toggle Button */}
-      <ToggleButton isOn={isMonitoring} onToggle={handleToggle} />
+        {/* Toggle Button */}
+        <ToggleButton isOn={isMonitoring} onToggle={handleToggle} />
+      </div>
     </div>
   );
 };
