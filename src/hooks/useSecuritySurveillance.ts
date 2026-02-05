@@ -24,42 +24,43 @@ export function useSecuritySurveillance({
   mouseSensitivity = DEFAULT_MOUSE_SENSITIVITY,
 }: UseSecuritySurveillanceOptions = {}) {
   const [isActive, setIsActive] = useState(false);
-  const [photoBuffer, setPhotoBuffer] = useState<{ timestamp: number; dataUrl: string }[]>([]);
   
+  // Use refs for all mutable state to avoid re-renders
+  const photoBufferRef = useRef<{ timestamp: number; dataUrl: string }[]>([]);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMousePosition = useRef<{ x: number; y: number } | null>(null);
   const isMonitoringRef = useRef(false);
+  const onEventDetectedRef = useRef(onEventDetected);
 
-  // Initialize hidden video and canvas elements
+  // Keep callback ref updated
   useEffect(() => {
-    if (!videoRef.current) {
-      const video = document.createElement("video");
-      video.autoplay = true;
-      video.playsInline = true;
-      video.muted = true;
-      video.style.display = "none";
-      document.body.appendChild(video);
-      videoRef.current = video;
-    }
+    onEventDetectedRef.current = onEventDetected;
+  }, [onEventDetected]);
 
-    if (!canvasRef.current) {
-      const canvas = document.createElement("canvas");
-      canvas.style.display = "none";
-      document.body.appendChild(canvas);
-      canvasRef.current = canvas;
-    }
+  // Initialize hidden video and canvas elements once
+  useEffect(() => {
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = true;
+    video.style.display = "none";
+    document.body.appendChild(video);
+    videoRef.current = video;
+
+    const canvas = document.createElement("canvas");
+    canvas.style.display = "none";
+    document.body.appendChild(canvas);
+    canvasRef.current = canvas;
 
     return () => {
-      if (videoRef.current) {
+      if (videoRef.current && videoRef.current.parentNode) {
         document.body.removeChild(videoRef.current);
-        videoRef.current = null;
       }
-      if (canvasRef.current) {
+      if (canvasRef.current && canvasRef.current.parentNode) {
         document.body.removeChild(canvasRef.current);
-        canvasRef.current = null;
       }
     };
   }, []);
@@ -77,25 +78,22 @@ export function useSecuritySurveillance({
     if (!ctx) return null;
     
     ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL("image/jpeg", 0.7); // Use JPEG for smaller size
+    return canvas.toDataURL("image/jpeg", 0.7);
   }, []);
 
-  // Add photo to rolling buffer
+  // Add photo to rolling buffer (using ref, no state updates)
   const addToBuffer = useCallback((dataUrl: string) => {
     const now = Date.now();
     const cutoffTime = now - bufferDuration * 1000;
     
-    setPhotoBuffer(prev => {
-      // Remove old photos and add new one
-      const filtered = prev.filter(p => p.timestamp > cutoffTime);
-      return [...filtered, { timestamp: now, dataUrl }];
-    });
+    const filtered = photoBufferRef.current.filter(p => p.timestamp > cutoffTime);
+    photoBufferRef.current = [...filtered, { timestamp: now, dataUrl }];
   }, [bufferDuration]);
 
   // Get current buffer photos
   const getBufferPhotos = useCallback((): string[] => {
-    return photoBuffer.map(p => p.dataUrl);
-  }, [photoBuffer]);
+    return photoBufferRef.current.map(p => p.dataUrl);
+  }, []);
 
   // Trigger security event
   const triggerEvent = useCallback((type: SecurityEvent["type"]) => {
@@ -107,38 +105,13 @@ export function useSecuritySurveillance({
       photos: getBufferPhotos(),
     };
     
-    onEventDetected?.(event);
-  }, [getBufferPhotos, onEventDetected]);
+    onEventDetectedRef.current?.(event);
+  }, [getBufferPhotos]);
 
-  // Event handlers with sensitivity control
-  const handleKeyboard = useCallback(() => {
-    if (isMonitoringRef.current) {
-      triggerEvent("keyboard");
-    }
-  }, [triggerEvent]);
-
-  const handleMouse = useCallback((e: MouseEvent) => {
-    if (!isMonitoringRef.current) return;
-    
-    const currentPos = { x: e.clientX, y: e.clientY };
-    
-    if (lastMousePosition.current) {
-      const dx = Math.abs(currentPos.x - lastMousePosition.current.x);
-      const dy = Math.abs(currentPos.y - lastMousePosition.current.y);
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      // Only trigger if movement exceeds sensitivity threshold
-      if (distance >= mouseSensitivity) {
-        triggerEvent("mouse");
-        lastMousePosition.current = currentPos;
-      }
-    } else {
-      lastMousePosition.current = currentPos;
-    }
-  }, [mouseSensitivity, triggerEvent]);
-
-  // Start camera and surveillance
+  // Start camera and surveillance - stable function with no problematic deps
   const startSurveillance = useCallback(async () => {
+    if (isMonitoringRef.current) return true; // Already running
+    
     try {
       // Get camera stream
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -162,8 +135,37 @@ export function useSecuritySurveillance({
       }, captureInterval);
       
       // Add event listeners
+      const handleKeyboard = () => {
+        if (isMonitoringRef.current) {
+          triggerEvent("keyboard");
+        }
+      };
+      
+      const handleMouse = (e: MouseEvent) => {
+        if (!isMonitoringRef.current) return;
+        
+        const currentPos = { x: e.clientX, y: e.clientY };
+        
+        if (lastMousePosition.current) {
+          const dx = Math.abs(currentPos.x - lastMousePosition.current.x);
+          const dy = Math.abs(currentPos.y - lastMousePosition.current.y);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance >= mouseSensitivity) {
+            triggerEvent("mouse");
+            lastMousePosition.current = currentPos;
+          }
+        } else {
+          lastMousePosition.current = currentPos;
+        }
+      };
+      
       window.addEventListener("keydown", handleKeyboard);
       window.addEventListener("mousemove", handleMouse);
+      
+      // Store handlers for cleanup
+      (window as any).__meercop_keyboard_handler = handleKeyboard;
+      (window as any).__meercop_mouse_handler = handleMouse;
       
       isMonitoringRef.current = true;
       setIsActive(true);
@@ -173,9 +175,9 @@ export function useSecuritySurveillance({
       console.error("Failed to start surveillance:", error);
       return false;
     }
-  }, [captureInterval, capturePhoto, addToBuffer, handleKeyboard, handleMouse]);
+  }, [captureInterval, capturePhoto, addToBuffer, triggerEvent, mouseSensitivity]);
 
-  // Stop surveillance
+  // Stop surveillance - stable function
   const stopSurveillance = useCallback(() => {
     // Stop capture interval
     if (captureIntervalRef.current) {
@@ -190,27 +192,46 @@ export function useSecuritySurveillance({
     }
     
     // Remove event listeners
-    window.removeEventListener("keydown", handleKeyboard);
-    window.removeEventListener("mousemove", handleMouse);
+    const keyboardHandler = (window as any).__meercop_keyboard_handler;
+    const mouseHandler = (window as any).__meercop_mouse_handler;
+    
+    if (keyboardHandler) {
+      window.removeEventListener("keydown", keyboardHandler);
+      delete (window as any).__meercop_keyboard_handler;
+    }
+    if (mouseHandler) {
+      window.removeEventListener("mousemove", mouseHandler);
+      delete (window as any).__meercop_mouse_handler;
+    }
     
     // Clear buffer
-    setPhotoBuffer([]);
+    photoBufferRef.current = [];
     lastMousePosition.current = null;
     
     isMonitoringRef.current = false;
     setIsActive(false);
-  }, [handleKeyboard, handleMouse]);
+  }, []);
 
-  // Cleanup on unmount
+  // Cleanup on unmount only
   useEffect(() => {
     return () => {
-      stopSurveillance();
+      // Inline cleanup to avoid dependency issues
+      if (captureIntervalRef.current) {
+        clearInterval(captureIntervalRef.current);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      const keyboardHandler = (window as any).__meercop_keyboard_handler;
+      const mouseHandler = (window as any).__meercop_mouse_handler;
+      if (keyboardHandler) window.removeEventListener("keydown", keyboardHandler);
+      if (mouseHandler) window.removeEventListener("mousemove", mouseHandler);
     };
-  }, [stopSurveillance]);
+  }, []);
 
   return {
     isActive,
-    photoBuffer,
+    photoBuffer: photoBufferRef.current,
     startSurveillance,
     stopSurveillance,
     getBufferPhotos,

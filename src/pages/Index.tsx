@@ -90,15 +90,18 @@ const Index = () => {
     if (currentDevice) {
       const newMonitoringState = currentDevice.status === "online";
       setIsMonitoring(newMonitoringState);
-      
-      // Start or stop surveillance based on monitoring state
-      if (newMonitoringState && !isSurveillanceActive) {
-        startSurveillance();
-      } else if (!newMonitoringState && isSurveillanceActive) {
-        stopSurveillance();
-      }
     }
-  }, [currentDevice?.status, isSurveillanceActive, startSurveillance, stopSurveillance]);
+  }, [currentDevice?.status]);
+
+  // Start/stop surveillance based on monitoring state (separate effect to avoid loops)
+  useEffect(() => {
+    if (isMonitoring && !isSurveillanceActive) {
+      startSurveillance();
+    } else if (!isMonitoring && isSurveillanceActive) {
+      stopSurveillance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMonitoring]);
 
   const handleDeviceSelect = (deviceId: string) => {
     setCurrentDeviceId(deviceId);
@@ -123,8 +126,9 @@ const Index = () => {
           filter: `id=eq.${currentDevice.id}`,
         },
         (payload) => {
-          const newStatus = (payload.new as { status: string }).status;
-          setIsMonitoring(newStatus === "online");
+          // Shared DB uses is_monitoring field
+          const isMonitoringNow = (payload.new as { is_monitoring: boolean }).is_monitoring;
+          setIsMonitoring(isMonitoringNow);
         }
       )
       .subscribe();
