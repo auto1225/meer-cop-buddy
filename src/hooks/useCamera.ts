@@ -4,6 +4,18 @@ interface UseCameraOptions {
   onStatusChange?: (isAvailable: boolean) => void;
 }
 
+// Fallback constraints - try simpler options if advanced ones fail
+const CAMERA_CONSTRAINTS_FALLBACKS: MediaStreamConstraints[] = [
+  // 1. Ideal: front camera with reasonable resolution
+  { video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+  // 2. Any camera with lower resolution
+  { video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+  // 3. Just video, no constraints
+  { video: true, audio: false },
+  // 4. Absolute minimum - deviceId will be auto-selected
+  { video: {} },
+];
+
 export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -11,6 +23,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarted, setIsStarted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Attach stream to video element
   useEffect(() => {
@@ -18,6 +31,23 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  // Handle stream track ended (camera disconnected)
+  useEffect(() => {
+    if (!stream) return;
+
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    const handleEnded = () => {
+      setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
+      setStream(null);
+      onStatusChange?.(false);
+    };
+
+    videoTrack.addEventListener("ended", handleEnded);
+    return () => videoTrack.removeEventListener("ended", handleEnded);
+  }, [stream, onStatusChange]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -31,16 +61,49 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     setIsStarted(false);
     setSnapshot(null);
     setError(null);
+    setIsLoading(false);
   }, [stopCamera]);
 
+  // Try each constraint set until one works
+  const tryGetUserMedia = async (): Promise<MediaStream> => {
+    let lastError: Error | null = null;
+
+    for (const constraints of CAMERA_CONSTRAINTS_FALLBACKS) {
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        // Verify we actually got a video track
+        if (mediaStream.getVideoTracks().length > 0) {
+          return mediaStream;
+        }
+        mediaStream.getTracks().forEach(t => t.stop());
+      } catch (err) {
+        lastError = err as Error;
+        // If permission denied, don't try other constraints
+        if ((err as Error).name === "NotAllowedError") {
+          throw err;
+        }
+        // Continue to next fallback
+      }
+    }
+
+    throw lastError || new Error("Failed to access camera");
+  };
+
   const startCamera = useCallback(async () => {
+    // Prevent multiple simultaneous attempts
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    setError(null);
+
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: true,
-        audio: false,
-      });
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("이 브라우저는 카메라를 지원하지 않습니다.");
+      }
+
+      const mediaStream = await tryGetUserMedia();
       
-      setError(null);
       setStream(mediaStream);
       setIsStarted(true);
       onStatusChange?.(true);
@@ -48,42 +111,57 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
       setIsStarted(true);
       onStatusChange?.(false);
       
-      if (err.name === "NotAllowedError") {
-        setError("카메라 권한이 거부되었습니다.\n\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하여 카메라 권한을 허용해주세요.");
-      } else if (err.name === "NotFoundError") {
-        setError("카메라를 찾을 수 없습니다.\n\n1. 카메라가 연결되어 있는지 확인하세요\n2. 다른 앱에서 카메라를 사용 중인지 확인하세요\n3. 브라우저를 재시작해보세요");
-      } else if (err.name === "NotReadableError") {
-        setError("카메라가 이미 사용 중입니다.\n\n다른 앱이나 탭에서 카메라를 종료해주세요.");
-      } else if (err.name === "OverconstrainedError") {
-        setError(`카메라 설정 오류: ${err.constraint}\n\n다른 카메라를 시도해보세요.`);
-      } else {
-        setError(`카메라 오류: ${err.name}\n${err.message}`);
+      // User-friendly error messages in Korean
+      switch (err.name) {
+        case "NotAllowedError":
+          setError("카메라 권한이 거부되었습니다.\n\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하여 카메라 권한을 허용해주세요.");
+          break;
+        case "NotFoundError":
+          setError("카메라를 찾을 수 없습니다.\n\n• 카메라가 연결되어 있는지 확인하세요\n• 다른 앱에서 카메라를 사용 중인지 확인하세요\n• 브라우저를 재시작해보세요");
+          break;
+        case "NotReadableError":
+          setError("카메라에 접근할 수 없습니다.\n\n• 다른 앱이나 탭에서 카메라를 종료해주세요\n• 카메라 연결을 확인해주세요");
+          break;
+        case "OverconstrainedError":
+          setError("카메라 설정을 적용할 수 없습니다.\n\n다른 카메라를 사용해보세요.");
+          break;
+        case "AbortError":
+          setError("카메라 연결이 중단되었습니다.\n\n다시 시도해주세요.");
+          break;
+        case "SecurityError":
+          setError("보안 설정으로 인해 카메라를 사용할 수 없습니다.\n\nHTTPS 연결이 필요합니다.");
+          break;
+        default:
+          setError(err.message || "카메라를 시작할 수 없습니다.\n\n다시 시도해주세요.");
       }
+    } finally {
+      setIsLoading(false);
     }
-  }, [onStatusChange]);
+  }, [isLoading, onStatusChange]);
 
   const takeSnapshot = useCallback(() => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
-      
-      if (context && video.videoWidth > 0) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
-        setSnapshot(canvas.toDataURL("image/png"));
-      }
-    }
+    if (!videoRef.current || !canvasRef.current) return;
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext("2d");
+    
+    // Ensure video is ready
+    if (!context || video.videoWidth === 0 || video.readyState < 2) return;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+    setSnapshot(canvas.toDataURL("image/png"));
   }, []);
 
   const downloadSnapshot = useCallback(() => {
-    if (snapshot) {
-      const link = document.createElement("a");
-      link.href = snapshot;
-      link.download = `snapshot_${Date.now()}.png`;
-      link.click();
-    }
+    if (!snapshot) return;
+    
+    const link = document.createElement("a");
+    link.href = snapshot;
+    link.download = `meercop_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, "")}.png`;
+    link.click();
   }, [snapshot]);
 
   const clearSnapshot = useCallback(() => setSnapshot(null), []);
@@ -95,6 +173,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     snapshot,
     error,
     isStarted,
+    isLoading,
     startCamera,
     stopCamera,
     reset,
