@@ -32,6 +32,8 @@ export function useDeviceStatus() {
 
   // Auto-detect camera availability using enumerateDevices (no permission needed)
   useEffect(() => {
+    let isMounted = true;
+
     const checkCameraAvailability = async () => {
       try {
         if (!navigator.mediaDevices?.enumerateDevices) {
@@ -40,7 +42,10 @@ export function useDeviceStatus() {
         
         const devices = await navigator.mediaDevices.enumerateDevices();
         const hasCamera = devices.some(device => device.kind === "videoinput");
-        setStatus((prev) => ({ ...prev, isCameraAvailable: hasCamera }));
+        
+        if (isMounted) {
+          setStatus((prev) => ({ ...prev, isCameraAvailable: hasCamera }));
+        }
       } catch (error) {
         console.log("Camera detection failed:", error);
       }
@@ -54,10 +59,15 @@ export function useDeviceStatus() {
       checkCameraAvailability();
     };
 
-    navigator.mediaDevices?.addEventListener?.("devicechange", handleDeviceChange);
+    if (navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+    }
 
     return () => {
-      navigator.mediaDevices?.removeEventListener?.("devicechange", handleDeviceChange);
+      isMounted = false;
+      if (navigator.mediaDevices?.removeEventListener) {
+        navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+      }
     };
   }, []);
 
