@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { X, Camera, Video, Loader2, Radio } from "lucide-react";
+import { X, Camera, Video, Loader2, Radio, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCamera } from "@/hooks/useCamera";
-import { useCameraStreaming } from "@/hooks/useCameraStreaming";
+import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -28,44 +28,32 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
   } = useCamera({ onStatusChange: onCameraStatusChange });
 
   const {
-    isStreaming,
-    startStreaming,
-    stopStreaming,
-  } = useCameraStreaming({ deviceId, intervalMs: 1000 });
+    isBroadcasting,
+    viewerCount,
+    startBroadcasting,
+    stopBroadcasting,
+  } = useWebRTCBroadcaster({ deviceId: deviceId || "" });
 
-  // Start streaming when camera is active
+  // Start WebRTC broadcasting when camera is active
   useEffect(() => {
-    if (stream && videoRef.current && canvasRef.current && deviceId && !isStreaming) {
-      // Wait for video to be ready
-      const video = videoRef.current;
-      const handleLoadedMetadata = () => {
-        if (canvasRef.current) {
-          startStreaming(video, canvasRef.current);
-        }
-      };
-
-      if (video.readyState >= 2) {
-        handleLoadedMetadata();
-      } else {
-        video.addEventListener("loadedmetadata", handleLoadedMetadata);
-        return () => video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      }
+    if (stream && deviceId && !isBroadcasting) {
+      startBroadcasting(stream);
     }
-  }, [stream, deviceId, isStreaming, startStreaming, videoRef, canvasRef]);
+  }, [stream, deviceId, isBroadcasting, startBroadcasting]);
 
-  // Stop streaming when modal closes or camera stops
+  // Stop broadcasting when modal closes or camera stops
   useEffect(() => {
     if (!isOpen || !stream) {
-      stopStreaming();
+      stopBroadcasting();
     }
-  }, [isOpen, stream, stopStreaming]);
+  }, [isOpen, stream, stopBroadcasting]);
 
   useEffect(() => {
     if (!isOpen) reset();
   }, [isOpen, reset]);
 
   const handleClose = () => {
-    stopStreaming();
+    stopBroadcasting();
     reset();
     onClose();
   };
@@ -78,10 +66,16 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
         <div className="flex items-center justify-between p-4 border-b border-white/20">
           <div className="flex items-center gap-2">
             <h2 className="font-bold text-lg text-white">카메라</h2>
-            {isStreaming && (
+            {isBroadcasting && (
               <div className="flex items-center gap-1 bg-red-500/20 px-2 py-0.5 rounded-full">
                 <Radio className="w-3 h-3 text-red-400 animate-pulse" />
                 <span className="text-[10px] text-red-400 font-bold">LIVE</span>
+              </div>
+            )}
+            {viewerCount > 0 && (
+              <div className="flex items-center gap-1 bg-green-500/20 px-2 py-0.5 rounded-full">
+                <Users className="w-3 h-3 text-green-400" />
+                <span className="text-[10px] text-green-400 font-bold">{viewerCount}</span>
               </div>
             )}
           </div>
@@ -161,10 +155,12 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
                   muted
                   className="w-full rounded-xl bg-black aspect-video object-cover"
                 />
-                {isStreaming && (
+                {isBroadcasting && (
                   <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 px-2 py-1 rounded">
                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] text-white font-bold">스마트폰에 전송 중</span>
+                    <span className="text-[10px] text-white font-bold">
+                      {viewerCount > 0 ? `${viewerCount}명 시청 중` : "WebRTC 대기 중"}
+                    </span>
                   </div>
                 )}
               </div>
