@@ -1,101 +1,104 @@
-import { useState } from "react";
-import { Laptop, Wifi, WifiOff, BatteryWarning } from "lucide-react";
-import { Header } from "@/components/Header";
-import { DeviceCard } from "@/components/DeviceCard";
-import { StatsCard } from "@/components/StatsCard";
-import { ActivityLog } from "@/components/ActivityLog";
+import { useState, useEffect } from "react";
+import { MobileHeader } from "@/components/MobileHeader";
+import { StatusIcons } from "@/components/StatusIcons";
+import { StatusMessage } from "@/components/StatusMessage";
+import { ToggleButton } from "@/components/ToggleButton";
+import { CloudBackground } from "@/components/CloudBackground";
+import { MascotSection } from "@/components/MascotSection";
 import { useDevices } from "@/hooks/useDevices";
-import { useActivityLogs } from "@/hooks/useActivityLogs";
-import meercopWatching from "@/assets/meercop-watching.png";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const { devices, isLoading: devicesLoading, refetch: refetchDevices, stats } = useDevices();
-  const { logs, isLoading: logsLoading, refetch: refetchLogs } = useActivityLogs();
+  const [isMonitoring, setIsMonitoring] = useState(true);
+  const { devices, stats } = useDevices();
+  const { toast } = useToast();
+  
+  // Get the first device or use default
+  const currentDevice = devices[0];
+  const deviceName = currentDevice?.device_name || "Laptop1";
+  const batteryLevel = currentDevice?.battery_level || 100;
+  const isOnline = currentDevice?.status === "online";
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await Promise.all([refetchDevices(), refetchLogs()]);
-    setIsRefreshing(false);
+  const handleToggle = async () => {
+    const newStatus = !isMonitoring;
+    setIsMonitoring(newStatus);
+    
+    // Update device status in database if we have a device
+    if (currentDevice) {
+      const { error } = await supabase
+        .from("devices")
+        .update({ status: newStatus ? "online" : "offline" })
+        .eq("id", currentDevice.id);
+      
+      if (error) {
+        console.error("Error updating device status:", error);
+        toast({
+          title: "오류",
+          description: "상태 업데이트에 실패했습니다.",
+          variant: "destructive",
+        });
+        setIsMonitoring(!newStatus); // Revert
+        return;
+      }
+
+      // Log the activity
+      await supabase.from("activity_logs").insert({
+        device_id: currentDevice.id,
+        event_type: newStatus ? "connected" : "disconnected",
+        event_data: { triggered_by: "web_app" },
+      });
+    }
+
+    toast({
+      title: newStatus ? "MeerCOP 활성화" : "MeerCOP 비활성화",
+      description: newStatus 
+        ? "노트북 모니터링이 시작되었습니다." 
+        : "노트북 모니터링이 중지되었습니다.",
+    });
   };
 
+  // Sync monitoring status with device status
+  useEffect(() => {
+    if (currentDevice) {
+      setIsMonitoring(currentDevice.status === "online");
+    }
+  }, [currentDevice?.status]);
+
   return (
-    <div className="min-h-screen bg-background">
-      <Header onRefresh={handleRefresh} isRefreshing={isRefreshing} />
-      
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats Section */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard
-            title="전체 디바이스"
-            value={stats.total}
-            subtitle="등록된 노트북"
-            icon={Laptop}
-          />
-          <StatsCard
-            title="온라인"
-            value={stats.online}
-            subtitle="현재 연결됨"
-            icon={Wifi}
-            variant="success"
-          />
-          <StatsCard
-            title="오프라인"
-            value={stats.offline}
-            subtitle="연결 끊김"
-            icon={WifiOff}
-            variant="warning"
-          />
-          <StatsCard
-            title="배터리 부족"
-            value={stats.lowBattery}
-            subtitle="20% 미만"
-            icon={BatteryWarning}
-            variant="destructive"
-          />
-        </section>
+    <div className="min-h-screen sky-background flex flex-col relative">
+      {/* Cloud Background */}
+      <CloudBackground />
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Devices Grid */}
-          <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-              <div className="h-1 w-4 bg-secondary rounded-full" />
-              디바이스 목록
-            </h2>
-            {devicesLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary" />
-              </div>
-            ) : devices.length === 0 ? (
-              <div className="brand-card rounded-2xl p-12 text-center">
-                <img 
-                  src={meercopWatching} 
-                  alt="MeerCOP 감시중" 
-                  className="h-40 w-auto mx-auto mb-6 float-animation"
-                />
-                <h3 className="text-xl font-bold text-foreground mb-2">
-                  등록된 디바이스가 없습니다
-                </h3>
-                <p className="text-muted-foreground font-medium">
-                  스마트폰 앱에서 디바이스를 등록해주세요
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {devices.map((device) => (
-                  <DeviceCard key={device.id} device={device} />
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Header */}
+      <MobileHeader 
+        deviceName={deviceName}
+        notificationCount={stats.lowBattery}
+      />
 
-          {/* Activity Log */}
-          <div className="lg:col-span-1">
-            <ActivityLog logs={logs} isLoading={logsLoading} />
-          </div>
-        </div>
-      </main>
+      {/* Status Icons */}
+      <StatusIcons
+        laptopStatus={isMonitoring}
+        meercopStatus={isMonitoring}
+        networkStatus={isOnline || isMonitoring}
+        cameraStatus={isMonitoring}
+        batteryLevel={batteryLevel}
+      />
+
+      {/* Status Message */}
+      <StatusMessage 
+        deviceName={deviceName}
+        isMonitoring={isMonitoring}
+      />
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Mascot Section */}
+      <MascotSection isMonitoring={isMonitoring} />
+
+      {/* Toggle Button */}
+      <ToggleButton isOn={isMonitoring} onToggle={handleToggle} />
     </div>
   );
 };

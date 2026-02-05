@@ -2,32 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* MeerCOP Design System - Navy blue + Yellow/Gold theme matching brand */
+/* MeerCOP Design System - Sky blue theme matching mobile app */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
 
 @layer base {
   :root {
-    --background: 220 25% 97%;
-    --foreground: 222 47% 15%;
+    --background: 199 92% 56%;
+    --foreground: 222 47% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 15%;
+    --card-foreground: 222 47% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 15%;
+    --popover-foreground: 222 47% 20%;
 
-    --primary: 222 47% 25%;
-    --primary-foreground: 45 100% 60%;
+    --primary: 222 47% 30%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 100% 55%;
-    --secondary-foreground: 222 47% 15%;
+    --secondary: 68 100% 64%;
+    --secondary-foreground: 222 47% 20%;
 
-    --muted: 220 20% 92%;
-    --muted-foreground: 220 15% 45%;
+    --muted: 199 60% 75%;
+    --muted-foreground: 199 40% 30%;
 
-    --accent: 45 100% 55%;
-    --accent-foreground: 222 47% 15%;
+    --accent: 68 100% 64%;
+    --accent-foreground: 222 47% 20%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -36,38 +36,35 @@
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 15%;
+    --warning-foreground: 222 47% 20%;
 
-    --border: 220 20% 88%;
-    --input: 220 20% 92%;
-    --ring: 45 100% 55%;
+    --border: 199 50% 70%;
+    --input: 0 0% 100%;
+    --ring: 68 100% 64%;
 
-    --radius: 1rem;
+    --radius: 1.5rem;
 
     /* Brand Colors */
-    --brand-navy: 222 47% 25%;
-    --brand-navy-dark: 222 50% 18%;
-    --brand-yellow: 45 100% 55%;
-    --brand-gold: 40 90% 50%;
+    --sky-blue: 199 92% 56%;
+    --sky-light: 199 85% 75%;
+    --brand-yellow: 68 100% 64%;
+    --brand-brown: 30 40% 35%;
 
     /* Gradients */
-    --gradient-brand: linear-gradient(135deg, hsl(222 47% 25%) 0%, hsl(222 50% 35%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(45 100% 55%) 0%, hsl(40 90% 50%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 25% 98%) 100%);
+    --gradient-sky: linear-gradient(180deg, hsl(199 92% 56%) 0%, hsl(199 85% 65%) 100%);
 
     /* Shadows */
-    --shadow-brand: 0 4px 20px hsl(222 47% 25% / 0.15);
-    --shadow-card: 0 2px 12px hsl(222 47% 15% / 0.08);
-    --shadow-glow: 0 0 20px hsl(45 100% 55% / 0.3);
+    --shadow-soft: 0 4px 20px hsl(199 60% 30% / 0.15);
+    --shadow-button: 0 4px 12px hsl(68 100% 40% / 0.4);
 
     --sidebar-background: 222 47% 25%;
     --sidebar-foreground: 220 25% 95%;
-    --sidebar-primary: 45 100% 55%;
+    --sidebar-primary: 68 100% 64%;
     --sidebar-primary-foreground: 222 47% 15%;
     --sidebar-accent: 222 45% 32%;
     --sidebar-accent-foreground: 220 25% 95%;
     --sidebar-border: 222 40% 35%;
-    --sidebar-ring: 45 100% 55%;
+    --sidebar-ring: 68 100% 64%;
   }
 }
 
@@ -80,70 +77,49 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Nunito', system-ui, sans-serif;
   }
-
-  code, pre {
-    font-family: 'JetBrains Mono', monospace;
-  }
 }
 
 @layer components {
-  .brand-card {
-    @apply bg-card border border-border rounded-2xl;
-    background: var(--gradient-card);
-    box-shadow: var(--shadow-card);
+  .sky-background {
+    background: var(--gradient-sky);
+    position: relative;
+    overflow: hidden;
   }
 
-  .brand-header {
-    background: var(--gradient-brand);
+  .cloud {
+    @apply absolute bg-white/40 rounded-full;
+    filter: blur(4px);
   }
 
-  .brand-badge {
-    background: var(--gradient-accent);
-    @apply text-primary font-bold;
+  .status-card {
+    @apply bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg;
   }
 
-  .glow-effect {
-    box-shadow: var(--shadow-glow);
+  .toggle-button-on {
+    @apply bg-secondary text-secondary-foreground font-bold;
+    box-shadow: var(--shadow-button);
   }
 
-  .status-online {
-    @apply bg-success text-success-foreground;
+  .toggle-button-off {
+    @apply bg-gray-400 text-white font-bold;
   }
 
-  .status-offline {
-    @apply bg-destructive/10 text-destructive;
+  .status-icon-active {
+    @apply text-foreground relative;
   }
 
-  .status-warning {
-    @apply bg-warning/10 text-warning;
+  .status-icon-active::after {
+    content: '';
+    @apply absolute -bottom-1 -right-1 w-4 h-4 bg-secondary rounded-full;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23166534' stroke-width='3'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+    background-size: 10px;
+    background-position: center;
+    background-repeat: no-repeat;
   }
 
-  .pulse-online {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% {
-      box-shadow: 0 0 0 0 hsl(142 71% 45% / 0.4);
-    }
-    50% {
-      box-shadow: 0 0 0 8px hsl(142 71% 45% / 0);
-    }
-  }
-
-  .fade-in {
-    animation: fadeIn 0.5s ease-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .ground {
+    background: linear-gradient(180deg, hsl(30 40% 45%) 0%, hsl(30 40% 35%) 100%);
+    border-radius: 50% 50% 0 0 / 20% 20% 0 0;
   }
 
   .float-animation {
@@ -151,11 +127,25 @@
   }
 
   @keyframes float {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .pulse-check {
+    animation: pulseCheck 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseCheck {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
   }
 }
