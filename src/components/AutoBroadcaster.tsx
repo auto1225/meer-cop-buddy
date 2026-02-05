@@ -40,16 +40,10 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
 
       streamRef.current = stream;
 
-      // Update device status
-      await supabaseShared
-        .from("devices")
-        .update({ is_camera_connected: true })
-        .eq("id", deviceId);
-
-      // Start WebRTC broadcasting
+      // Start WebRTC broadcasting (this will set is_camera_connected after SUBSCRIBED)
       await startBroadcasting(stream);
 
-      console.log("[AutoBroadcaster] Camera started and broadcasting");
+      console.log("[AutoBroadcaster] Camera started, waiting for channel subscription");
     } catch (error) {
       console.error("[AutoBroadcaster] Failed to start camera:", error);
       

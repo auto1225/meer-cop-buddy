@@ -193,16 +193,30 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           }
         }
       )
-      .subscribe((status, err) => {
+      .subscribe(async (status, err) => {
         console.log(`[WebRTC Broadcaster] Channel status: ${status}`, err || '');
-        if (status === 'CHANNEL_ERROR') {
+        if (status === 'SUBSCRIBED') {
+          // Only mark as ready AFTER subscription is confirmed
+          setIsBroadcasting(true);
+          
+          // Update device to signal we're ready for viewers
+          await supabaseShared
+            .from("devices")
+            .update({ 
+              is_camera_connected: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", currentDeviceId);
+            
+          console.log("[WebRTC Broadcaster] Ready for viewers - is_camera_connected set to true");
+        } else if (status === 'CHANNEL_ERROR') {
           console.error('[WebRTC Broadcaster] Channel error:', err);
+          setError('Failed to subscribe to signaling channel');
         }
       });
 
     channelRef.current = channel;
-    setIsBroadcasting(true);
-    console.log("[WebRTC Broadcaster] Started broadcasting");
+    console.log("[WebRTC Broadcaster] Started broadcasting (waiting for SUBSCRIBED)");
   }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate]);
 
   // Stop broadcasting
