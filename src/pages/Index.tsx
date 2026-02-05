@@ -6,6 +6,7 @@ import { StatsCard } from "@/components/StatsCard";
 import { ActivityLog } from "@/components/ActivityLog";
 import { useDevices } from "@/hooks/useDevices";
 import { useActivityLogs } from "@/hooks/useActivityLogs";
+import meercopWatching from "@/assets/meercop-watching.png";
 
 const Index = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -58,20 +59,25 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Devices Grid */}
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-xl font-semibold text-foreground mb-4">
+            <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+              <div className="h-1 w-4 bg-secondary rounded-full" />
               디바이스 목록
             </h2>
             {devicesLoading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary" />
               </div>
             ) : devices.length === 0 ? (
-              <div className="glass-card rounded-xl p-12 text-center">
-                <Laptop className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
+              <div className="brand-card rounded-2xl p-12 text-center">
+                <img 
+                  src={meercopWatching} 
+                  alt="MeerCOP 감시중" 
+                  className="h-40 w-auto mx-auto mb-6 float-animation"
+                />
+                <h3 className="text-xl font-bold text-foreground mb-2">
                   등록된 디바이스가 없습니다
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground font-medium">
                   스마트폰 앱에서 디바이스를 등록해주세요
                 </p>
               </div>

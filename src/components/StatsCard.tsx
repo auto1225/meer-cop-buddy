@@ -25,23 +25,23 @@ export function StatsCard({
       case "destructive":
         return "text-destructive bg-destructive/10";
       default:
-        return "text-primary bg-primary/10";
+        return "text-secondary bg-primary";
     }
   };
 
   return (
-    <Card className="glass-card fade-in">
+    <Card className="brand-card fade-in hover:shadow-lg transition-all duration-300">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold text-foreground">{value}</p>
+            <p className="text-sm font-semibold text-muted-foreground">{title}</p>
+            <p className="text-4xl font-extrabold text-foreground">{value}</p>
             {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
+              <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>
             )}
           </div>
-          <div className={`p-3 rounded-xl ${getVariantStyles()}`}>
-            <Icon className="h-6 w-6" />
+          <div className={`p-4 rounded-2xl ${getVariantStyles()}`}>
+            <Icon className="h-7 w-7" />
           </div>
         </div>
       </CardContent>

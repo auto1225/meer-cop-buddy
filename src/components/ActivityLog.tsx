@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
+import meercopWatching from "@/assets/meercop-watching.png";
 
 interface ActivityLogEntry {
   id: string;
@@ -30,7 +31,7 @@ export function ActivityLog({ logs, isLoading }: ActivityLogProps) {
       case "error":
         return <AlertCircle className="h-4 w-4 text-destructive" />;
       default:
-        return <Info className="h-4 w-4 text-primary" />;
+        return <Info className="h-4 w-4 text-secondary" />;
     }
   };
 
@@ -52,10 +53,12 @@ export function ActivityLog({ logs, isLoading }: ActivityLogProps) {
   };
 
   return (
-    <Card className="glass-card fade-in h-full">
+    <Card className="brand-card fade-in h-full">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Activity className="h-5 w-5 text-primary" />
+        <CardTitle className="flex items-center gap-2 text-lg font-bold">
+          <div className="p-1.5 rounded-lg bg-primary">
+            <Activity className="h-4 w-4 text-secondary" />
+          </div>
           활동 로그
         </CardTitle>
       </CardHeader>
@@ -63,24 +66,29 @@ export function ActivityLog({ logs, isLoading }: ActivityLogProps) {
         <ScrollArea className="h-[400px] pr-4">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
             </div>
           ) : logs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Activity className="h-12 w-12 mb-4 opacity-50" />
-              <p>아직 활동 기록이 없습니다</p>
+              <img 
+                src={meercopWatching} 
+                alt="MeerCOP 감시중" 
+                className="h-32 w-auto mb-4 float-animation opacity-80"
+              />
+              <p className="font-semibold text-foreground">아직 활동 기록이 없습니다</p>
+              <p className="text-sm mt-1">디바이스가 연결되면 여기에 표시됩니다</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {logs.map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                  className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                 >
                   <div className="mt-0.5">{getEventIcon(log.event_type)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-foreground truncate">
+                      <p className="text-sm font-bold text-foreground truncate">
                         {log.devices?.device_name || "알 수 없는 디바이스"}
                       </p>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
@@ -91,7 +99,7 @@ export function ActivityLog({ logs, isLoading }: ActivityLogProps) {
                         })}
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-0.5">
+                    <p className="text-sm text-muted-foreground mt-0.5 font-medium">
                       {getEventLabel(log.event_type)}
                     </p>
                   </div>
