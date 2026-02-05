@@ -88,6 +88,7 @@ export type Database = {
           is_camera_connected: boolean | null
           is_charging: boolean | null
           is_network_connected: boolean | null
+          is_streaming_requested: boolean | null
           last_seen_at: string | null
           metadata: Json | null
           os_info: string | null
@@ -106,6 +107,7 @@ export type Database = {
           is_camera_connected?: boolean | null
           is_charging?: boolean | null
           is_network_connected?: boolean | null
+          is_streaming_requested?: boolean | null
           last_seen_at?: string | null
           metadata?: Json | null
           os_info?: string | null
@@ -124,6 +126,7 @@ export type Database = {
           is_camera_connected?: boolean | null
           is_charging?: boolean | null
           is_network_connected?: boolean | null
+          is_streaming_requested?: boolean | null
           last_seen_at?: string | null
           metadata?: Json | null
           os_info?: string | null
