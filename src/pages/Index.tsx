@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
 import { LaptopMascotSection } from "@/components/LaptopMascotSection";
@@ -6,15 +7,25 @@ import { DeviceNameBadge } from "@/components/DeviceNameBadge";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { useDevices } from "@/hooks/useDevices";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   
   const { devices } = useDevices();
+
+  // Redirect to auth if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate("/auth");
+    }
+  }, [isAuthenticated, authLoading, navigate]);
   
   // Get the current device
   const currentDevice = currentDeviceId 
@@ -70,6 +81,15 @@ const Index = () => {
       supabase.removeChannel(channel);
     };
   }, [currentDevice?.id]);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen sky-background flex items-center justify-center">
+        <div className="text-white text-lg">로딩 중...</div>
+      </div>
+    );
+  }
 
   return (
     <ResizableContainer
