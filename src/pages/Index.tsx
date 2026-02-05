@@ -6,26 +6,50 @@ import { ToggleButton } from "@/components/ToggleButton";
 import { CloudBackground } from "@/components/CloudBackground";
 import { MascotSection } from "@/components/MascotSection";
 import { ResizableContainer } from "@/components/ResizableContainer";
+import { SideMenu } from "@/components/SideMenu";
+import { NotificationPanel } from "@/components/NotificationPanel";
+import { AlertScreen } from "@/components/AlertScreen";
 import { useDevices } from "@/hooks/useDevices";
+import { useDarkMode } from "@/hooks/useDarkMode";
+import { useAlerts } from "@/hooks/useAlerts";
+import { useActivityLogs } from "@/hooks/useActivityLogs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [isMonitoring, setIsMonitoring] = useState(true);
+  const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+  
   const { devices, stats } = useDevices();
   const { toast } = useToast();
   
-  // Get the first device or use default
-  const currentDevice = devices[0];
+  // Get the current device
+  const currentDevice = currentDeviceId 
+    ? devices.find(d => d.id === currentDeviceId) 
+    : devices[0];
+  
   const deviceName = currentDevice?.device_name || "Laptop1";
   const batteryLevel = currentDevice?.battery_level || 100;
   const isOnline = currentDevice?.status === "online";
+
+  // Hooks for features
+  const { isDarkMode, toggleDarkMode } = useDarkMode(currentDevice?.id);
+  const { activeAlert, stopAlert, alerts } = useAlerts(currentDevice?.id);
+  const { logs } = useActivityLogs(currentDevice?.id);
+
+  // Set initial device
+  useEffect(() => {
+    if (devices.length > 0 && !currentDeviceId) {
+      setCurrentDeviceId(devices[0].id);
+    }
+  }, [devices, currentDeviceId]);
 
   const handleToggle = async () => {
     const newStatus = !isMonitoring;
     setIsMonitoring(newStatus);
     
-    // Update device status in database if we have a device
     if (currentDevice) {
       const { error } = await supabase
         .from("devices")
@@ -39,11 +63,10 @@ const Index = () => {
           description: "상태 업데이트에 실패했습니다.",
           variant: "destructive",
         });
-        setIsMonitoring(!newStatus); // Revert
+        setIsMonitoring(!newStatus);
         return;
       }
 
-      // Log the activity
       await supabase.from("activity_logs").insert({
         device_id: currentDevice.id,
         event_type: newStatus ? "connected" : "disconnected",
@@ -59,12 +82,25 @@ const Index = () => {
     });
   };
 
+  const handleDeviceSelect = (deviceId: string) => {
+    setCurrentDeviceId(deviceId);
+    const device = devices.find(d => d.id === deviceId);
+    if (device) {
+      setIsMonitoring(device.status === "online");
+    }
+  };
+
   // Sync monitoring status with device status
   useEffect(() => {
     if (currentDevice) {
       setIsMonitoring(currentDevice.status === "online");
     }
   }, [currentDevice?.status]);
+
+  // Calculate notification count (unread alerts)
+  const notificationCount = alerts.filter(a => 
+    new Date(a.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+  ).length;
 
   return (
     <ResizableContainer
@@ -81,10 +117,34 @@ const Index = () => {
         {/* Cloud Background */}
         <CloudBackground />
 
+        {/* Alert Screen - shown when alert is active */}
+        {activeAlert && (
+          <AlertScreen alert={activeAlert} onStop={stopAlert} />
+        )}
+
+        {/* Side Menu */}
+        <SideMenu
+          isOpen={isSideMenuOpen}
+          onClose={() => setIsSideMenuOpen(false)}
+          devices={devices}
+          currentDeviceId={currentDevice?.id}
+          onDeviceSelect={handleDeviceSelect}
+        />
+
+        {/* Notification Panel */}
+        <NotificationPanel
+          isOpen={isNotificationOpen}
+          onClose={() => setIsNotificationOpen(false)}
+          logs={logs}
+          deviceName={deviceName}
+        />
+
         {/* Header */}
         <MobileHeader 
           deviceName={deviceName}
-          notificationCount={stats.lowBattery}
+          notificationCount={notificationCount}
+          onMenuClick={() => setIsSideMenuOpen(true)}
+          onNotificationClick={() => setIsNotificationOpen(true)}
         />
 
         {/* Status Icons */}
@@ -109,7 +169,13 @@ const Index = () => {
         <MascotSection isMonitoring={isMonitoring} />
 
         {/* Toggle Button */}
-        <ToggleButton isOn={isMonitoring} onToggle={handleToggle} />
+        <ToggleButton 
+          isOn={isMonitoring} 
+          onToggle={handleToggle}
+          isDarkMode={isDarkMode}
+          onDarkModeToggle={toggleDarkMode}
+          showDarkMode={isMonitoring}
+        />
       </div>
     </ResizableContainer>
   );

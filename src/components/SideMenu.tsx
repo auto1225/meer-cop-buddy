@@ -1,0 +1,148 @@
+import { X, User, Laptop, HelpCircle, LogOut, Settings, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import meercopMascot from "@/assets/meercop-mascot.png";
+
+interface Device {
+  id: string;
+  device_name: string;
+  status: string;
+  battery_level: number | null;
+}
+
+interface SideMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  userEmail?: string;
+  memberId?: string;
+  devices: Device[];
+  currentDeviceId?: string;
+  onDeviceSelect: (deviceId: string) => void;
+}
+
+export function SideMenu({
+  isOpen,
+  onClose,
+  userEmail = "user@example.com",
+  memberId = "1",
+  devices,
+  currentDeviceId,
+  onDeviceSelect,
+}: SideMenuProps) {
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 z-40 bg-black/50"
+        onClick={onClose}
+      />
+
+      {/* Menu Panel */}
+      <div className="absolute left-0 top-0 bottom-0 w-[70%] max-w-[280px] z-50 bg-primary text-primary-foreground flex flex-col animate-slide-in">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/20">
+          <div className="flex items-center gap-2">
+            <img src={meercopMascot} alt="MeerCOP" className="w-10 h-10 object-contain" />
+            <div>
+              <h2 className="font-extrabold text-lg">MeerCOP</h2>
+              <span className="text-xs text-white/70">ver 1.0.6</span>
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onClose}
+            className="text-white hover:bg-white/20"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* User Info */}
+        <div className="p-4 border-b border-white/20">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <User className="w-6 h-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">{userEmail}</p>
+              <p className="text-xs text-white/70">Normal Member</p>
+              <p className="text-xs text-white/70">ID: {memberId}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Devices Section */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4">
+            <h3 className="text-xs font-bold text-white/70 mb-2 flex items-center gap-1">
+              <Laptop className="w-4 h-4" />
+              내 디바이스
+            </h3>
+            <div className="space-y-2">
+              {devices.length === 0 ? (
+                <p className="text-sm text-white/50 text-center py-4">
+                  등록된 디바이스가 없습니다.
+                </p>
+              ) : (
+                devices.map((device) => (
+                  <button
+                    key={device.id}
+                    onClick={() => {
+                      onDeviceSelect(device.id);
+                      onClose();
+                    }}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors ${
+                      device.id === currentDeviceId
+                        ? "bg-secondary text-secondary-foreground"
+                        : "bg-white/10 hover:bg-white/20"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Laptop className="w-4 h-4" />
+                      <div className="text-left">
+                        <p className="text-sm font-bold">{device.device_name}</p>
+                        <p className="text-xs opacity-70">
+                          {device.status === "online" ? "온라인" : "오프라인"}
+                          {device.battery_level !== null && ` · ${device.battery_level}%`}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Menu */}
+        <div className="border-t border-white/20">
+          <button className="w-full flex items-center gap-3 p-4 hover:bg-white/10 transition-colors">
+            <HelpCircle className="w-5 h-5" />
+            <span className="text-sm font-semibold">Q&A / 도움말</span>
+          </button>
+          <button className="w-full flex items-center gap-3 p-4 hover:bg-white/10 transition-colors">
+            <Settings className="w-5 h-5" />
+            <span className="text-sm font-semibold">설정</span>
+          </button>
+          <button className="w-full flex items-center gap-3 p-4 hover:bg-white/10 transition-colors text-destructive-foreground">
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm font-semibold">로그아웃</span>
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slide-in {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.2s ease-out;
+        }
+      `}</style>
+    </>
+  );
+}
