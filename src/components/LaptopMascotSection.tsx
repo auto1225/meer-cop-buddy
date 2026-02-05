@@ -9,16 +9,21 @@ interface LaptopMascotSectionProps {
 }
 
 export function LaptopMascotSection({ isMonitoring, isAlarming = false }: LaptopMascotSectionProps) {
-  // Determine which mascot image to show
-  const getMascotImage = () => {
+  // Determine which mascot image to show and its size class
+  const getMascotConfig = () => {
     if (isAlarming) {
-      return meercopAlert; // Alert state - megaphone meercat
+      // Alert state - megaphone meercat (scale up to match idle size)
+      return { image: meercopAlert, sizeClass: "h-44" };
     }
     if (isMonitoring) {
-      return meercopMonitoring; // Monitoring state - binoculars meercat
+      // Monitoring state - binoculars meercat (scale up to match idle size)
+      return { image: meercopMonitoring, sizeClass: "h-44" };
     }
-    return meercopIdle; // Idle state
+    // Idle state - base reference size
+    return { image: meercopIdle, sizeClass: "h-40" };
   };
+
+  const { image, sizeClass } = getMascotConfig();
 
   return (
     <div className="relative flex-1 flex flex-col items-center justify-end overflow-hidden">
@@ -42,9 +47,9 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
       {/* Mascot - positioned to stand on top of the rock */}
       <div className="relative z-10 mb-[32%]">
         <img 
-          src={getMascotImage()}
+          src={image}
           alt="MeerCOP Mascot"
-          className={`h-40 object-contain drop-shadow-xl transition-all duration-500 ${
+          className={`${sizeClass} object-contain drop-shadow-xl transition-all duration-500 ${
             isAlarming ? 'animate-bounce' : ''
           }`}
         />
