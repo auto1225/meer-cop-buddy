@@ -65,8 +65,11 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     console.log(`[WebRTC Broadcaster] Creating peer connection for ${sessionId}`);
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
-    // Add local stream tracks
-    streamRef.current.getTracks().forEach((track) => {
+    // Add local stream tracks with logging
+    const tracks = streamRef.current.getTracks();
+    console.log(`[WebRTC Broadcaster] 📹 Adding ${tracks.length} tracks to peer connection`);
+    tracks.forEach((track) => {
+      console.log(`[WebRTC Broadcaster] 📹 Adding track: ${track.kind} (${track.label}) enabled=${track.enabled} readyState=${track.readyState}`);
       pc.addTrack(track, streamRef.current!);
     });
 
