@@ -57,14 +57,19 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   }, [checkCameraAvailability, updateCameraStatus]);
 
   useEffect(() => {
-    if (!deviceId) return;
+    if (!deviceId) {
+      console.log("[CameraDetection] ⚠️ No deviceId, skipping");
+      return;
+    }
+
+    console.log("[CameraDetection] 🚀 Initializing for device:", deviceId);
 
     // Initial check on mount
     checkAndUpdate();
 
     // Real-time device connect/disconnect events (USB cameras, etc.)
     const handleDeviceChange = () => {
-      console.log("[CameraDetection] Device change event triggered");
+      console.log("[CameraDetection] 🔄 Device change event triggered");
       checkAndUpdate();
     };
     
