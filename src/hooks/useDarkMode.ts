@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { addActivityLog } from "@/lib/localActivityLogs";
 
 export function useDarkMode(deviceId?: string) {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -21,29 +22,29 @@ export function useDarkMode(deviceId?: string) {
     const newDarkMode = !isDarkMode;
 
     try {
-      // Update device metadata with dark mode state
+      // Update device metadata with dark mode state (필수 - 모바일 앱과 동기화 필요)
       const { error } = await supabaseShared
         .from("devices")
-        .update({ 
-          metadata: { dark_mode: newDarkMode }
+        .update({
+          metadata: { dark_mode: newDarkMode },
         })
         .eq("id", deviceId);
 
       if (error) throw error;
 
-      // Log the activity
-      await supabaseShared.from("activity_logs").insert({
-        device_id: deviceId,
-        event_type: newDarkMode ? "dark_mode_on" : "dark_mode_off",
-        event_data: { triggered_by: "web_app" },
-      });
+      // 로컬에 활동 로그 기록 (DB 저장 안 함)
+      addActivityLog(
+        deviceId,
+        newDarkMode ? "dark_mode_on" : "dark_mode_off",
+        { triggered_by: "web_app" }
+      );
 
       setIsDarkMode(newDarkMode);
-      
+
       toast({
         title: newDarkMode ? "다크 모드 활성화" : "다크 모드 비활성화",
-        description: newDarkMode 
-          ? "노트북 화면이 검정색으로 변경됩니다." 
+        description: newDarkMode
+          ? "노트북 화면이 검정색으로 변경됩니다."
           : "노트북 화면이 정상으로 돌아갑니다.",
       });
     } catch (error) {
