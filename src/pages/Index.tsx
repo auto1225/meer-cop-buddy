@@ -97,7 +97,11 @@ const Index = () => {
   useEffect(() => {
     if (!currentDevice?.id) return;
 
-    // Fetch initial monitoring status from device metadata
+    let pollInterval = 2000;
+    let pollTimeoutId: NodeJS.Timeout | null = null;
+    let retryTimeoutId: NodeJS.Timeout | null = null;
+
+    // Fetch monitoring status from device metadata
     const fetchMonitoringStatus = async () => {
       const { data } = await supabaseShared
         .from("devices")
@@ -107,13 +111,25 @@ const Index = () => {
       
       const isMonitoringFromDB = (data?.metadata as { is_monitoring?: boolean })?.is_monitoring ?? false;
       setIsMonitoring(isMonitoringFromDB);
+      return isMonitoringFromDB;
+    };
+
+    // Fallback polling with exponential backoff
+    const startPolling = () => {
+      const poll = async () => {
+        await fetchMonitoringStatus();
+        // Backoff up to 10 seconds
+        pollInterval = Math.min(pollInterval * 1.5, 10000);
+        pollTimeoutId = setTimeout(poll, pollInterval);
+      };
+      pollTimeoutId = setTimeout(poll, pollInterval);
     };
 
     fetchMonitoringStatus();
 
-    // Subscribe to realtime changes
+    // Subscribe to realtime changes with retry logic
     const channel = supabaseShared
-      .channel("laptop-monitoring-status")
+      .channel(`laptop-monitoring-status-${currentDevice.id}`)
       .on(
         "postgres_changes",
         {
@@ -127,11 +143,34 @@ const Index = () => {
           const isMonitoringFromDB = metadata?.is_monitoring ?? false;
           console.log("[Index] Monitoring status changed from DB:", isMonitoringFromDB);
           setIsMonitoring(isMonitoringFromDB);
+          // Reset poll interval on realtime event
+          pollInterval = 2000;
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log("[Index] Monitoring channel status:", status, err);
+        
+        if (status === "SUBSCRIBED") {
+          // Stop polling when realtime is working
+          if (pollTimeoutId) {
+            clearTimeout(pollTimeoutId);
+            pollTimeoutId = null;
+          }
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          // Start fallback polling and retry subscription
+          startPolling();
+          retryTimeoutId = setTimeout(() => {
+            channel.subscribe();
+          }, 3000);
+        } else if (status === "CLOSED") {
+          // Start fallback polling
+          startPolling();
+        }
+      });
 
     return () => {
+      if (pollTimeoutId) clearTimeout(pollTimeoutId);
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
       supabaseShared.removeChannel(channel);
     };
   }, [currentDevice?.id]);
