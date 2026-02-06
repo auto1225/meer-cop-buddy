@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared } from "@/lib/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
+// Global tracking to prevent duplicate Presence channel subscriptions
+const setupDeviceIds = new Set<string>();
+const deviceChannels = new Map<string, RealtimeChannel>();
+
 interface DeviceStatus {
   isNetworkConnected: boolean;
   isCameraAvailable: boolean;
@@ -97,33 +101,80 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     }
   }, []);
 
-  // Presence 채널 설정
+  // Presence 채널 설정 (중복 방지 및 자동 재연결)
   useEffect(() => {
     if (!deviceId) return;
 
-    const channel = supabaseShared.channel(`device-presence-${deviceId}`, {
-      config: { presence: { key: deviceId } },
-    });
+    // 이미 설정된 디바이스는 스킵
+    if (setupDeviceIds.has(deviceId)) {
+      console.log(`[DeviceStatus] ⏭️ Presence already setup for ${deviceId}`);
+      channelRef.current = deviceChannels.get(deviceId) || null;
+      return;
+    }
 
-    channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        console.log("[DeviceStatus] Presence sync:", state);
-      })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          channelRef.current = channel;
-          // 초기 상태 동기화
-          await syncPresence(
-            navigator.onLine,
-            false // 카메라 상태는 별도 감지
-          );
-        }
+    const setupChannel = () => {
+      // 기존 채널이 있으면 제거
+      const existingChannel = deviceChannels.get(deviceId);
+      if (existingChannel) {
+        supabaseShared.removeChannel(existingChannel);
+        deviceChannels.delete(deviceId);
+      }
+
+      console.log(`[DeviceStatus] 🔗 Setting up Presence channel for ${deviceId}`);
+      
+      const channel = supabaseShared.channel(`device-presence-${deviceId}`, {
+        config: { presence: { key: deviceId } },
       });
 
+      channel
+        .on("presence", { event: "sync" }, () => {
+          const state = channel.presenceState();
+          console.log("[DeviceStatus] Presence sync:", state);
+        })
+        .subscribe(async (status) => {
+          console.log(`[DeviceStatus] Channel status: ${status}`);
+          
+          if (status === "SUBSCRIBED") {
+            channelRef.current = channel;
+            deviceChannels.set(deviceId, channel);
+            setupDeviceIds.add(deviceId);
+            
+            // 초기 상태 동기화
+            await syncPresence(
+              navigator.onLine,
+              false // 카메라 상태는 별도 감지
+            );
+          } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+            console.log(`[DeviceStatus] ⚠️ Channel ${status}, will reconnect in 3s`);
+            setupDeviceIds.delete(deviceId);
+            deviceChannels.delete(deviceId);
+            
+            // 3초 후 자동 재연결
+            setTimeout(() => {
+              if (deviceIdRef.current === deviceId) {
+                console.log(`[DeviceStatus] 🔄 Reconnecting Presence channel...`);
+                setupChannel();
+              }
+            }, 3000);
+          }
+        });
+
+      channelRef.current = channel;
+    };
+
+    setupChannel();
+
     return () => {
-      supabaseShared.removeChannel(channel);
-      channelRef.current = null;
+      // 컴포넌트 언마운트 시에만 정리 (deviceId가 같을 때만)
+      if (deviceIdRef.current === deviceId) {
+        const channel = deviceChannels.get(deviceId);
+        if (channel) {
+          supabaseShared.removeChannel(channel);
+          deviceChannels.delete(deviceId);
+          setupDeviceIds.delete(deviceId);
+        }
+        channelRef.current = null;
+      }
     };
   }, [deviceId, syncPresence]);
 
