@@ -173,8 +173,6 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           filter: `device_id=eq.${currentDeviceId}`,
         },
         async (payload) => {
-          console.log(`[WebRTC Broadcaster] Received signaling payload:`, payload);
-          
           const record = payload.new as {
             session_id: string;
             type: string;
@@ -182,16 +180,31 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
             data: any;
           };
 
+          console.log(`[WebRTC Broadcaster] Received signaling:`, {
+            type: record.type,
+            sender_type: record.sender_type,
+            session_id: record.session_id,
+            hasData: !!record.data,
+            dataKeys: record.data ? Object.keys(record.data) : [],
+          });
+
           // Only process messages from viewers
-          if (record.sender_type !== "viewer") return;
+          if (record.sender_type !== "viewer") {
+            console.log(`[WebRTC Broadcaster] Ignoring non-viewer message (sender_type: ${record.sender_type})`);
+            return;
+          }
 
           if (record.type === "viewer-join") {
-            console.log(`[WebRTC Broadcaster] Viewer joined: ${record.session_id}`);
+            console.log(`[WebRTC Broadcaster] ✅ Viewer joined: ${record.session_id}`);
             await createPeerConnectionAndOffer(record.session_id);
           } else if (record.type === "answer") {
+            console.log(`[WebRTC Broadcaster] ✅ Received answer from viewer: ${record.session_id}`, record.data);
             await handleAnswer(record.session_id, record.data.sdp);
           } else if (record.type === "ice-candidate") {
+            console.log(`[WebRTC Broadcaster] ✅ Received ICE candidate from viewer: ${record.session_id}`);
             await handleIceCandidate(record.session_id, record.data.candidate);
+          } else {
+            console.log(`[WebRTC Broadcaster] Unknown message type: ${record.type}`);
           }
         }
       )
