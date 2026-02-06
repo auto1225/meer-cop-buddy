@@ -99,13 +99,8 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
     // Stop WebRTC broadcasting
     await stopBroadcasting();
 
-    // Update device status
-    if (deviceId) {
-      await supabaseShared
-        .from("devices")
-        .update({ is_camera_connected: false })
-        .eq("id", deviceId);
-    }
+    // NOTE: is_camera_connected는 useCameraDetection에서 하드웨어 상태만 관리
+    // 스트리밍 종료 시 카메라 연결 상태를 변경하지 않음
 
     isStoppingRef.current = false;
   }, [deviceId, stopBroadcasting]);
