@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  getAlertLogs, 
+  addActivityLog,
+  LocalActivityLog 
+} from "@/lib/localActivityLogs";
 
 export interface Alert {
   id: string;
@@ -21,22 +25,14 @@ export function useAlerts(deviceId?: string) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Fetch recent alerts
-  const fetchAlerts = useCallback(async () => {
+  // Fetch recent alerts from localStorage
+  const fetchAlerts = useCallback(() => {
     if (!deviceId) return;
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabaseShared
-        .from("activity_logs")
-        .select("*")
-        .eq("device_id", deviceId)
-        .in("event_type", ["alert_shock", "alert_mouse", "alert_keyboard", "alert_movement"])
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setAlerts((data || []) as Alert[]);
+      const localAlerts = getAlertLogs(deviceId, 50);
+      setAlerts(localAlerts as Alert[]);
     } catch (error) {
       console.error("Error fetching alerts:", error);
     } finally {
@@ -44,76 +40,80 @@ export function useAlerts(deviceId?: string) {
     }
   }, [deviceId]);
 
+  // Trigger a new alert (로컬 저장)
+  const triggerAlert = useCallback((
+    eventType: string,
+    eventData?: Record<string, unknown>
+  ) => {
+    if (!deviceId) return;
+
+    const newLog = addActivityLog(deviceId, eventType, eventData);
+    const newAlert = newLog as Alert;
+    
+    setActiveAlert(newAlert);
+    setAlerts((prev) => [newAlert, ...prev]);
+
+    // Play alert sound
+    try {
+      const audio = new Audio("/alert-sound.mp3");
+      audio.play().catch(() => {
+        // Audio play failed, likely due to autoplay policy
+      });
+    } catch {
+      // Audio not available
+    }
+  }, [deviceId]);
+
   // Stop active alert
-  const stopAlert = useCallback(async () => {
+  const stopAlert = useCallback(() => {
     if (!activeAlert || !deviceId) return;
 
-    try {
-      await supabaseShared.from("activity_logs").insert({
-        device_id: deviceId,
-        event_type: "alert_stopped",
-        event_data: { 
-          original_alert_id: activeAlert.id,
-          stopped_by: "web_app" 
-        },
-      });
+    // 로컬에 경보 해제 기록
+    addActivityLog(deviceId, "alert_stopped", {
+      original_alert_id: activeAlert.id,
+      stopped_by: "web_app",
+    });
 
-      setActiveAlert(null);
-      
-      toast({
-        title: "경보 해제",
-        description: "경보가 성공적으로 해제되었습니다.",
-      });
-    } catch (error) {
-      console.error("Error stopping alert:", error);
-      toast({
-        title: "오류",
-        description: "경보 해제에 실패했습니다.",
-        variant: "destructive",
-      });
-    }
+    setActiveAlert(null);
+
+    toast({
+      title: "경보 해제",
+      description: "경보가 성공적으로 해제되었습니다.",
+    });
   }, [activeAlert, deviceId, toast]);
 
-  // Subscribe to realtime alerts
+  // 다른 컴포넌트에서 추가된 알림 감지
   useEffect(() => {
     if (!deviceId) return;
 
     fetchAlerts();
 
-    const channel = supabaseShared
-      .channel("alerts-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "activity_logs",
-          filter: `device_id=eq.${deviceId}`,
-        },
-        (payload) => {
-          const newLog = payload.new as Alert;
-          const alertTypes = ["alert_shock", "alert_mouse", "alert_keyboard", "alert_movement"];
-          
-          if (alertTypes.includes(newLog.event_type)) {
-            setActiveAlert(newLog);
-            setAlerts((prev) => [newLog, ...prev]);
-            
-            // Play alert sound
-            try {
-              const audio = new Audio("/alert-sound.mp3");
-              audio.play().catch(() => {
-                // Audio play failed, likely due to autoplay policy
-              });
-            } catch {
-              // Audio not available
-            }
-          }
+    const handleLogAdded = (event: CustomEvent<LocalActivityLog>) => {
+      const newLog = event.detail;
+      const alertTypes = ["alert_shock", "alert_mouse", "alert_keyboard", "alert_movement"];
+
+      if (newLog.device_id === deviceId && alertTypes.includes(newLog.event_type)) {
+        const newAlert = newLog as Alert;
+        setActiveAlert(newAlert);
+        setAlerts((prev) => {
+          if (prev.some((a) => a.id === newAlert.id)) return prev;
+          return [newAlert, ...prev];
+        });
+
+        // Play alert sound
+        try {
+          const audio = new Audio("/alert-sound.mp3");
+          audio.play().catch(() => {});
+        } catch {
+          // Audio not available
         }
-      )
-      .subscribe();
+      }
+    };
+
+    window.addEventListener("activity-log-added", handleLogAdded as EventListener);
 
     return () => {
-      supabaseShared.removeChannel(channel);
+      window.removeEventListener("activity-log-added", handleLogAdded as EventListener);
     };
   }, [deviceId, fetchAlerts]);
 
@@ -123,5 +123,6 @@ export function useAlerts(deviceId?: string) {
     isLoading,
     stopAlert,
     fetchAlerts,
+    triggerAlert,
   };
 }

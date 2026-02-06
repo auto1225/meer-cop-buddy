@@ -1,48 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabaseShared } from "@/lib/supabase";
+import { 
+  getActivityLogs, 
+  addActivityLog as addLog,
+  LocalActivityLog 
+} from "@/lib/localActivityLogs";
 
-interface ActivityLogEntry {
-  id: string;
-  device_id: string;
-  event_type: string;
-  event_data: Record<string, unknown> | null;
-  created_at: string;
-  devices?: {
-    device_name: string;
-  };
-}
+export type ActivityLogEntry = LocalActivityLog;
 
 export function useActivityLogs(deviceId?: string, limit = 50) {
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(() => {
     try {
       setIsLoading(true);
-      
-      let query = supabaseShared
-        .from("activity_logs")
-        .select("*, devices(device_name)")
-        .order("created_at", { ascending: false })
-        .limit(limit);
-      
-      // Filter by device if provided
-      if (deviceId) {
-        query = query.eq("device_id", deviceId);
-      }
-
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) throw fetchError;
-      
-      const typedData = (data || []).map((log) => ({
-        ...log,
-        event_data: log.event_data as Record<string, unknown> | null,
-        devices: log.devices as { device_name: string } | undefined,
-      }));
-      
-      setLogs(typedData);
+      const localLogs = getActivityLogs(deviceId, limit);
+      setLogs(localLogs);
       setError(null);
     } catch (err) {
       console.error("Error fetching activity logs:", err);
@@ -52,31 +26,37 @@ export function useActivityLogs(deviceId?: string, limit = 50) {
     }
   }, [deviceId, limit]);
 
+  // 로그 추가 함수
+  const addActivityLog = useCallback((
+    eventType: string,
+    eventData?: Record<string, unknown>,
+    deviceName?: string
+  ) => {
+    if (!deviceId) return;
+    
+    const newLog = addLog(deviceId, eventType, eventData, deviceName);
+    setLogs((prev) => [newLog, ...prev].slice(0, limit));
+  }, [deviceId, limit]);
+
   useEffect(() => {
     fetchLogs();
 
-    // Subscribe to realtime updates
-    const channel = supabaseShared
-      .channel("activity-logs-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "activity_logs",
-        },
-        (payload) => {
-          const newLog = payload.new as ActivityLogEntry;
-          // Only add if it matches our device filter
-          if (!deviceId || newLog.device_id === deviceId) {
-            setLogs((prev) => [newLog, ...prev].slice(0, limit));
-          }
-        }
-      )
-      .subscribe();
+    // 다른 컴포넌트에서 추가된 로그 감지
+    const handleLogAdded = (event: CustomEvent<LocalActivityLog>) => {
+      const newLog = event.detail;
+      if (!deviceId || newLog.device_id === deviceId) {
+        setLogs((prev) => {
+          // 중복 방지
+          if (prev.some(log => log.id === newLog.id)) return prev;
+          return [newLog, ...prev].slice(0, limit);
+        });
+      }
+    };
+
+    window.addEventListener("activity-log-added", handleLogAdded as EventListener);
 
     return () => {
-      supabaseShared.removeChannel(channel);
+      window.removeEventListener("activity-log-added", handleLogAdded as EventListener);
     };
   }, [fetchLogs, deviceId, limit]);
 
@@ -85,5 +65,6 @@ export function useActivityLogs(deviceId?: string, limit = 50) {
     isLoading,
     error,
     refetch: fetchLogs,
+    addActivityLog,
   };
 }
