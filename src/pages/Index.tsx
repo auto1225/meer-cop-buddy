@@ -101,15 +101,17 @@ const Index = () => {
     let pollTimeoutId: NodeJS.Timeout | null = null;
     let retryTimeoutId: NodeJS.Timeout | null = null;
 
-    // Fetch monitoring status from device metadata
+    // Fetch monitoring status from device (direct column, not metadata)
     const fetchMonitoringStatus = async () => {
       const { data } = await supabaseShared
         .from("devices")
-        .select("metadata")
+        .select("is_monitoring")
         .eq("id", currentDevice.id)
         .maybeSingle();
       
-      const isMonitoringFromDB = (data?.metadata as { is_monitoring?: boolean })?.is_monitoring ?? false;
+      // Read from is_monitoring column directly (not metadata)
+      const isMonitoringFromDB = (data as { is_monitoring?: boolean })?.is_monitoring ?? false;
+      console.log("[Index] Fetched monitoring status:", isMonitoringFromDB);
       setIsMonitoring(isMonitoringFromDB);
       return isMonitoringFromDB;
     };
@@ -139,8 +141,8 @@ const Index = () => {
           filter: `id=eq.${currentDevice.id}`,
         },
         (payload) => {
-          const metadata = (payload.new as { metadata?: { is_monitoring?: boolean } }).metadata;
-          const isMonitoringFromDB = metadata?.is_monitoring ?? false;
+          // Read from is_monitoring column directly (not metadata)
+          const isMonitoringFromDB = (payload.new as { is_monitoring?: boolean }).is_monitoring ?? false;
           console.log("[Index] Monitoring status changed from DB:", isMonitoringFromDB);
           setIsMonitoring(isMonitoringFromDB);
           // Reset poll interval on realtime event
