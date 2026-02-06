@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 export interface SecurityEvent {
-  type: "keyboard" | "mouse" | "usb" | "lid";
+  type: "keyboard" | "mouse" | "usb" | "lid" | "power";
   timestamp: Date;
   photos: string[];
 }
@@ -135,8 +135,9 @@ export function useSecuritySurveillance({
       }, captureInterval);
       
       // Add event listeners
-      const handleKeyboard = () => {
+      const handleKeyboard = (e: KeyboardEvent) => {
         if (isMonitoringRef.current) {
+          console.log("[Surveillance] Keyboard detected:", e.key);
           triggerEvent("keyboard");
         }
       };
@@ -152,6 +153,7 @@ export function useSecuritySurveillance({
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance >= mouseSensitivity) {
+            console.log("[Surveillance] Mouse movement detected:", distance.toFixed(0), "px");
             triggerEvent("mouse");
             lastMousePosition.current = currentPos;
           }
@@ -159,6 +161,45 @@ export function useSecuritySurveillance({
           lastMousePosition.current = currentPos;
         }
       };
+
+      // Power/charging status detection (Battery API)
+      let lastChargingState: boolean | null = null;
+      const handleChargingChange = (charging: boolean) => {
+        if (!isMonitoringRef.current) return;
+        
+        // Only trigger if charging was disconnected (unplugged)
+        if (lastChargingState === true && charging === false) {
+          console.log("[Surveillance] Power unplugged detected!");
+          triggerEvent("power");
+        }
+        lastChargingState = charging;
+      };
+
+      // Setup Battery API if available
+      const setupBatteryMonitoring = async () => {
+        try {
+          // @ts-ignore - Battery API not in all TypeScript definitions
+          if ('getBattery' in navigator) {
+            // @ts-ignore
+            const battery = await navigator.getBattery();
+            lastChargingState = battery.charging;
+            console.log("[Surveillance] Battery monitoring started. Charging:", battery.charging);
+            
+            battery.addEventListener('chargingchange', () => {
+              handleChargingChange(battery.charging);
+            });
+            
+            // Store for cleanup
+            (window as any).__meercop_battery = battery;
+          } else {
+            console.log("[Surveillance] Battery API not supported");
+          }
+        } catch (err) {
+          console.log("[Surveillance] Battery API error:", err);
+        }
+      };
+      
+      setupBatteryMonitoring();
       
       window.addEventListener("keydown", handleKeyboard);
       window.addEventListener("mousemove", handleMouse);
@@ -167,6 +208,7 @@ export function useSecuritySurveillance({
       (window as any).__meercop_keyboard_handler = handleKeyboard;
       (window as any).__meercop_mouse_handler = handleMouse;
       
+      console.log("[Surveillance] Started - monitoring keyboard, mouse, and power");
       isMonitoringRef.current = true;
       setIsActive(true);
       
