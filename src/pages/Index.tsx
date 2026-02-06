@@ -100,31 +100,61 @@ const Index = () => {
     let pollInterval = 2000;
     let pollTimeoutId: NodeJS.Timeout | null = null;
     let retryTimeoutId: NodeJS.Timeout | null = null;
+    let isPollingActive = false;
+    let isMounted = true;
 
     // Fetch monitoring status from device (direct column, not metadata)
     const fetchMonitoringStatus = async () => {
-      const { data } = await supabaseShared
-        .from("devices")
-        .select("is_monitoring")
-        .eq("id", currentDevice.id)
-        .maybeSingle();
+      if (!isMounted) return false;
       
-      // Read from is_monitoring column directly (not metadata)
-      const isMonitoringFromDB = (data as { is_monitoring?: boolean })?.is_monitoring ?? false;
-      console.log("[Index] Fetched monitoring status:", isMonitoringFromDB);
-      setIsMonitoring(isMonitoringFromDB);
-      return isMonitoringFromDB;
+      try {
+        const { data, error } = await supabaseShared
+          .from("devices")
+          .select("is_monitoring")
+          .eq("id", currentDevice.id)
+          .maybeSingle();
+        
+        if (error) {
+          console.error("[Index] Error fetching monitoring status:", error);
+          return false;
+        }
+        
+        // Read from is_monitoring column directly (not metadata)
+        const isMonitoringFromDB = (data as { is_monitoring?: boolean })?.is_monitoring ?? false;
+        console.log("[Index] Fetched monitoring status:", isMonitoringFromDB);
+        if (isMounted) {
+          setIsMonitoring(isMonitoringFromDB);
+        }
+        return isMonitoringFromDB;
+      } catch (err) {
+        console.error("[Index] Fetch error:", err);
+        return false;
+      }
     };
 
-    // Fallback polling with exponential backoff
+    // Fallback polling with exponential backoff (with deduplication)
     const startPolling = () => {
+      if (isPollingActive) return; // Prevent duplicate polling
+      isPollingActive = true;
+      
       const poll = async () => {
+        if (!isMounted) return;
         await fetchMonitoringStatus();
         // Backoff up to 10 seconds
         pollInterval = Math.min(pollInterval * 1.5, 10000);
-        pollTimeoutId = setTimeout(poll, pollInterval);
+        if (isMounted && isPollingActive) {
+          pollTimeoutId = setTimeout(poll, pollInterval);
+        }
       };
       pollTimeoutId = setTimeout(poll, pollInterval);
+    };
+
+    const stopPolling = () => {
+      isPollingActive = false;
+      if (pollTimeoutId) {
+        clearTimeout(pollTimeoutId);
+        pollTimeoutId = null;
+      }
     };
 
     fetchMonitoringStatus();
@@ -144,7 +174,9 @@ const Index = () => {
           // Read from is_monitoring column directly (not metadata)
           const isMonitoringFromDB = (payload.new as { is_monitoring?: boolean }).is_monitoring ?? false;
           console.log("[Index] Monitoring status changed from DB:", isMonitoringFromDB);
-          setIsMonitoring(isMonitoringFromDB);
+          if (isMounted) {
+            setIsMonitoring(isMonitoringFromDB);
+          }
           // Reset poll interval on realtime event
           pollInterval = 2000;
         }
@@ -154,24 +186,22 @@ const Index = () => {
         
         if (status === "SUBSCRIBED") {
           // Stop polling when realtime is working
-          if (pollTimeoutId) {
-            clearTimeout(pollTimeoutId);
-            pollTimeoutId = null;
-          }
+          stopPolling();
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           // Start fallback polling and retry subscription
           startPolling();
           retryTimeoutId = setTimeout(() => {
-            channel.subscribe();
+            if (isMounted) channel.subscribe();
           }, 3000);
         } else if (status === "CLOSED") {
-          // Start fallback polling
-          startPolling();
+          // Only start polling if component is still mounted
+          if (isMounted) startPolling();
         }
       });
 
     return () => {
-      if (pollTimeoutId) clearTimeout(pollTimeoutId);
+      isMounted = false;
+      stopPolling();
       if (retryTimeoutId) clearTimeout(retryTimeoutId);
       supabaseShared.removeChannel(channel);
     };
