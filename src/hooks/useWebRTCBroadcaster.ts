@@ -50,16 +50,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const createPeerConnectionAndOffer = useCallback(async (sessionId: string) => {
     const currentDeviceId = deviceIdRef.current;
     
-    // 중복 viewer-join 무시
-    if (processedViewerJoinsRef.current.has(sessionId)) {
-      console.log(`[WebRTC Broadcaster] ⏭️ Skipping duplicate viewer-join: ${sessionId}`);
-      return null;
-    }
-    processedViewerJoinsRef.current.add(sessionId);
-    
     if (!streamRef.current) {
       console.error("[WebRTC Broadcaster] No stream available");
-      processedViewerJoinsRef.current.delete(sessionId);
       return null;
     }
 
@@ -216,8 +208,19 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           }
 
           if (record.type === "viewer-join") {
-            console.log(`[WebRTC Broadcaster] ✅ Viewer joined: ${record.session_id}`);
-            await createPeerConnectionAndOffer(record.session_id);
+            const viewerSessionId = record.session_id;
+            
+            // 이미 처리한 viewer-join이면 무시
+            if (processedViewerJoinsRef.current.has(viewerSessionId)) {
+              console.log(`[WebRTC Broadcaster] ⏭️ Ignoring duplicate viewer-join: ${viewerSessionId}`);
+              return;
+            }
+            
+            // 처리 시작 전에 먼저 Set에 추가
+            processedViewerJoinsRef.current.add(viewerSessionId);
+            
+            console.log(`[WebRTC Broadcaster] ✅ Viewer joined: ${viewerSessionId}`);
+            await createPeerConnectionAndOffer(viewerSessionId);
           } else if (record.type === "answer") {
             console.log(`[WebRTC Broadcaster] ✅ Received answer from viewer: ${record.session_id}`, record.data);
             await handleAnswer(record.session_id, record.data.sdp);
