@@ -50,22 +50,18 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   useEffect(() => {
     if (!deviceId) return;
 
-    // Initial check
+    // Initial check on mount
     checkAndUpdate();
 
-    // Device connect/disconnect events (USB cameras, etc.)
+    // Real-time device connect/disconnect events (USB cameras, etc.)
     const handleDeviceChange = () => {
-      console.log("[CameraDetection] Device change detected");
+      console.log("[CameraDetection] Device change event triggered");
       checkAndUpdate();
     };
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
-    // Poll every 30 seconds as backup
-    const interval = setInterval(checkAndUpdate, 30000);
-
     return () => {
-      clearInterval(interval);
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
   }, [deviceId, checkAndUpdate]);
