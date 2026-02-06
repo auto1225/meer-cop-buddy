@@ -232,6 +232,25 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     };
   }, [syncPresence, updateDeviceStatusInDB]);
 
+  // Listen for camera status changes from useCameraDetection
+  useEffect(() => {
+    const handleCameraStatusChanged = (event: CustomEvent<{ isConnected: boolean }>) => {
+      const { isConnected } = event.detail;
+      console.log("[DeviceStatus] Camera status changed event:", isConnected);
+      setStatus((prev) => {
+        if (prev.isCameraAvailable !== isConnected) {
+          syncPresence(prev.isNetworkConnected, isConnected);
+        }
+        return { ...prev, isCameraAvailable: isConnected };
+      });
+    };
+
+    window.addEventListener("camera-status-changed", handleCameraStatusChanged as EventListener);
+    return () => {
+      window.removeEventListener("camera-status-changed", handleCameraStatusChanged as EventListener);
+    };
+  }, [syncPresence]);
+
   // Initial sync when deviceId becomes available
   useEffect(() => {
     if (deviceId) {
