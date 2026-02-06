@@ -27,6 +27,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const streamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<string, PeerConnection>>(new Map());
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const processedViewerJoinsRef = useRef<Set<string>>(new Set());
   const deviceIdRef = useRef(deviceId);
 
   // Keep deviceId ref updated
@@ -49,8 +50,16 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const createPeerConnectionAndOffer = useCallback(async (sessionId: string) => {
     const currentDeviceId = deviceIdRef.current;
     
+    // 중복 viewer-join 무시
+    if (processedViewerJoinsRef.current.has(sessionId)) {
+      console.log(`[WebRTC Broadcaster] ⏭️ Skipping duplicate viewer-join: ${sessionId}`);
+      return null;
+    }
+    processedViewerJoinsRef.current.add(sessionId);
+    
     if (!streamRef.current) {
       console.error("[WebRTC Broadcaster] No stream available");
+      processedViewerJoinsRef.current.delete(sessionId);
       return null;
     }
 
@@ -255,6 +264,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       peer.pc.close();
     });
     peersRef.current.clear();
+    processedViewerJoinsRef.current.clear();
 
     // Unsubscribe from channel
     if (channelRef.current) {
