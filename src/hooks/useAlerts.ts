@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  getAlertLogs, 
+import { RealtimeChannel } from "@supabase/supabase-js";
+import {
+  getAlertLogs,
   addActivityLog,
-  LocalActivityLog 
+  LocalActivityLog,
 } from "@/lib/localActivityLogs";
 
 export interface Alert {
@@ -25,6 +27,25 @@ export function useAlerts(deviceId?: string) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const deviceIdRef = useRef(deviceId);
+  deviceIdRef.current = deviceId;
+
+  // Presence 채널로 알림 전송 (스마트폰 앱이 수신)
+  const broadcastAlert = useCallback(async (alert: Alert | null) => {
+    if (!channelRef.current) return;
+
+    try {
+      await channelRef.current.track({
+        active_alert: alert,
+        updated_at: new Date().toISOString(),
+      });
+      console.log("[Alerts] Broadcasted alert via Presence:", alert?.event_type || "cleared");
+    } catch (error) {
+      console.error("[Alerts] Failed to broadcast alert:", error);
+    }
+  }, []);
+
   // Fetch recent alerts from localStorage
   const fetchAlerts = useCallback(() => {
     if (!deviceId) return;
@@ -40,29 +61,32 @@ export function useAlerts(deviceId?: string) {
     }
   }, [deviceId]);
 
-  // Trigger a new alert (로컬 저장)
-  const triggerAlert = useCallback((
-    eventType: string,
-    eventData?: Record<string, unknown>
-  ) => {
-    if (!deviceId) return;
+  // Trigger a new alert (로컬 저장 + Presence 전송)
+  const triggerAlert = useCallback(
+    (eventType: string, eventData?: Record<string, unknown>) => {
+      if (!deviceId) return;
 
-    const newLog = addActivityLog(deviceId, eventType, eventData);
-    const newAlert = newLog as Alert;
-    
-    setActiveAlert(newAlert);
-    setAlerts((prev) => [newAlert, ...prev]);
+      const newLog = addActivityLog(deviceId, eventType, eventData);
+      const newAlert = newLog as Alert;
 
-    // Play alert sound
-    try {
-      const audio = new Audio("/alert-sound.mp3");
-      audio.play().catch(() => {
-        // Audio play failed, likely due to autoplay policy
-      });
-    } catch {
-      // Audio not available
-    }
-  }, [deviceId]);
+      setActiveAlert(newAlert);
+      setAlerts((prev) => [newAlert, ...prev]);
+
+      // Presence 채널로 스마트폰에 알림 전송
+      broadcastAlert(newAlert);
+
+      // Play alert sound
+      try {
+        const audio = new Audio("/alert-sound.mp3");
+        audio.play().catch(() => {
+          // Audio play failed, likely due to autoplay policy
+        });
+      } catch {
+        // Audio not available
+      }
+    },
+    [deviceId, broadcastAlert]
+  );
 
   // Stop active alert
   const stopAlert = useCallback(() => {
@@ -76,11 +100,40 @@ export function useAlerts(deviceId?: string) {
 
     setActiveAlert(null);
 
+    // Presence 채널로 알림 해제 전송
+    broadcastAlert(null);
+
     toast({
       title: "경보 해제",
       description: "경보가 성공적으로 해제되었습니다.",
     });
-  }, [activeAlert, deviceId, toast]);
+  }, [activeAlert, deviceId, toast, broadcastAlert]);
+
+  // Presence 채널 설정 (알림 브로드캐스트용)
+  useEffect(() => {
+    if (!deviceId) return;
+
+    const channel = supabaseShared.channel(`device-alerts-${deviceId}`, {
+      config: { presence: { key: deviceId } },
+    });
+
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        console.log("[Alerts] Presence sync:", state);
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          channelRef.current = channel;
+          console.log("[Alerts] Presence channel subscribed");
+        }
+      });
+
+    return () => {
+      supabaseShared.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [deviceId]);
 
   // 다른 컴포넌트에서 추가된 알림 감지
   useEffect(() => {
@@ -90,15 +143,26 @@ export function useAlerts(deviceId?: string) {
 
     const handleLogAdded = (event: CustomEvent<LocalActivityLog>) => {
       const newLog = event.detail;
-      const alertTypes = ["alert_shock", "alert_mouse", "alert_keyboard", "alert_movement"];
+      const alertTypes = [
+        "alert_shock",
+        "alert_mouse",
+        "alert_keyboard",
+        "alert_movement",
+      ];
 
-      if (newLog.device_id === deviceId && alertTypes.includes(newLog.event_type)) {
+      if (
+        newLog.device_id === deviceId &&
+        alertTypes.includes(newLog.event_type)
+      ) {
         const newAlert = newLog as Alert;
         setActiveAlert(newAlert);
         setAlerts((prev) => {
           if (prev.some((a) => a.id === newAlert.id)) return prev;
           return [newAlert, ...prev];
         });
+
+        // Presence 채널로 스마트폰에 알림 전송
+        broadcastAlert(newAlert);
 
         // Play alert sound
         try {
@@ -110,12 +174,18 @@ export function useAlerts(deviceId?: string) {
       }
     };
 
-    window.addEventListener("activity-log-added", handleLogAdded as EventListener);
+    window.addEventListener(
+      "activity-log-added",
+      handleLogAdded as EventListener
+    );
 
     return () => {
-      window.removeEventListener("activity-log-added", handleLogAdded as EventListener);
+      window.removeEventListener(
+        "activity-log-added",
+        handleLogAdded as EventListener
+      );
     };
-  }, [deviceId, fetchAlerts]);
+  }, [deviceId, fetchAlerts, broadcastAlert]);
 
   return {
     alerts,
