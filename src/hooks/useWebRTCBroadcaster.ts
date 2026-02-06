@@ -193,11 +193,23 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       .delete()
       .eq("device_id", currentDeviceId);
 
-    console.log(`[WebRTC Broadcaster] Subscribing to signaling for device: ${currentDeviceId}`);
+    const channelName = `webrtc-${currentDeviceId}`;
+    
+    // Reuse existing channel if available
+    const existingChannel = supabaseShared.getChannels().find(
+      ch => ch.topic === `realtime:${channelName}`
+    );
+    
+    if (existingChannel) {
+      console.log("[WebRTC Broadcaster] ♻️ Reusing existing signaling channel");
+      channelRef.current = existingChannel;
+      setIsBroadcasting(true);
+      return;
+    }
 
     // Subscribe to signaling channel
     const channel = supabaseShared
-      .channel(`webrtc-${currentDeviceId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -214,59 +226,32 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
             data: any;
           };
 
-          console.log(`[WebRTC Broadcaster] Received signaling:`, {
-            type: record.type,
-            sender_type: record.sender_type,
-            session_id: record.session_id,
-            hasData: !!record.data,
-            dataKeys: record.data ? Object.keys(record.data) : [],
-          });
-
           // Only process messages from viewers
-          if (record.sender_type !== "viewer") {
-            console.log(`[WebRTC Broadcaster] Ignoring non-viewer message (sender_type: ${record.sender_type})`);
-            return;
-          }
+          if (record.sender_type !== "viewer") return;
 
           if (record.type === "viewer-join") {
             const viewerSessionId = record.session_id;
             
-            // 🔒 중복 방지 로직 - 순서 중요!
-            // 1. 이미 처리 중인 viewer-join 스킵
-            if (processedViewerJoinsRef.current.has(viewerSessionId)) {
-              console.log(`[WebRTC Broadcaster] ⏭️ Skipping duplicate viewer-join: ${viewerSessionId}`);
+            // 🔒 중복 방지 로직
+            if (processedViewerJoinsRef.current.has(viewerSessionId) || 
+                peersRef.current.has(viewerSessionId)) {
               return;
             }
             
-            // 2. 이미 연결된 viewer 스킵
-            if (peersRef.current.has(viewerSessionId)) {
-              console.log(`[WebRTC Broadcaster] ⏭️ Viewer already has connection: ${viewerSessionId}`);
-              return;
-            }
-            
-            // 3. 먼저 Set에 추가하여 동시 호출 방지
             processedViewerJoinsRef.current.add(viewerSessionId);
-            
             console.log(`[WebRTC Broadcaster] 👋 Viewer joined: ${viewerSessionId}`);
             await createPeerConnectionAndOffer(viewerSessionId);
           } else if (record.type === "answer") {
-            console.log(`[WebRTC Broadcaster] ✅ Received answer from viewer: ${record.session_id}`, record.data);
             await handleAnswer(record.session_id, record.data.sdp);
           } else if (record.type === "ice-candidate") {
-            console.log(`[WebRTC Broadcaster] ✅ Received ICE candidate from viewer: ${record.session_id}`);
             await handleIceCandidate(record.session_id, record.data.candidate);
-          } else {
-            console.log(`[WebRTC Broadcaster] Unknown message type: ${record.type}`);
           }
         }
       )
       .subscribe(async (status, err) => {
-        console.log(`[WebRTC Broadcaster] Channel status: ${status}`, err || '');
         if (status === 'SUBSCRIBED') {
-          // Only mark as ready AFTER subscription is confirmed
           setIsBroadcasting(true);
           
-          // Update device to signal we're ready for viewers
           await supabaseShared
             .from("devices")
             .update({ 
@@ -275,7 +260,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
             })
             .eq("id", currentDeviceId);
             
-          console.log("[WebRTC Broadcaster] Ready for viewers - is_camera_connected set to true");
+          console.log("[WebRTC Broadcaster] ✅ Ready for viewers");
         } else if (status === 'CHANNEL_ERROR') {
           console.error('[WebRTC Broadcaster] Channel error:', err);
           setError('Failed to subscribe to signaling channel');
@@ -283,7 +268,6 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       });
 
     channelRef.current = channel;
-    console.log("[WebRTC Broadcaster] Started broadcasting (waiting for SUBSCRIBED)");
   }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate]);
 
   // Stop broadcasting
