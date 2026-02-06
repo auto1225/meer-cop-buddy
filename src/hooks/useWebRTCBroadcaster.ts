@@ -28,6 +28,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const peersRef = useRef<Map<string, PeerConnection>>(new Map());
   const channelRef = useRef<RealtimeChannel | null>(null);
   const processedViewerJoinsRef = useRef<Set<string>>(new Set());
+  const processedAnswersRef = useRef<Set<string>>(new Set()); // Track processed answers
   const deviceIdRef = useRef(deviceId);
 
   // Keep deviceId ref updated
@@ -120,29 +121,46 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
   // Handle incoming answer from viewer
   const handleAnswer = useCallback(async (sessionId: string, answerData: any) => {
-    console.log(`[WebRTC Broadcaster] Received answer from ${sessionId}`, answerData);
+    // Skip duplicate answers
+    if (processedAnswersRef.current.has(sessionId)) {
+      console.log(`[WebRTC Broadcaster] ⏭️ Skipping duplicate answer for ${sessionId}`);
+      return;
+    }
     
     const peer = peersRef.current.get(sessionId);
-    if (peer) {
-      try {
-        // Handle both formats: { type, sdp } or just sdp string
-        const sdp = typeof answerData === 'string' 
-          ? answerData 
-          : (answerData?.sdp || answerData);
-        
-        const sdpString = typeof sdp === 'string' ? sdp : sdp?.sdp;
-        
-        console.log(`[WebRTC Broadcaster] Extracted SDP type:`, typeof sdpString, sdpString?.substring(0, 50));
-        
-        await peer.pc.setRemoteDescription(new RTCSessionDescription({
-          type: "answer",
-          sdp: sdpString,
-        }));
-        console.log(`[WebRTC Broadcaster] ✅ Set remote description for ${sessionId}`);
-      } catch (err) {
-        console.error("[WebRTC Broadcaster] ❌ Error setting remote description:", err);
-        cleanupPeer(sessionId);
-      }
+    if (!peer) {
+      console.log(`[WebRTC Broadcaster] No peer found for ${sessionId}`);
+      return;
+    }
+    
+    // Check if remote description is already set
+    if (peer.pc.remoteDescription) {
+      console.log(`[WebRTC Broadcaster] ⏭️ Remote description already set for ${sessionId}`);
+      return;
+    }
+    
+    console.log(`[WebRTC Broadcaster] Processing answer from ${sessionId}`, answerData);
+    processedAnswersRef.current.add(sessionId);
+    
+    try {
+      // Handle both formats: { type, sdp } or just sdp string
+      const sdp = typeof answerData === 'string' 
+        ? answerData 
+        : (answerData?.sdp || answerData);
+      
+      const sdpString = typeof sdp === 'string' ? sdp : sdp?.sdp;
+      
+      console.log(`[WebRTC Broadcaster] Extracted SDP type:`, typeof sdpString, sdpString?.substring(0, 50));
+      
+      await peer.pc.setRemoteDescription(new RTCSessionDescription({
+        type: "answer",
+        sdp: sdpString,
+      }));
+      console.log(`[WebRTC Broadcaster] ✅ Set remote description for ${sessionId}`);
+    } catch (err) {
+      console.error("[WebRTC Broadcaster] ❌ Error setting remote description:", err);
+      processedAnswersRef.current.delete(sessionId); // Allow retry on error
+      cleanupPeer(sessionId);
     }
   }, [cleanupPeer]);
 
@@ -275,6 +293,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     });
     peersRef.current.clear();
     processedViewerJoinsRef.current.clear();
+    processedAnswersRef.current.clear(); // Clear processed answers
 
     // Unsubscribe from channel
     if (channelRef.current) {
