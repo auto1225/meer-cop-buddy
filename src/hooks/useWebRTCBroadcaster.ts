@@ -210,16 +210,23 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           if (record.type === "viewer-join") {
             const viewerSessionId = record.session_id;
             
-            // 이미 처리한 viewer-join이면 무시
+            // 🔒 중복 방지 로직 - 순서 중요!
+            // 1. 이미 처리 중인 viewer-join 스킵
             if (processedViewerJoinsRef.current.has(viewerSessionId)) {
-              console.log(`[WebRTC Broadcaster] ⏭️ Ignoring duplicate viewer-join: ${viewerSessionId}`);
+              console.log(`[WebRTC Broadcaster] ⏭️ Skipping duplicate viewer-join: ${viewerSessionId}`);
               return;
             }
             
-            // 처리 시작 전에 먼저 Set에 추가
+            // 2. 이미 연결된 viewer 스킵
+            if (peersRef.current.has(viewerSessionId)) {
+              console.log(`[WebRTC Broadcaster] ⏭️ Viewer already has connection: ${viewerSessionId}`);
+              return;
+            }
+            
+            // 3. 먼저 Set에 추가하여 동시 호출 방지
             processedViewerJoinsRef.current.add(viewerSessionId);
             
-            console.log(`[WebRTC Broadcaster] ✅ Viewer joined: ${viewerSessionId}`);
+            console.log(`[WebRTC Broadcaster] 👋 Viewer joined: ${viewerSessionId}`);
             await createPeerConnectionAndOffer(viewerSessionId);
           } else if (record.type === "answer") {
             console.log(`[WebRTC Broadcaster] ✅ Received answer from viewer: ${record.session_id}`, record.data);
