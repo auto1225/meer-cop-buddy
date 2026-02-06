@@ -33,11 +33,12 @@ export function AlertOverlay({ isActive, onDismiss, eventType }: AlertOverlayPro
         isFlashing ? "bg-destructive/90" : "bg-destructive/70"
       }`}
     >
-      {/* Dismiss button */}
+      {/* Dismiss button - tabIndex -1 prevents spacebar activation */}
       <Button
         variant="ghost"
         size="icon"
         onClick={onDismiss}
+        tabIndex={-1}
         className="absolute top-4 right-4 text-white hover:bg-white/20 h-10 w-10"
       >
         <X className="h-6 w-6" />
@@ -64,9 +65,10 @@ export function AlertOverlay({ isActive, onDismiss, eventType }: AlertOverlayPro
         </p>
       </div>
       
-      {/* Stop button */}
+      {/* Stop button - tabIndex -1 prevents auto-focus from spacebar */}
       <Button
         onClick={onDismiss}
+        tabIndex={-1}
         className="mt-8 bg-white text-destructive hover:bg-white/90 font-bold text-lg px-8 py-6"
       >
         경보 해제
