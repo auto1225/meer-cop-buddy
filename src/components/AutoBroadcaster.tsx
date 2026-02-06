@@ -135,50 +135,6 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
     };
   }, [deviceId]);
 
-  // Subscribe to streaming request changes
-  useEffect(() => {
-    if (!deviceId) return;
-
-    // Initial fetch
-    const fetchStreamingStatus = async () => {
-      const { data } = await supabaseShared
-        .from("devices")
-        .select("is_streaming_requested")
-        .eq("id", deviceId)
-        .maybeSingle();
-
-      if (data?.is_streaming_requested !== undefined) {
-        setIsStreamingRequested(data.is_streaming_requested);
-      }
-    };
-
-    fetchStreamingStatus();
-
-    // Subscribe to realtime changes
-    const channel = supabaseShared
-      .channel(`streaming-request-${deviceId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "devices",
-          filter: `id=eq.${deviceId}`,
-        },
-        (payload) => {
-          const newData = payload.new as { is_streaming_requested?: boolean };
-          if (newData.is_streaming_requested !== undefined) {
-            console.log("[AutoBroadcaster] Streaming request changed:", newData.is_streaming_requested);
-            setIsStreamingRequested(newData.is_streaming_requested);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabaseShared.removeChannel(channel);
-    };
-  }, [deviceId]);
 
   // React to streaming request changes
   useEffect(() => {
