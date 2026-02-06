@@ -204,6 +204,16 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       console.log("[WebRTC Broadcaster] ♻️ Reusing existing signaling channel");
       channelRef.current = existingChannel;
       setIsBroadcasting(true);
+      
+      // Also update camera status when reusing channel
+      await supabaseShared
+        .from("devices")
+        .update({ 
+          is_camera_connected: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", currentDeviceId);
+      
       return;
     }
 
