@@ -80,9 +80,20 @@ export function useDevices() {
   useEffect(() => {
     fetchDevices();
 
+    const channelName = "devices-changes";
+    
+    // Reuse existing channel if available
+    const existingChannel = supabaseShared.getChannels().find(
+      ch => ch.topic === `realtime:${channelName}`
+    );
+    
+    if (existingChannel) {
+      return;
+    }
+
     // Subscribe to realtime updates
     const channel = supabaseShared
-      .channel("devices-changes")
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -91,7 +102,6 @@ export function useDevices() {
           table: "devices",
         },
         (payload) => {
-          console.log("Device update:", payload);
           if (payload.eventType === "INSERT") {
             setDevices((prev) => [payload.new as Device, ...prev]);
           } else if (payload.eventType === "UPDATE") {
@@ -107,7 +117,11 @@ export function useDevices() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error("[useDevices] Channel error");
+        }
+      });
 
     return () => {
       supabaseShared.removeChannel(channel);

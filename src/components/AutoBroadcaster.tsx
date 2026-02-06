@@ -139,9 +139,21 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
 
     fetchStreamingStatus();
 
+    const channelName = `streaming-request-${deviceId}`;
+    
+    // Reuse existing channel if available
+    const existingChannel = supabaseShared.getChannels().find(
+      ch => ch.topic === `realtime:${channelName}`
+    );
+    
+    if (existingChannel) {
+      console.log("[AutoBroadcaster] ♻️ Reusing existing channel");
+      return;
+    }
+
     // Subscribe to realtime changes
     const channel = supabaseShared
-      .channel(`streaming-request-${deviceId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -152,11 +164,6 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
         },
         (payload) => {
           const newData = payload.new as { is_streaming_requested?: boolean; updated_at?: string };
-          console.log("[AutoBroadcaster] 📡 DB UPDATE received:", {
-            is_streaming_requested: newData.is_streaming_requested,
-            updated_at: newData.updated_at,
-            previousValue: lastRequestedRef.current,
-          });
           
           if (newData.is_streaming_requested !== undefined) {
             // Only update if actually changed
@@ -165,18 +172,17 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
                 lastRequestedRef.current, "→", newData.is_streaming_requested);
               lastRequestedRef.current = newData.is_streaming_requested;
               setIsStreamingRequested(newData.is_streaming_requested);
-            } else {
-              console.log("[AutoBroadcaster] ⏭️ Ignoring duplicate update (same value)");
             }
           }
         }
       )
       .subscribe((status) => {
-        console.log("[AutoBroadcaster] 📶 Channel status:", status);
+        if (status === "CHANNEL_ERROR") {
+          console.error("[AutoBroadcaster] Channel error");
+        }
       });
 
     return () => {
-      console.log("[AutoBroadcaster] 🔌 Unsubscribing from device:", deviceId);
       supabaseShared.removeChannel(channel);
     };
   }, [deviceId]);
