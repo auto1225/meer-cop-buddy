@@ -6,12 +6,16 @@ interface AutoBroadcasterProps {
   deviceId: string | undefined;
 }
 
+// Global singleton guard to prevent duplicate broadcasts across component instances
+let globalBroadcastingDevice: string | null = null;
+
 export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
   const [isStreamingRequested, setIsStreamingRequested] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const isStartingRef = useRef(false);
   const isStoppingRef = useRef(false);
   const lastRequestedRef = useRef<boolean | null>(null);
+  const instanceIdRef = useRef(Math.random().toString(36).substring(7));
   
   const {
     isBroadcasting,
@@ -21,20 +25,28 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
 
   // Start camera and broadcasting
   const startCameraAndBroadcast = useCallback(async () => {
+    // Global singleton check - prevent multiple instances from broadcasting
+    if (globalBroadcastingDevice && globalBroadcastingDevice !== deviceId) {
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⏭️ Another device is already broadcasting`);
+      return;
+    }
+    
     // Prevent duplicate starts - check multiple conditions
-    if (!deviceId || isBroadcasting || isStartingRef.current || streamRef.current) {
-      console.log("[AutoBroadcaster] Skipping start (already starting or broadcasting)", {
+    if (!deviceId || isStartingRef.current || streamRef.current) {
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] Skipping start`, {
         deviceId: !!deviceId,
-        isBroadcasting,
         isStarting: isStartingRef.current,
         hasStream: !!streamRef.current,
       });
       return;
     }
+    
+    // Set global lock
+    globalBroadcastingDevice = deviceId;
     isStartingRef.current = true;
 
     try {
-      console.log("[AutoBroadcaster] 🎥 Starting camera for streaming request");
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera for streaming request`);
       
       // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -51,10 +63,11 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
       // Start WebRTC broadcasting (this will set is_camera_connected after SUBSCRIBED)
       await startBroadcasting(stream);
 
-      console.log("[AutoBroadcaster] ✅ Camera started, waiting for channel subscription");
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ✅ Camera started, waiting for channel subscription`);
     } catch (error) {
-      console.error("[AutoBroadcaster] ❌ Failed to start camera:", error);
+      console.error(`[AutoBroadcaster:${instanceIdRef.current}] ❌ Failed to start camera:`, error);
       streamRef.current = null;
+      globalBroadcastingDevice = null;
       
       // Reset the streaming request flag on error
       await supabaseShared
@@ -64,7 +77,7 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
     } finally {
       isStartingRef.current = false;
     }
-  }, [deviceId, isBroadcasting, startBroadcasting]);
+  }, [deviceId, startBroadcasting]);
 
   // Stop camera and broadcasting
   const stopCameraAndBroadcast = useCallback(async () => {
@@ -72,7 +85,10 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
     if (isStoppingRef.current) return;
     isStoppingRef.current = true;
 
-    console.log("[AutoBroadcaster] Stopping camera and broadcast");
+    console.log(`[AutoBroadcaster:${instanceIdRef.current}] Stopping camera and broadcast`);
+
+    // Clear global lock
+    globalBroadcastingDevice = null;
 
     // Stop all tracks
     if (streamRef.current) {
