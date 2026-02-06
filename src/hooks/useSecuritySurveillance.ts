@@ -200,15 +200,27 @@ export function useSecuritySurveillance({
       };
       
       setupBatteryMonitoring();
+
+      // Lid close detection via Page Visibility API
+      const handleVisibilityChange = () => {
+        if (!isMonitoringRef.current) return;
+        
+        if (document.hidden) {
+          console.log("[Surveillance] Lid closed / screen hidden detected!");
+          triggerEvent("lid");
+        }
+      };
       
       window.addEventListener("keydown", handleKeyboard);
       window.addEventListener("mousemove", handleMouse);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
       
       // Store handlers for cleanup
       (window as any).__meercop_keyboard_handler = handleKeyboard;
       (window as any).__meercop_mouse_handler = handleMouse;
+      (window as any).__meercop_visibility_handler = handleVisibilityChange;
       
-      console.log("[Surveillance] Started - monitoring keyboard, mouse, and power");
+      console.log("[Surveillance] Started - monitoring keyboard, mouse, power, and lid");
       isMonitoringRef.current = true;
       setIsActive(true);
       
@@ -236,6 +248,7 @@ export function useSecuritySurveillance({
     // Remove event listeners
     const keyboardHandler = (window as any).__meercop_keyboard_handler;
     const mouseHandler = (window as any).__meercop_mouse_handler;
+    const visibilityHandler = (window as any).__meercop_visibility_handler;
     
     if (keyboardHandler) {
       window.removeEventListener("keydown", keyboardHandler);
@@ -244,6 +257,10 @@ export function useSecuritySurveillance({
     if (mouseHandler) {
       window.removeEventListener("mousemove", mouseHandler);
       delete (window as any).__meercop_mouse_handler;
+    }
+    if (visibilityHandler) {
+      document.removeEventListener("visibilitychange", visibilityHandler);
+      delete (window as any).__meercop_visibility_handler;
     }
     
     // Clear buffer
@@ -266,8 +283,10 @@ export function useSecuritySurveillance({
       }
       const keyboardHandler = (window as any).__meercop_keyboard_handler;
       const mouseHandler = (window as any).__meercop_mouse_handler;
+      const visibilityHandler = (window as any).__meercop_visibility_handler;
       if (keyboardHandler) window.removeEventListener("keydown", keyboardHandler);
       if (mouseHandler) window.removeEventListener("mousemove", mouseHandler);
+      if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
     };
   }, []);
 
