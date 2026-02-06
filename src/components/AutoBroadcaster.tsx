@@ -98,14 +98,23 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
   useEffect(() => {
     if (!deviceId) return;
 
+    console.log("[AutoBroadcaster] 🔗 Subscribing to device:", deviceId);
+
     // Initial fetch
     const fetchStreamingStatus = async () => {
-      const { data } = await supabaseShared
+      const { data, error } = await supabaseShared
         .from("devices")
         .select("is_streaming_requested")
         .eq("id", deviceId)
         .maybeSingle();
 
+      if (error) {
+        console.error("[AutoBroadcaster] ❌ Error fetching streaming status:", error);
+        return;
+      }
+
+      console.log("[AutoBroadcaster] 📊 Initial streaming status:", data?.is_streaming_requested);
+      
       if (data?.is_streaming_requested !== undefined) {
         setIsStreamingRequested(data.is_streaming_requested);
         lastRequestedRef.current = data.is_streaming_requested;
@@ -126,20 +135,32 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
           filter: `id=eq.${deviceId}`,
         },
         (payload) => {
-          const newData = payload.new as { is_streaming_requested?: boolean };
+          const newData = payload.new as { is_streaming_requested?: boolean; updated_at?: string };
+          console.log("[AutoBroadcaster] 📡 DB UPDATE received:", {
+            is_streaming_requested: newData.is_streaming_requested,
+            updated_at: newData.updated_at,
+            previousValue: lastRequestedRef.current,
+          });
+          
           if (newData.is_streaming_requested !== undefined) {
             // Only update if actually changed
             if (lastRequestedRef.current !== newData.is_streaming_requested) {
-              console.log("[AutoBroadcaster] Streaming request changed:", newData.is_streaming_requested);
+              console.log("[AutoBroadcaster] ✨ Streaming request CHANGED:", 
+                lastRequestedRef.current, "→", newData.is_streaming_requested);
               lastRequestedRef.current = newData.is_streaming_requested;
               setIsStreamingRequested(newData.is_streaming_requested);
+            } else {
+              console.log("[AutoBroadcaster] ⏭️ Ignoring duplicate update (same value)");
             }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[AutoBroadcaster] 📶 Channel status:", status);
+      });
 
     return () => {
+      console.log("[AutoBroadcaster] 🔌 Unsubscribing from device:", deviceId);
       supabaseShared.removeChannel(channel);
     };
   }, [deviceId]);
