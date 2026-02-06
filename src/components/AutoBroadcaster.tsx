@@ -21,12 +21,20 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
 
   // Start camera and broadcasting
   const startCameraAndBroadcast = useCallback(async () => {
-    // Prevent duplicate starts
-    if (!deviceId || isBroadcasting || isStartingRef.current) return;
+    // Prevent duplicate starts - check multiple conditions
+    if (!deviceId || isBroadcasting || isStartingRef.current || streamRef.current) {
+      console.log("[AutoBroadcaster] Skipping start (already starting or broadcasting)", {
+        deviceId: !!deviceId,
+        isBroadcasting,
+        isStarting: isStartingRef.current,
+        hasStream: !!streamRef.current,
+      });
+      return;
+    }
     isStartingRef.current = true;
 
     try {
-      console.log("[AutoBroadcaster] Starting camera for streaming request");
+      console.log("[AutoBroadcaster] 🎥 Starting camera for streaming request");
       
       // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -43,9 +51,10 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
       // Start WebRTC broadcasting (this will set is_camera_connected after SUBSCRIBED)
       await startBroadcasting(stream);
 
-      console.log("[AutoBroadcaster] Camera started, waiting for channel subscription");
+      console.log("[AutoBroadcaster] ✅ Camera started, waiting for channel subscription");
     } catch (error) {
-      console.error("[AutoBroadcaster] Failed to start camera:", error);
+      console.error("[AutoBroadcaster] ❌ Failed to start camera:", error);
+      streamRef.current = null;
       
       // Reset the streaming request flag on error
       await supabaseShared
