@@ -90,6 +90,9 @@ export type Database = {
           is_network_connected: boolean | null
           is_streaming_requested: boolean | null
           last_seen_at: string | null
+          latitude: number | null
+          location_updated_at: string | null
+          longitude: number | null
           metadata: Json | null
           os_info: string | null
           status: string
@@ -109,6 +112,9 @@ export type Database = {
           is_network_connected?: boolean | null
           is_streaming_requested?: boolean | null
           last_seen_at?: string | null
+          latitude?: number | null
+          location_updated_at?: string | null
+          longitude?: number | null
           metadata?: Json | null
           os_info?: string | null
           status?: string
@@ -128,6 +134,9 @@ export type Database = {
           is_network_connected?: boolean | null
           is_streaming_requested?: boolean | null
           last_seen_at?: string | null
+          latitude?: number | null
+          location_updated_at?: string | null
+          longitude?: number | null
           metadata?: Json | null
           os_info?: string | null
           status?: string
