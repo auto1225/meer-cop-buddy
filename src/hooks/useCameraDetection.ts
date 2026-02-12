@@ -16,8 +16,24 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const hasCamera = devices.some(device => device.kind === "videoinput");
-      console.log("[CameraDetection] Camera available:", hasCamera);
-      return hasCamera;
+      
+      if (hasCamera) {
+        console.log("[CameraDetection] Camera available: true (enumerateDevices)");
+        return true;
+      }
+
+      // enumerateDevices가 빈 결과를 반환할 수 있음 (권한 미부여 시)
+      // 짧은 getUserMedia 프로브로 실제 카메라 존재 확인
+      try {
+        const probeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        probeStream.getTracks().forEach(t => t.stop()); // 즉시 해제
+        console.log("[CameraDetection] Camera available: true (probe)");
+        return true;
+      } catch {
+        // getUserMedia 실패 = 카메라 없거나 권한 거부
+        console.log("[CameraDetection] Camera available: false");
+        return false;
+      }
     } catch (error) {
       console.error("[CameraDetection] Error:", error);
       return false;
