@@ -12,6 +12,7 @@ import { PinKeypad } from "@/components/PinKeypad";
 import { LocationMapModal } from "@/components/LocationMapModal";
 import { NetworkInfoModal } from "@/components/NetworkInfoModal";
 import { AutoBroadcaster } from "@/components/AutoBroadcaster";
+import { CamouflageOverlay } from "@/components/CamouflageOverlay";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
@@ -59,6 +60,7 @@ const Index = () => {
   // PIN for alarm dismissal (default: 1234, will be set from smartphone)
   const [alarmPin, setAlarmPin] = useState(() => localStorage.getItem('meercop-alarm-pin') || "1234");
   const [showPinKeypad, setShowPinKeypad] = useState(false);
+  const [isCamouflageMode, setIsCamouflageMode] = useState(false);
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
     cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true,
@@ -194,6 +196,7 @@ const Index = () => {
     const meta = currentDevice?.metadata as {
       alarm_pin?: string;
       alarm_sound_id?: string;
+      camouflage_mode?: boolean;
       sensorSettings?: {
         camera?: boolean;
         lidClosed?: boolean;
@@ -207,6 +210,12 @@ const Index = () => {
     if (meta?.alarm_pin) {
       setAlarmPin(meta.alarm_pin);
       localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+    }
+
+    // Sync camouflage mode from metadata
+    if (meta?.camouflage_mode !== undefined) {
+      setIsCamouflageMode(meta.camouflage_mode);
+      console.log("[Index] Camouflage mode updated from metadata:", meta.camouflage_mode);
     }
 
     // Sync sensor toggles from metadata
@@ -342,6 +351,7 @@ const Index = () => {
             const meta = newData.metadata as {
               alarm_pin?: string;
               alarm_sound_id?: string;
+              camouflage_mode?: boolean;
               sensorSettings?: { camera?: boolean; lidClosed?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean };
               motionSensitivity?: string;
             };
@@ -349,6 +359,10 @@ const Index = () => {
               console.log("[Index] PIN updated from DB:", meta.alarm_pin);
               setAlarmPin(meta.alarm_pin);
               localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+            }
+            if (meta.camouflage_mode !== undefined) {
+              setIsCamouflageMode(meta.camouflage_mode);
+              console.log("[Index] Camouflage mode updated via Realtime:", meta.camouflage_mode);
             }
             if (meta.alarm_sound_id) {
               console.log("[Index] Alarm sound updated from DB:", meta.alarm_sound_id);
@@ -445,6 +459,9 @@ const Index = () => {
           backgroundPosition: 'center bottom',
         }}
       >
+        {/* Camouflage Overlay - fullscreen black screen, smartphone-only dismiss */}
+        <CamouflageOverlay isActive={isCamouflageMode} />
+
         {/* Auto Broadcaster - listens for streaming requests from smartphone */}
         <AutoBroadcaster deviceId={currentDevice?.id} />
 
