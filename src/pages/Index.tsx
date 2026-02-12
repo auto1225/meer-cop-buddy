@@ -17,6 +17,7 @@ import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
 import { saveAlertPhotos } from "@/lib/localPhotoStorage";
 import { addActivityLog } from "@/lib/localActivityLogs";
+import { PhotoTransmitter, PhotoTransmission } from "@/lib/photoTransmitter";
 import { useCameraDetection } from "@/hooks/useCameraDetection";
 import { useAlarmSystem } from "@/hooks/useAlarmSystem";
 import { useLocationResponder } from "@/hooks/useLocationResponder";
@@ -63,6 +64,19 @@ const Index = () => {
     previewSound,
   } = useAlarmSystem();
 
+  // Photo transmitter - manages broadcast + offline queue
+  const transmitterRef = useRef<PhotoTransmitter | null>(null);
+  
+  useEffect(() => {
+    if (currentDevice?.id) {
+      transmitterRef.current = new PhotoTransmitter(currentDevice.id);
+    }
+    return () => {
+      transmitterRef.current?.destroy();
+      transmitterRef.current = null;
+    };
+  }, [currentDevice?.id]);
+
   // Security event handler - use ref to avoid recreating callback
   const startAlarmRef = useRef(startAlarm);
   startAlarmRef.current = startAlarm;
@@ -73,15 +87,31 @@ const Index = () => {
     setCurrentEventType(event.type);
     startAlarmRef.current();
 
-    // 사진을 IndexedDB에 로컬 저장 (서버 X)
     const alertId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date().toISOString();
+
     if (event.photos.length > 0 && currentDevice?.id) {
+      // 1. IndexedDB에 로컬 백업 저장
       saveAlertPhotos({
         id: alertId,
         device_id: currentDevice.id,
         event_type: event.type,
         photos: event.photos,
-        created_at: new Date().toISOString(),
+        created_at: now,
+      });
+
+      // 2. 스마트폰으로 사진 전송 (Broadcast + 오프라인 큐)
+      const transmission: PhotoTransmission = {
+        id: alertId,
+        device_id: currentDevice.id,
+        event_type: event.type,
+        photos: event.photos,
+        change_percent: event.changePercent,
+        created_at: now,
+      };
+      
+      transmitterRef.current?.transmit(transmission).then(sent => {
+        console.log(`[Security] Photo transmission ${sent ? "✅ sent" : "📥 queued"}`);
       });
     }
 
