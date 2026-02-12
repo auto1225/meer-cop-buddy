@@ -55,7 +55,7 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
           height: { ideal: 720 },
           facingMode: "user",
         },
-        audio: false,
+        audio: true,
       });
 
       streamRef.current = stream;
