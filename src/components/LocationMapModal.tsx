@@ -149,8 +149,9 @@ export function LocationMapModal({ isOpen, onClose, deviceId }: LocationMapModal
 
         {/* Footer */}
         {coords && (
-          <div className="px-4 py-2 bg-muted/50 text-xs text-muted-foreground text-center">
-            위도: {coords.lat.toFixed(6)} | 경도: {coords.lng.toFixed(6)}
+          <div className="px-4 py-2 bg-muted/50 text-xs text-muted-foreground text-center space-y-1">
+            <p>위도: {coords.lat.toFixed(6)} | 경도: {coords.lng.toFixed(6)}</p>
+            <p className="text-[10px] opacity-70">📡 Wi-Fi/IP 기반 위치로, 실제 위치와 20m~수 km 오차가 있을 수 있습니다.</p>
           </div>
         )}
       </div>
