@@ -50,7 +50,6 @@ const Index = () => {
   useLocationResponder(currentDevice?.id);
   // Network info responder - listens for network_info commands from smartphone
   useNetworkInfoResponder(currentDevice?.id);
-  useLocationResponder(currentDevice?.id);
   // Alarm system
   const { 
     isAlarmEnabled, 
