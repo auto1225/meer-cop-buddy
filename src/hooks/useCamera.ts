@@ -64,13 +64,19 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     setIsLoading(false);
   }, [stopCamera]);
 
-  // Try each constraint set until one works
+  // Try each constraint set until one works (with timeout)
   const tryGetUserMedia = async (): Promise<MediaStream> => {
     let lastError: Error | null = null;
 
     for (const constraints of CAMERA_CONSTRAINTS_FALLBACKS) {
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        // Add 10s timeout to prevent hanging forever
+        const mediaStream = await Promise.race([
+          navigator.mediaDevices.getUserMedia(constraints),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("카메라 연결 시간이 초과되었습니다.\n\n브라우저 권한 팝업이 표시되지 않았다면 주소창의 카메라 아이콘을 클릭하여 권한을 허용해주세요.")), 10000)
+          ),
+        ]);
         // Verify we actually got a video track
         if (mediaStream.getVideoTracks().length > 0) {
           return mediaStream;
@@ -78,8 +84,8 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
         mediaStream.getTracks().forEach(t => t.stop());
       } catch (err) {
         lastError = err as Error;
-        // If permission denied, don't try other constraints
-        if ((err as Error).name === "NotAllowedError") {
+        // If permission denied or timeout, don't try other constraints
+        if ((err as Error).name === "NotAllowedError" || (err as Error).message.includes("시간이 초과")) {
           throw err;
         }
         // Continue to next fallback
