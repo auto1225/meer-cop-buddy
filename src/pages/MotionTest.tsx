@@ -32,51 +32,11 @@ const MotionTest = () => {
   }, []);
 
   const startCamera = useCallback(async () => {
-    // 카메라 감지 훅에게 devicechange 이벤트를 무시하도록 알림
-    window.dispatchEvent(new Event("camera-acquired"));
-    
-    // 기존 스트림이 있으면 먼저 정리
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-
-    // 단계별 폴백 제약 조건
-    const constraintsList: MediaStreamConstraints[] = [
-      { video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
-      { video: { width: { ideal: 320 }, height: { ideal: 240 } }, audio: false },
-      { video: true, audio: false },
-      { video: {} },
-    ];
-
-    let stream: MediaStream | null = null;
-    let lastErr: any = null;
-
-    for (const constraints of constraintsList) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (stream.getVideoTracks().length > 0) break;
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      } catch (err: any) {
-        lastErr = err;
-        if (err.name === "NotAllowedError") break; // 권한 거부 시 중단
-      }
-    }
-
-    if (!stream) {
-      const err = lastErr;
-      const msg = err?.name === "NotAllowedError" 
-        ? "카메라 권한이 거부되었습니다. 브라우저 설정을 확인해주세요."
-        : err?.name === "NotReadableError"
-        ? "카메라가 다른 앱/탭에서 사용 중입니다. 다른 탭을 닫고 다시 시도해주세요."
-        : err?.message || "카메라를 시작할 수 없습니다.";
-      setError(msg);
-      addLog(`❌ 카메라 오류: ${msg}`);
-      return;
-    }
-
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -102,12 +62,14 @@ const MotionTest = () => {
           setPeakPercent(prev => Math.max(prev, result.changePercent));
         }
 
+        // 연속 카운트 표시 (내부 상태 추적)
         if (result.changePercent >= threshold) {
           setConsecutiveCount(prev => prev + 1);
         } else {
           setConsecutiveCount(0);
         }
 
+        // 차이 시각화
         if (prevFrameRef.current && diffCanvasRef.current) {
           renderDiffVisualization(prevFrameRef.current, frameData, diffCanvasRef.current);
         }
@@ -117,6 +79,7 @@ const MotionTest = () => {
           addLog(`🚨 모션 감지! 변화율: ${result.changePercent.toFixed(1)}%`);
         }
       }, 1000);
+
     } catch (err: any) {
       setError(err.message || "카메라를 시작할 수 없습니다.");
       addLog(`❌ 카메라 오류: ${err.message}`);

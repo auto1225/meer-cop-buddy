@@ -15,11 +15,8 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const checkCameraAvailability = useCallback(async (): Promise<boolean> => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      // videoinput 디바이스가 있는지 확인
-      // 권한 미부여 시에도 kind="videoinput"은 반환됨 (label만 빈 문자열)
       const hasCamera = devices.some(device => device.kind === "videoinput");
-      console.log("[CameraDetection] Camera available:", hasCamera, 
-        `(${devices.filter(d => d.kind === "videoinput").length} devices)`);
+      console.log("[CameraDetection] Camera available:", hasCamera);
       return hasCamera;
     } catch (error) {
       console.error("[CameraDetection] Error:", error);
@@ -70,40 +67,15 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     // Initial check on mount
     checkAndUpdate();
 
-    // Debounced device change handler - prevents rapid toggling
-    // getUserMedia 호출이 devicechange를 유발할 수 있으므로 충분한 대기 시간 필요
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let ignoreUntil = 0; // getUserMedia로 인한 이벤트 무시 타임스탬프
-    
+    // Real-time device connect/disconnect events (USB cameras, etc.)
     const handleDeviceChange = () => {
-      const now = Date.now();
-      // 최근 getUserMedia 호출로 인한 이벤트는 무시
-      if (now < ignoreUntil) {
-        console.log("[CameraDetection] 🔇 Ignoring device change (cooldown)");
-        return;
-      }
-      
       console.log("[CameraDetection] 🔄 Device change event triggered");
-      
-      if (debounceTimer) clearTimeout(debounceTimer);
-      
-      // 3초 대기 후 체크 (디바이스 안정화 시간)
-      debounceTimer = setTimeout(() => {
-        checkAndUpdate();
-      }, 3000);
+      checkAndUpdate();
     };
     
-    // 다른 컴포넌트의 getUserMedia 호출 시 일시적으로 감지 중단
-    const handleCameraAcquired = () => {
-      ignoreUntil = Date.now() + 5000; // 5초간 devicechange 무시
-    };
-    
-    window.addEventListener("camera-acquired", handleCameraAcquired);
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
     return () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      window.removeEventListener("camera-acquired", handleCameraAcquired);
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
   }, [deviceId, checkAndUpdate]);
