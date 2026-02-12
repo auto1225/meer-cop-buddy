@@ -264,22 +264,29 @@ const MotionTest = () => {
             <h3 className="text-sm font-semibold mb-3 text-gray-400">⚙️ 감도 설정 (실시간 적용)</h3>
             
             <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>변화율 임계값</span>
-                  <span className="text-yellow-400">{threshold}%</span>
-                </div>
-                <Slider
-                  value={[threshold]}
-                  onValueChange={([v]) => setThreshold(v)}
-                  min={3}
-                  max={50}
-                  step={1}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-                  <span>매우 민감 (3%)</span>
-                  <span>둔감 (50%)</span>
+            <div>
+                <div className="text-sm mb-2">감지 민감도</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "민감", value: 10, desc: "작은 움직임도 감지", emoji: "🔴" },
+                    { label: "보통", value: 50, desc: "일반적인 움직임 감지", emoji: "🟡" },
+                    { label: "둔감", value: 80, desc: "큰 움직임만 감지", emoji: "🟢" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setThreshold(opt.value)}
+                      className={`rounded-lg p-3 text-center transition-all border-2 ${
+                        threshold === opt.value
+                          ? "border-yellow-400 bg-yellow-400/10"
+                          : "border-gray-600 bg-gray-700 hover:border-gray-500"
+                      }`}
+                    >
+                      <div className="text-lg">{opt.emoji}</div>
+                      <div className="text-sm font-bold">{opt.label}</div>
+                      <div className="text-[10px] text-gray-400">{opt.desc}</div>
+                      <div className="text-[10px] text-yellow-400/70 mt-1">{opt.value}%</div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
