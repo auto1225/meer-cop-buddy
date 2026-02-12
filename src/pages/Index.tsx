@@ -15,6 +15,8 @@ import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
+import { saveAlertPhotos } from "@/lib/localPhotoStorage";
+import { addActivityLog } from "@/lib/localActivityLogs";
 import { useCameraDetection } from "@/hooks/useCameraDetection";
 import { useAlarmSystem } from "@/hooks/useAlarmSystem";
 import { useLocationResponder } from "@/hooks/useLocationResponder";
@@ -66,10 +68,36 @@ const Index = () => {
   startAlarmRef.current = startAlarm;
 
   const handleSecurityEvent = useCallback((event: SecurityEvent) => {
-    console.log("[Security] Event detected:", event.type, "Photos:", event.photos.length);
+    console.log("[Security] Event detected:", event.type, "Photos:", event.photos.length, 
+      event.changePercent ? `Change: ${event.changePercent.toFixed(1)}%` : "");
     setCurrentEventType(event.type);
     startAlarmRef.current();
-  }, []);
+
+    // 사진을 IndexedDB에 로컬 저장 (서버 X)
+    const alertId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    if (event.photos.length > 0 && currentDevice?.id) {
+      saveAlertPhotos({
+        id: alertId,
+        device_id: currentDevice.id,
+        event_type: event.type,
+        photos: event.photos,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    // 활동 로그에 메타데이터만 기록 (사진 제외)
+    if (currentDevice?.id) {
+      addActivityLog(currentDevice.id, `alert_${event.type}`, {
+        alert_type: event.type,
+        photo_count: event.photos.length,
+        change_percent: event.changePercent,
+        alert_id: alertId,
+        message: event.type === "camera_motion"
+          ? `카메라 모션 감지 (변화율: ${event.changePercent?.toFixed(1)}%)`
+          : `${event.type} 이벤트 감지됨`,
+      });
+    }
+  }, [currentDevice?.id]);
 
   // Security surveillance
   const { 
