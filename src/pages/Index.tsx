@@ -16,6 +16,7 @@ import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
 import { useCameraDetection } from "@/hooks/useCameraDetection";
 import { useAlarmSystem } from "@/hooks/useAlarmSystem";
+import { useLocationResponder } from "@/hooks/useLocationResponder";
 import { supabaseShared } from "@/lib/supabase";
 import mainBg from "@/assets/main-bg.png";
 
@@ -39,6 +40,8 @@ const Index = () => {
 
   // Camera detection - auto-sync to DB
   useCameraDetection({ deviceId: currentDevice?.id });
+  // Location responder - listens for locate commands from smartphone
+  useLocationResponder(currentDevice?.id);
   // Alarm system
   const { 
     isAlarmEnabled, 
