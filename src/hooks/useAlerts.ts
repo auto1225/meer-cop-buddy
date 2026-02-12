@@ -124,15 +124,26 @@ export function useAlerts(deviceId?: string) {
         console.log("[Alerts] Presence sync:", state);
 
         // 스마트폰에서 경보 해제 메시지 감지
-        const entries = state[deviceId] as Array<{ active_alert?: unknown; dismissed_at?: string }> | undefined;
-        if (entries) {
-          const dismissed = entries.find(e => e.active_alert === null && e.dismissed_at);
-          if (dismissed) {
-            console.log("[Alerts] Smartphone dismissed alarm at:", dismissed.dismissed_at);
-            setActiveAlert(null);
-            setDismissedBySmartphone(true);
-            // Reset flag after a short delay
-            setTimeout(() => setDismissedBySmartphone(false), 500);
+        for (const key of Object.keys(state)) {
+          const entries = state[key] as Array<{
+            active_alert?: unknown;
+            dismissed_at?: string;
+            remote_alarm_off?: boolean;
+          }>; 
+          for (const entry of entries) {
+            // remote_alarm_off: 경보음만 즉시 중지 (PIN 없이)
+            if (entry.remote_alarm_off === true) {
+              console.log("[Alerts] 📢 remote_alarm_off signal received from smartphone");
+              setDismissedBySmartphone(true);
+              setTimeout(() => setDismissedBySmartphone(false), 500);
+            }
+            // 전체 경보 해제
+            if (entry.active_alert === null && entry.dismissed_at) {
+              console.log("[Alerts] Smartphone dismissed alarm at:", entry.dismissed_at);
+              setActiveAlert(null);
+              setDismissedBySmartphone(true);
+              setTimeout(() => setDismissedBySmartphone(false), 500);
+            }
           }
         }
       })
