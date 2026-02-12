@@ -101,6 +101,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     
     setIsLoading(true);
     setError(null);
+    console.log("[Camera] Starting camera...");
 
     try {
       // Check if mediaDevices API is available
@@ -108,12 +109,22 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
         throw new Error("이 브라우저는 카메라를 지원하지 않습니다.");
       }
 
+      // Check permissions API first
+      try {
+        const permStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        console.log("[Camera] Permission status:", permStatus.state);
+      } catch (e) {
+        console.log("[Camera] Permissions API not available");
+      }
+
       const mediaStream = await tryGetUserMedia();
+      console.log("[Camera] ✅ Got stream, tracks:", mediaStream.getVideoTracks().length);
       
       setStream(mediaStream);
       setIsStarted(true);
       onStatusChange?.(true);
     } catch (err: any) {
+      console.error("[Camera] ❌ Error:", err.name, err.message);
       setIsStarted(true);
       onStatusChange?.(false);
       
