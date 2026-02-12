@@ -123,7 +123,7 @@ export function useAlerts(deviceId?: string) {
         const state = channel.presenceState();
         console.log("[Alerts] Presence sync:", state);
 
-        // 스마트폰에서 경보 해제 메시지 감지
+        // Presence 방식으로 경보 해제 감지 (하위 호환)
         for (const key of Object.keys(state)) {
           const entries = state[key] as Array<{
             active_alert?: unknown;
@@ -131,21 +131,30 @@ export function useAlerts(deviceId?: string) {
             remote_alarm_off?: boolean;
           }>; 
           for (const entry of entries) {
-            // remote_alarm_off: 경보음만 즉시 중지 (PIN 없이)
             if (entry.remote_alarm_off === true) {
-              console.log("[Alerts] 📢 remote_alarm_off signal received from smartphone");
+              console.log("[Alerts] 📢 remote_alarm_off via Presence");
               setDismissedBySmartphone(true);
               setTimeout(() => setDismissedBySmartphone(false), 500);
             }
-            // 전체 경보 해제
             if (entry.active_alert === null && entry.dismissed_at) {
-              console.log("[Alerts] Smartphone dismissed alarm at:", entry.dismissed_at);
+              console.log("[Alerts] Smartphone dismissed alarm (Presence) at:", entry.dismissed_at);
               setActiveAlert(null);
               setDismissedBySmartphone(true);
               setTimeout(() => setDismissedBySmartphone(false), 500);
             }
           }
         }
+      })
+      // Broadcast 방식으로 경보 해제 감지 (스마트폰이 channel.send() 사용 시)
+      .on("broadcast", { event: "remote_alarm_off" }, (payload) => {
+        console.log("[Alerts] 📢 remote_alarm_off via Broadcast:", payload);
+        setDismissedBySmartphone(true);
+        setActiveAlert(null);
+        setTimeout(() => setDismissedBySmartphone(false), 500);
+        toast({
+          title: "원격 경보 해제",
+          description: "스마트폰에서 경보가 해제되었습니다.",
+        });
       })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
