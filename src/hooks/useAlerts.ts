@@ -118,18 +118,26 @@ export function useAlerts(deviceId?: string) {
       config: { presence: { key: deviceId } },
     });
 
+    // ⚠️ 모든 리스너를 .subscribe() 전에 등록해야 함
     channel
+      // 1. Broadcast 수신: 스마트폰이 channel.send()로 보낸 경보 해제
+      .on("broadcast", { event: "remote_alarm_off" }, (payload) => {
+        console.log("[Alerts] 📢 remote_alarm_off broadcast received:", payload);
+        setDismissedBySmartphone(true);
+        setActiveAlert(null);
+        setTimeout(() => setDismissedBySmartphone(false), 500);
+      })
+      // 2. Presence 수신: 하위 호환 (track 방식)
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
         console.log("[Alerts] Presence sync:", state);
 
-        // Presence 방식으로 경보 해제 감지 (하위 호환)
         for (const key of Object.keys(state)) {
           const entries = state[key] as Array<{
             active_alert?: unknown;
             dismissed_at?: string;
             remote_alarm_off?: boolean;
-          }>; 
+          }>;
           for (const entry of entries) {
             if (entry.remote_alarm_off === true) {
               console.log("[Alerts] 📢 remote_alarm_off via Presence");
@@ -145,21 +153,16 @@ export function useAlerts(deviceId?: string) {
           }
         }
       })
-      // Broadcast 방식으로 경보 해제 감지 (스마트폰이 channel.send() 사용 시)
-      .on("broadcast", { event: "remote_alarm_off" }, (payload) => {
-        console.log("[Alerts] 📢 remote_alarm_off via Broadcast:", payload);
-        setDismissedBySmartphone(true);
-        setActiveAlert(null);
-        setTimeout(() => setDismissedBySmartphone(false), 500);
-        toast({
-          title: "원격 경보 해제",
-          description: "스마트폰에서 경보가 해제되었습니다.",
-        });
-      })
-      .subscribe((status) => {
+      // 3. Subscribe 후 Presence track
+      .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           channelRef.current = channel;
-          console.log("[Alerts] Presence channel subscribed");
+          console.log("[Alerts] Channel subscribed (broadcast + presence)");
+          // Presence 상태 등록
+          await channel.track({
+            status: "listening",
+            updated_at: new Date().toISOString(),
+          });
         }
       });
 
