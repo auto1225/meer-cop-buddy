@@ -15,6 +15,7 @@ import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
+import { useAlerts } from "@/hooks/useAlerts";
 import { saveAlertPhotos } from "@/lib/localPhotoStorage";
 import { addActivityLog } from "@/lib/localActivityLogs";
 import { PhotoTransmitter, PhotoTransmission } from "@/lib/photoTransmitter";
@@ -50,6 +51,10 @@ const Index = () => {
   useLocationResponder(currentDevice?.id);
   // Network info responder - listens for network_info commands from smartphone
   useNetworkInfoResponder(currentDevice?.id);
+  // Alerts system - broadcasts alerts to smartphone via Presence
+  const { triggerAlert } = useAlerts(currentDevice?.id);
+  const triggerAlertRef = useRef(triggerAlert);
+  triggerAlertRef.current = triggerAlert;
   // Alarm system
   const { 
     isAlarmEnabled, 
@@ -85,6 +90,16 @@ const Index = () => {
       event.changePercent ? `Change: ${event.changePercent.toFixed(1)}%` : "");
     setCurrentEventType(event.type);
     startAlarmRef.current();
+
+    // 스마트폰에 경보 알림 전송 (Presence 채널)
+    triggerAlertRef.current(`alert_${event.type}`, {
+      alert_type: event.type,
+      change_percent: event.changePercent,
+      photo_count: event.photos.length,
+      message: event.type === "camera_motion"
+        ? `카메라 모션 감지 (변화율: ${event.changePercent?.toFixed(1)}%)`
+        : `${event.type} 이벤트 감지됨`,
+    });
 
     const alertId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const now = new Date().toISOString();
