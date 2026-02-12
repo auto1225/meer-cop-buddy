@@ -15,25 +15,12 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const checkCameraAvailability = useCallback(async (): Promise<boolean> => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
+      // videoinput 디바이스가 있는지 확인
+      // 권한 미부여 시에도 kind="videoinput"은 반환됨 (label만 빈 문자열)
       const hasCamera = devices.some(device => device.kind === "videoinput");
-      
-      if (hasCamera) {
-        console.log("[CameraDetection] Camera available: true (enumerateDevices)");
-        return true;
-      }
-
-      // enumerateDevices가 빈 결과를 반환할 수 있음 (권한 미부여 시)
-      // 짧은 getUserMedia 프로브로 실제 카메라 존재 확인
-      try {
-        const probeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        probeStream.getTracks().forEach(t => t.stop()); // 즉시 해제
-        console.log("[CameraDetection] Camera available: true (probe)");
-        return true;
-      } catch {
-        // getUserMedia 실패 = 카메라 없거나 권한 거부
-        console.log("[CameraDetection] Camera available: false");
-        return false;
-      }
+      console.log("[CameraDetection] Camera available:", hasCamera, 
+        `(${devices.filter(d => d.kind === "videoinput").length} devices)`);
+      return hasCamera;
     } catch (error) {
       console.error("[CameraDetection] Error:", error);
       return false;
@@ -84,24 +71,39 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     checkAndUpdate();
 
     // Debounced device change handler - prevents rapid toggling
+    // getUserMedia 호출이 devicechange를 유발할 수 있으므로 충분한 대기 시간 필요
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let ignoreUntil = 0; // getUserMedia로 인한 이벤트 무시 타임스탬프
     
     const handleDeviceChange = () => {
+      const now = Date.now();
+      // 최근 getUserMedia 호출로 인한 이벤트는 무시
+      if (now < ignoreUntil) {
+        console.log("[CameraDetection] 🔇 Ignoring device change (cooldown)");
+        return;
+      }
+      
       console.log("[CameraDetection] 🔄 Device change event triggered");
       
-      // Clear previous timer
       if (debounceTimer) clearTimeout(debounceTimer);
       
-      // Wait 1.5s for device enumeration to stabilize
+      // 3초 대기 후 체크 (디바이스 안정화 시간)
       debounceTimer = setTimeout(() => {
         checkAndUpdate();
-      }, 1500);
+      }, 3000);
     };
     
+    // 다른 컴포넌트의 getUserMedia 호출 시 일시적으로 감지 중단
+    const handleCameraAcquired = () => {
+      ignoreUntil = Date.now() + 5000; // 5초간 devicechange 무시
+    };
+    
+    window.addEventListener("camera-acquired", handleCameraAcquired);
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
+      window.removeEventListener("camera-acquired", handleCameraAcquired);
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
   }, [deviceId, checkAndUpdate]);
