@@ -25,6 +25,7 @@ export function useAlerts(deviceId?: string) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [activeAlert, setActiveAlert] = useState<Alert | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [dismissedBySmartphone, setDismissedBySmartphone] = useState(false);
   const { toast } = useToast();
 
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -109,7 +110,7 @@ export function useAlerts(deviceId?: string) {
     });
   }, [activeAlert, deviceId, toast, broadcastAlert]);
 
-  // Presence 채널 설정 (알림 브로드캐스트용)
+  // Presence 채널 설정 (알림 브로드캐스트 + 스마트폰 해제 수신)
   useEffect(() => {
     if (!deviceId) return;
 
@@ -121,6 +122,19 @@ export function useAlerts(deviceId?: string) {
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
         console.log("[Alerts] Presence sync:", state);
+
+        // 스마트폰에서 경보 해제 메시지 감지
+        const entries = state[deviceId] as Array<{ active_alert?: unknown; dismissed_at?: string }> | undefined;
+        if (entries) {
+          const dismissed = entries.find(e => e.active_alert === null && e.dismissed_at);
+          if (dismissed) {
+            console.log("[Alerts] Smartphone dismissed alarm at:", dismissed.dismissed_at);
+            setActiveAlert(null);
+            setDismissedBySmartphone(true);
+            // Reset flag after a short delay
+            setTimeout(() => setDismissedBySmartphone(false), 500);
+          }
+        }
       })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -194,6 +208,7 @@ export function useAlerts(deviceId?: string) {
     alerts,
     activeAlert,
     isLoading,
+    dismissedBySmartphone,
     stopAlert,
     fetchAlerts,
     triggerAlert,

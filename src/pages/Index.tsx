@@ -8,6 +8,7 @@ import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { CameraModal } from "@/components/CameraModal";
 import { AlertOverlay } from "@/components/AlertOverlay";
+import { PinKeypad } from "@/components/PinKeypad";
 import { LocationMapModal } from "@/components/LocationMapModal";
 import { NetworkInfoModal } from "@/components/NetworkInfoModal";
 import { AutoBroadcaster } from "@/components/AutoBroadcaster";
@@ -52,9 +53,12 @@ const Index = () => {
   // Network info responder - listens for network_info commands from smartphone
   useNetworkInfoResponder(currentDevice?.id);
   // Alerts system - broadcasts alerts to smartphone via Presence
-  const { triggerAlert } = useAlerts(currentDevice?.id);
+  const { triggerAlert, dismissedBySmartphone } = useAlerts(currentDevice?.id);
   const triggerAlertRef = useRef(triggerAlert);
   triggerAlertRef.current = triggerAlert;
+  // PIN for alarm dismissal (default: 1234, will be set from smartphone)
+  const [alarmPin, setAlarmPin] = useState(() => localStorage.getItem('meercop-alarm-pin') || "1234");
+  const [showPinKeypad, setShowPinKeypad] = useState(false);
   // Alarm system
   const { 
     isAlarmEnabled, 
@@ -155,11 +159,37 @@ const Index = () => {
     mouseSensitivity: 50,
   });
 
-  // Handle alarm dismiss
+  // Handle alarm dismiss (from PIN keypad success)
   const handleAlarmDismiss = useCallback(() => {
     stopAlarm();
     setCurrentEventType(undefined);
+    setShowPinKeypad(false);
   }, [stopAlarm]);
+
+  // When AlertOverlay dismiss is clicked, show PIN keypad instead
+  const handleAlarmDismissRequest = useCallback(() => {
+    setShowPinKeypad(true);
+  }, []);
+
+  // Listen for smartphone dismissal via Presence
+  useEffect(() => {
+    if (dismissedBySmartphone) {
+      console.log("[Index] Alarm dismissed by smartphone");
+      stopAlarm();
+      setCurrentEventType(undefined);
+      setShowPinKeypad(false);
+    }
+  }, [dismissedBySmartphone, stopAlarm]);
+
+  // Listen for PIN changes from smartphone via metadata
+  useEffect(() => {
+    if (!currentDevice?.id) return;
+    const meta = currentDevice?.metadata as { alarm_pin?: string } | null;
+    if (meta?.alarm_pin) {
+      setAlarmPin(meta.alarm_pin);
+      localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+    }
+  }, [currentDevice?.metadata, currentDevice?.id]);
 
   // Redirect to auth if not authenticated
   useEffect(() => {
@@ -339,8 +369,16 @@ const Index = () => {
         {/* Alert Overlay - shows when alarm is triggered */}
         <AlertOverlay
           isActive={isAlarming}
-          onDismiss={handleAlarmDismiss}
+          onDismiss={handleAlarmDismissRequest}
           eventType={currentEventType}
+        />
+
+        {/* PIN Keypad - shows when user tries to dismiss alarm from laptop */}
+        <PinKeypad
+          isOpen={showPinKeypad && isAlarming}
+          correctPin={alarmPin}
+          onSuccess={handleAlarmDismiss}
+          onClose={() => setShowPinKeypad(false)}
         />
 
         {/* Side Menu */}
