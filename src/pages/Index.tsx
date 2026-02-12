@@ -9,6 +9,7 @@ import { SideMenu } from "@/components/SideMenu";
 import { CameraModal } from "@/components/CameraModal";
 import { AlertOverlay } from "@/components/AlertOverlay";
 import { LocationMapModal } from "@/components/LocationMapModal";
+import { NetworkInfoModal } from "@/components/NetworkInfoModal";
 import { AutoBroadcaster } from "@/components/AutoBroadcaster";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +18,7 @@ import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurve
 import { useCameraDetection } from "@/hooks/useCameraDetection";
 import { useAlarmSystem } from "@/hooks/useAlarmSystem";
 import { useLocationResponder } from "@/hooks/useLocationResponder";
+import { useNetworkInfoResponder } from "@/hooks/useNetworkInfoResponder";
 import { supabaseShared } from "@/lib/supabase";
 import mainBg from "@/assets/main-bg.png";
 
@@ -27,6 +29,7 @@ const Index = () => {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices();
@@ -41,6 +44,9 @@ const Index = () => {
   // Camera detection - auto-sync to DB
   useCameraDetection({ deviceId: currentDevice?.id });
   // Location responder - listens for locate commands from smartphone
+  useLocationResponder(currentDevice?.id);
+  // Network info responder - listens for network_info commands from smartphone
+  useNetworkInfoResponder(currentDevice?.id);
   useLocationResponder(currentDevice?.id);
   // Alarm system
   const { 
@@ -298,6 +304,7 @@ const Index = () => {
           cameraStatus={isCameraAvailable}
           onCameraClick={() => setIsCameraModalOpen(true)}
           onMeercopClick={() => setIsLocationModalOpen(true)}
+          onNetworkClick={() => setIsNetworkModalOpen(true)}
         />
 
         {/* Camera Modal */}
@@ -312,6 +319,13 @@ const Index = () => {
         <LocationMapModal
           isOpen={isLocationModalOpen}
           onClose={() => setIsLocationModalOpen(false)}
+          deviceId={currentDevice?.id}
+        />
+
+        {/* Network Info Modal */}
+        <NetworkInfoModal
+          isOpen={isNetworkModalOpen}
+          onClose={() => setIsNetworkModalOpen(false)}
           deviceId={currentDevice?.id}
         />
 
