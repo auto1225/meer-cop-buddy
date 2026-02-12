@@ -115,13 +115,20 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
       return;
     }
 
+    let reconnectTimerId: ReturnType<typeof setTimeout> | null = null;
+    let stableTimerId: ReturnType<typeof setTimeout> | null = null;
+    let isMounted = true;
+
     const setupChannel = () => {
+      if (!isMounted) return;
+
       // 기존 채널이 있으면 제거
       const existingChannel = deviceChannels.get(deviceId);
       if (existingChannel) {
         supabaseShared.removeChannel(existingChannel);
         deviceChannels.delete(deviceId);
       }
+      setupDeviceIds.delete(deviceId);
 
       console.log(`[DeviceStatus] 🔗 Setting up Presence channel for ${deviceId}`);
       
@@ -141,22 +148,37 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
             channelRef.current = channel;
             deviceChannels.set(deviceId, channel);
             setupDeviceIds.add(deviceId);
-            reconnectAttempts.set(deviceId, 0); // Reset on success
             
-            // 초기 상태 동기화 (카메라 상태는 DB Realtime에서만)
-            await syncPresence(navigator.onLine);
+            // 10초간 안정적이면 재시도 카운터 리셋
+            if (stableTimerId) clearTimeout(stableTimerId);
+            stableTimerId = setTimeout(() => {
+              reconnectAttempts.set(deviceId, 0);
+            }, 10000);
+            
+            // 초기 상태 동기화
+            try {
+              await channelRef.current?.track({
+                status: "online",
+                is_network_connected: navigator.onLine,
+                last_seen_at: new Date().toISOString(),
+              });
+              console.log("[DeviceStatus] Presence synced");
+            } catch (e) {
+              console.error("[DeviceStatus] Failed to sync presence:", e);
+            }
           } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+            if (stableTimerId) clearTimeout(stableTimerId);
             const attempts = reconnectAttempts.get(deviceId) || 0;
             setupDeviceIds.delete(deviceId);
             deviceChannels.delete(deviceId);
             
-            if (attempts < MAX_RECONNECT_ATTEMPTS) {
+            if (isMounted && attempts < MAX_RECONNECT_ATTEMPTS) {
               const delay = BASE_RECONNECT_DELAY * Math.pow(2, attempts);
-              console.log(`[DeviceStatus] ⚠️ Channel ${status}, reconnect attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s`);
+              console.log(`[DeviceStatus] ⚠️ Channel ${status}, attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s`);
               reconnectAttempts.set(deviceId, attempts + 1);
               
-              setTimeout(() => {
-                if (deviceIdRef.current === deviceId) {
+              reconnectTimerId = setTimeout(() => {
+                if (isMounted && deviceIdRef.current === deviceId) {
                   setupChannel();
                 }
               }, delay);
@@ -172,18 +194,18 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     setupChannel();
 
     return () => {
-      // 컴포넌트 언마운트 시에만 정리 (deviceId가 같을 때만)
-      if (deviceIdRef.current === deviceId) {
-        const channel = deviceChannels.get(deviceId);
-        if (channel) {
-          supabaseShared.removeChannel(channel);
-          deviceChannels.delete(deviceId);
-          setupDeviceIds.delete(deviceId);
-        }
-        channelRef.current = null;
+      isMounted = false;
+      if (reconnectTimerId) clearTimeout(reconnectTimerId);
+      if (stableTimerId) clearTimeout(stableTimerId);
+      const channel = deviceChannels.get(deviceId);
+      if (channel) {
+        supabaseShared.removeChannel(channel);
+        deviceChannels.delete(deviceId);
+        setupDeviceIds.delete(deviceId);
       }
+      channelRef.current = null;
     };
-  }, [deviceId, syncPresence]);
+  }, [deviceId]); // syncPresence 제거 - 참조 변경으로 인한 재구독 방지
 
   // Sync status when authentication changes
   useEffect(() => {
