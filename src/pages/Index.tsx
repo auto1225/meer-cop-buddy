@@ -59,6 +59,7 @@ const Index = () => {
   triggerAlertRef.current = triggerAlert;
   // PIN for alarm dismissal (default: 1234, will be set from smartphone)
   const [alarmPin, setAlarmPin] = useState(() => localStorage.getItem('meercop-alarm-pin') || "1234");
+  const [requirePcPin, setRequirePcPin] = useState(true); // require_pc_pin from metadata
   const [showPinKeypad, setShowPinKeypad] = useState(false);
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
   // Sensor toggles from smartphone metadata
@@ -175,10 +176,15 @@ const Index = () => {
     setShowPinKeypad(false);
   }, [stopAlarm]);
 
-  // When AlertOverlay dismiss is clicked, show PIN keypad instead
+  // When AlertOverlay dismiss is clicked, show PIN keypad or dismiss directly
   const handleAlarmDismissRequest = useCallback(() => {
-    setShowPinKeypad(true);
-  }, []);
+    if (requirePcPin) {
+      setShowPinKeypad(true);
+    } else {
+      // require_pc_pin이 false면 비밀번호 없이 바로 해제
+      handleAlarmDismiss();
+    }
+  }, [requirePcPin, handleAlarmDismiss]);
 
   // Listen for smartphone dismissal via Presence
   useEffect(() => {
@@ -196,6 +202,7 @@ const Index = () => {
     const meta = currentDevice?.metadata as {
       alarm_pin?: string;
       alarm_sound_id?: string;
+      require_pc_pin?: boolean;
       camouflage_mode?: boolean;
       sensorSettings?: {
         camera?: boolean;
@@ -203,13 +210,20 @@ const Index = () => {
         keyboard?: boolean;
         mouse?: boolean;
         usb?: boolean;
+        power?: boolean;
       };
-      motionSensitivity?: string; // "sensitive" | "normal" | "insensitive"
+      motionSensitivity?: string;
     } | null;
 
     if (meta?.alarm_pin) {
       setAlarmPin(meta.alarm_pin);
       localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+    }
+
+    // Sync require_pc_pin from metadata
+    if (meta?.require_pc_pin !== undefined) {
+      setRequirePcPin(meta.require_pc_pin);
+      console.log("[Index] require_pc_pin updated from metadata:", meta.require_pc_pin);
     }
 
     // Sync camouflage mode from metadata
@@ -226,7 +240,7 @@ const Index = () => {
         lid: s.lidClosed ?? true,
         keyboard: s.keyboard ?? true,
         mouse: s.mouse ?? true,
-        power: true, // power not in sensorSettings, always on
+        power: s.power ?? true,
       });
       console.log("[Index] Sensor toggles updated from metadata:", s);
     }
@@ -351,8 +365,9 @@ const Index = () => {
             const meta = newData.metadata as {
               alarm_pin?: string;
               alarm_sound_id?: string;
+              require_pc_pin?: boolean;
               camouflage_mode?: boolean;
-              sensorSettings?: { camera?: boolean; lidClosed?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean };
+              sensorSettings?: { camera?: boolean; lidClosed?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean; power?: boolean };
               motionSensitivity?: string;
             };
             if (meta.alarm_pin) {
@@ -363,6 +378,10 @@ const Index = () => {
             if (meta.camouflage_mode !== undefined) {
               setIsCamouflageMode(meta.camouflage_mode);
               console.log("[Index] Camouflage mode updated via Realtime:", meta.camouflage_mode);
+            }
+            if (meta.require_pc_pin !== undefined) {
+              setRequirePcPin(meta.require_pc_pin);
+              console.log("[Index] require_pc_pin updated via Realtime:", meta.require_pc_pin);
             }
             if (meta.alarm_sound_id) {
               console.log("[Index] Alarm sound updated from DB:", meta.alarm_sound_id);
@@ -375,7 +394,7 @@ const Index = () => {
                 lid: s.lidClosed ?? true,
                 keyboard: s.keyboard ?? true,
                 mouse: s.mouse ?? true,
-                power: true,
+                power: s.power ?? true,
               });
               console.log("[Index] Sensor toggles updated via Realtime:", s);
             }
