@@ -110,7 +110,13 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
       return;
     }
 
+    let isMounted = true;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
     const setupChannel = () => {
+      // 언마운트 후 재연결 방지
+      if (!isMounted) return;
+
       // 기존 채널이 있으면 제거
       const existingChannel = deviceChannels.get(deviceId);
       if (existingChannel) {
@@ -137,20 +143,22 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
             deviceChannels.set(deviceId, channel);
             setupDeviceIds.add(deviceId);
             
-            // 초기 상태 동기화 (카메라 상태는 DB Realtime에서만)
             await syncPresence(navigator.onLine);
           } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-            console.log(`[DeviceStatus] ⚠️ Channel ${status}, will reconnect in 3s`);
+            // 언마운트 후 무시
+            if (!isMounted) return;
+            
+            console.log(`[DeviceStatus] ⚠️ Channel ${status}, will reconnect in 5s`);
             setupDeviceIds.delete(deviceId);
             deviceChannels.delete(deviceId);
             
-            // 3초 후 자동 재연결
-            setTimeout(() => {
-              if (deviceIdRef.current === deviceId) {
+            // 5초 후 자동 재연결 (언마운트 체크 포함)
+            reconnectTimer = setTimeout(() => {
+              if (isMounted && deviceIdRef.current === deviceId) {
                 console.log(`[DeviceStatus] 🔄 Reconnecting Presence channel...`);
                 setupChannel();
               }
-            }, 3000);
+            }, 5000);
           }
         });
 
@@ -160,7 +168,9 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     setupChannel();
 
     return () => {
-      // 컴포넌트 언마운트 시에만 정리 (deviceId가 같을 때만)
+      isMounted = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      
       if (deviceIdRef.current === deviceId) {
         const channel = deviceChannels.get(deviceId);
         if (channel) {
