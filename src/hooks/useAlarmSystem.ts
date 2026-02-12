@@ -37,8 +37,27 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop }: UseAlarmSystemOpti
     return audioContextRef.current;
   }, []);
 
+  // Stop any currently playing sound
+  const stopSound = useCallback(() => {
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current);
+      alarmIntervalRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (oscillatorRef.current) {
+      try { oscillatorRef.current.stop(); } catch (e) {}
+      oscillatorRef.current = null;
+    }
+    gainRef.current = null;
+  }, []);
+
   // Play alarm with specific sound config
   const playAlarmSound = useCallback((config: AlarmSoundConfig) => {
+    // Always stop previous sound first to prevent orphaned oscillators
+    stopSound();
     const ctx = getAudioContext();
     
     // Create oscillator for alarm tone
@@ -141,73 +160,38 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop }: UseAlarmSystemOpti
   // Start alarm
   const startAlarm = useCallback(() => {
     if (!isAlarmEnabled) {
-      // Even if sound is disabled, still show visual alarm
       setIsAlarming(true);
       onAlarmStart?.();
       return;
     }
+
+    // If already alarming, don't create another oscillator
+    if (isAlarming) return;
     
     setIsAlarming(true);
     onAlarmStart?.();
     
     const soundConfig = getAlarmSoundById(selectedSoundId);
     playAlarmSound(soundConfig);
-  }, [isAlarmEnabled, selectedSoundId, playAlarmSound, onAlarmStart]);
+  }, [isAlarmEnabled, isAlarming, selectedSoundId, playAlarmSound, onAlarmStart]);
 
   // Stop alarm
   const stopAlarm = useCallback(() => {
-    if (alarmIntervalRef.current) {
-      clearInterval(alarmIntervalRef.current);
-      alarmIntervalRef.current = null;
-    }
-    
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    
-    if (oscillatorRef.current) {
-      try {
-        oscillatorRef.current.stop();
-      } catch (e) {
-        // Already stopped
-      }
-      oscillatorRef.current = null;
-    }
-    
-    gainRef.current = null;
-    
+    stopSound();
     setIsAlarming(false);
     onAlarmStop?.();
-  }, [onAlarmStop]);
+  }, [stopSound, onAlarmStop]);
 
   // Preview a sound (play for 2 seconds)
   const previewSound = useCallback((soundId: string) => {
-    // Stop any existing sound first
-    stopAlarm();
-    
     const soundConfig = getAlarmSoundById(soundId);
     playAlarmSound(soundConfig);
     
     // Auto-stop after 2 seconds
     setTimeout(() => {
-      if (oscillatorRef.current) {
-        try {
-          oscillatorRef.current.stop();
-        } catch (e) {}
-        oscillatorRef.current = null;
-      }
-      if (alarmIntervalRef.current) {
-        clearInterval(alarmIntervalRef.current);
-        alarmIntervalRef.current = null;
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      gainRef.current = null;
+      stopSound();
     }, 2000);
-  }, [playAlarmSound, stopAlarm]);
+  }, [playAlarmSound, stopSound]);
 
   // Toggle alarm enabled
   const toggleAlarmEnabled = useCallback(() => {
