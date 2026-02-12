@@ -67,15 +67,25 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     // Initial check on mount
     checkAndUpdate();
 
-    // Real-time device connect/disconnect events (USB cameras, etc.)
+    // Debounced device change handler - prevents rapid toggling
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    
     const handleDeviceChange = () => {
       console.log("[CameraDetection] 🔄 Device change event triggered");
-      checkAndUpdate();
+      
+      // Clear previous timer
+      if (debounceTimer) clearTimeout(debounceTimer);
+      
+      // Wait 1.5s for device enumeration to stabilize
+      debounceTimer = setTimeout(() => {
+        checkAndUpdate();
+      }, 1500);
     };
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
   }, [deviceId, checkAndUpdate]);
