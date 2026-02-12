@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 
 interface CamouflageOverlayProps {
   isActive: boolean;
@@ -9,35 +9,16 @@ interface CamouflageOverlayProps {
  * as if the monitor is turned off. Surveillance continues in the background.
  * Can only be dismissed from the smartphone app via DB metadata.
  * 
- * - Requests fullscreen mode for maximum realism
+ * - Covers the entire browser viewport with a black overlay
  * - Blocks all keyboard/mouse events from reaching the page
  * - Hides the cursor
  * - No dismiss button on laptop (smartphone-only control)
+ * 
+ * NOTE: requestFullscreen() cannot be called without a user gesture
+ * (browser security policy). The overlay covers the app viewport only.
+ * For true fullscreen coverage, use Electron's setKiosk(true) via IPC.
  */
 export function CamouflageOverlay({ isActive }: CamouflageOverlayProps) {
-  // Request fullscreen when activated
-  useEffect(() => {
-    if (!isActive) return;
-
-    const requestFullscreen = async () => {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch (err) {
-        console.log("[Camouflage] Fullscreen request failed (expected on some browsers):", err);
-      }
-    };
-
-    requestFullscreen();
-
-    return () => {
-      // Exit fullscreen when deactivated
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      }
-    };
-  }, [isActive]);
 
   // Block keyboard events from exiting camouflage
   useEffect(() => {
