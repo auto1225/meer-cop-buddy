@@ -60,6 +60,11 @@ const Index = () => {
   // PIN for alarm dismissal (default: 1234, will be set from smartphone)
   const [alarmPin, setAlarmPin] = useState(() => localStorage.getItem('meercop-alarm-pin') || "1234");
   const [showPinKeypad, setShowPinKeypad] = useState(false);
+  // Whether PC PIN is required for alarm dismissal (default: true)
+  const [requirePcPin, setRequirePcPin] = useState(() => {
+    const stored = localStorage.getItem('meercop-require-pc-pin');
+    return stored !== null ? stored === 'true' : true;
+  });
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
@@ -175,10 +180,14 @@ const Index = () => {
     setShowPinKeypad(false);
   }, [stopAlarm]);
 
-  // When AlertOverlay dismiss is clicked, show PIN keypad instead
+  // When AlertOverlay dismiss is clicked, show PIN keypad or dismiss directly
   const handleAlarmDismissRequest = useCallback(() => {
-    setShowPinKeypad(true);
-  }, []);
+    if (requirePcPin) {
+      setShowPinKeypad(true);
+    } else {
+      handleAlarmDismiss();
+    }
+  }, [requirePcPin, handleAlarmDismiss]);
 
   // Listen for smartphone dismissal via Presence
   useEffect(() => {
@@ -210,6 +219,14 @@ const Index = () => {
     if (meta?.alarm_pin) {
       setAlarmPin(meta.alarm_pin);
       localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+    }
+
+    // Sync require_pc_pin setting
+    if ((meta as any)?.require_pc_pin !== undefined) {
+      const val = (meta as any).require_pc_pin;
+      setRequirePcPin(val);
+      localStorage.setItem('meercop-require-pc-pin', String(val));
+      console.log("[Index] require_pc_pin updated from metadata:", val);
     }
 
     // Sync camouflage mode from metadata
@@ -359,6 +376,11 @@ const Index = () => {
               console.log("[Index] PIN updated from DB:", meta.alarm_pin);
               setAlarmPin(meta.alarm_pin);
               localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+            }
+            if ((meta as any).require_pc_pin !== undefined) {
+              setRequirePcPin((meta as any).require_pc_pin);
+              localStorage.setItem('meercop-require-pc-pin', String((meta as any).require_pc_pin));
+              console.log("[Index] require_pc_pin updated via Realtime:", (meta as any).require_pc_pin);
             }
             if (meta.camouflage_mode !== undefined) {
               setIsCamouflageMode(meta.camouflage_mode);
