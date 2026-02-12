@@ -29,13 +29,21 @@ export function useLocationResponder(deviceId?: string) {
           console.log("[LocationResponder] Got position:", latitude, longitude);
 
           try {
+            // Read existing metadata first to preserve smartphone settings
+            const { data: existing } = await supabaseShared
+              .from("devices")
+              .select("metadata")
+              .eq("id", deviceId)
+              .maybeSingle();
+            const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+
             await supabaseShared
               .from("devices")
               .update({
                 latitude,
                 longitude,
                 location_updated_at: new Date().toISOString(),
-                metadata: { locate_requested: null },
+                metadata: { ...existingMeta, locate_requested: null },
               } as Record<string, unknown>)
               .eq("id", deviceId);
 
@@ -47,12 +55,20 @@ export function useLocationResponder(deviceId?: string) {
         },
         (err) => {
           console.error("[LocationResponder] Geolocation error:", err);
-          // Clear the request even on failure
+          // Clear the request even on failure, preserving existing metadata
           supabaseShared
             .from("devices")
-            .update({ metadata: { locate_requested: null } } as Record<string, unknown>)
+            .select("metadata")
             .eq("id", deviceId)
-            .then(() => {});
+            .maybeSingle()
+            .then(({ data: ex }) => {
+              const exMeta = (ex?.metadata as Record<string, unknown>) || {};
+              supabaseShared
+                .from("devices")
+                .update({ metadata: { ...exMeta, locate_requested: null } } as Record<string, unknown>)
+                .eq("id", deviceId)
+                .then(() => {});
+            });
           isLocating.current = false;
         },
         { enableHighAccuracy: true, timeout: 15000 }
