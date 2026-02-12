@@ -22,7 +22,7 @@ const MotionTest = () => {
   const [eventLog, setEventLog] = useState<string[]>([]);
   const [threshold, setThreshold] = useState(15);
   const [consecutiveRequired, setConsecutiveRequired] = useState(2);
-  const [cooldown, setCooldown] = useState(5); // 테스트용 짧은 쿨다운
+  const [cooldown, setCooldown] = useState(1); // 테스트용 짧은 쿨다운
   const [peakPercent, setPeakPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
 

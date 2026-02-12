@@ -148,6 +148,9 @@ export function useAlerts(deviceId?: string) {
         "alert_mouse",
         "alert_keyboard",
         "alert_movement",
+        "alert_camera_motion",
+        "alert_lid",
+        "alert_power",
       ];
 
       if (
