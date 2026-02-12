@@ -284,12 +284,29 @@ const Index = () => {
           filter: `id=eq.${currentDevice.id}`,
         },
         (payload) => {
-          // Read from is_monitoring column directly (not metadata)
-          const isMonitoringFromDB = (payload.new as { is_monitoring?: boolean }).is_monitoring ?? false;
+          const newData = payload.new as { is_monitoring?: boolean; metadata?: Record<string, unknown> };
+          
+          // Read monitoring status
+          const isMonitoringFromDB = newData.is_monitoring ?? false;
           console.log("[Index] Monitoring status changed from DB:", isMonitoringFromDB);
           if (isMounted) {
             setIsMonitoring(isMonitoringFromDB);
           }
+
+          // Read metadata changes (alarm_pin, sensorSettings, etc.)
+          if (newData.metadata && isMounted) {
+            const meta = newData.metadata as { alarm_pin?: string; alarm_sound_id?: string };
+            if (meta.alarm_pin) {
+              console.log("[Index] PIN updated from DB:", meta.alarm_pin);
+              setAlarmPin(meta.alarm_pin);
+              localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+            }
+            if (meta.alarm_sound_id) {
+              console.log("[Index] Alarm sound updated from DB:", meta.alarm_sound_id);
+              setSelectedSoundId(meta.alarm_sound_id);
+            }
+          }
+
           // Reset poll interval on realtime event
           pollInterval = 2000;
         }
