@@ -116,11 +116,16 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     }
 
     let reconnectTimerId: ReturnType<typeof setTimeout> | null = null;
-    let stableTimerId: ReturnType<typeof setTimeout> | null = null;
     let isMounted = true;
 
     const setupChannel = () => {
       if (!isMounted) return;
+
+      const attempts = reconnectAttempts.get(deviceId) || 0;
+      if (attempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.log(`[DeviceStatus] ❌ Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached, stopping`);
+        return;
+      }
 
       // 기존 채널이 있으면 제거
       const existingChannel = deviceChannels.get(deviceId);
@@ -130,7 +135,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
       }
       setupDeviceIds.delete(deviceId);
 
-      console.log(`[DeviceStatus] 🔗 Setting up Presence channel for ${deviceId}`);
+      console.log(`[DeviceStatus] 🔗 Setting up Presence channel for ${deviceId} (attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
       
       const channel = supabaseShared.channel(`device-presence-${deviceId}`, {
         config: { presence: { key: deviceId } },
@@ -148,16 +153,11 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
             channelRef.current = channel;
             deviceChannels.set(deviceId, channel);
             setupDeviceIds.add(deviceId);
+            // 성공 시 재시도 카운터 리셋
+            reconnectAttempts.set(deviceId, 0);
             
-            // 10초간 안정적이면 재시도 카운터 리셋
-            if (stableTimerId) clearTimeout(stableTimerId);
-            stableTimerId = setTimeout(() => {
-              reconnectAttempts.set(deviceId, 0);
-            }, 10000);
-            
-            // 초기 상태 동기화
             try {
-              await channelRef.current?.track({
+              await channel.track({
                 status: "online",
                 is_network_connected: navigator.onLine,
                 last_seen_at: new Date().toISOString(),
@@ -167,23 +167,22 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
               console.error("[DeviceStatus] Failed to sync presence:", e);
             }
           } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-            if (stableTimerId) clearTimeout(stableTimerId);
-            const attempts = reconnectAttempts.get(deviceId) || 0;
             setupDeviceIds.delete(deviceId);
             deviceChannels.delete(deviceId);
             
-            if (isMounted && attempts < MAX_RECONNECT_ATTEMPTS) {
-              const delay = BASE_RECONNECT_DELAY * Math.pow(2, attempts);
-              console.log(`[DeviceStatus] ⚠️ Channel ${status}, attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s`);
-              reconnectAttempts.set(deviceId, attempts + 1);
+            const currentAttempts = reconnectAttempts.get(deviceId) || 0;
+            if (isMounted && currentAttempts < MAX_RECONNECT_ATTEMPTS) {
+              const delay = BASE_RECONNECT_DELAY * Math.pow(2, currentAttempts);
+              console.log(`[DeviceStatus] ⚠️ Channel ${status}, reconnect ${currentAttempts + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s`);
+              reconnectAttempts.set(deviceId, currentAttempts + 1);
               
               reconnectTimerId = setTimeout(() => {
                 if (isMounted && deviceIdRef.current === deviceId) {
                   setupChannel();
                 }
               }, delay);
-            } else {
-              console.log(`[DeviceStatus] ❌ Max reconnect attempts reached for ${deviceId}`);
+            } else if (currentAttempts >= MAX_RECONNECT_ATTEMPTS) {
+              console.log(`[DeviceStatus] ❌ Giving up after ${MAX_RECONNECT_ATTEMPTS} attempts`);
             }
           }
         });
@@ -196,7 +195,6 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     return () => {
       isMounted = false;
       if (reconnectTimerId) clearTimeout(reconnectTimerId);
-      if (stableTimerId) clearTimeout(stableTimerId);
       const channel = deviceChannels.get(deviceId);
       if (channel) {
         supabaseShared.removeChannel(channel);
@@ -205,7 +203,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
       }
       channelRef.current = null;
     };
-  }, [deviceId]); // syncPresence 제거 - 참조 변경으로 인한 재구독 방지
+  }, [deviceId]);
 
   // Sync status when authentication changes
   useEffect(() => {

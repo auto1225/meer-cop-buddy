@@ -110,27 +110,42 @@ export function useAlerts(deviceId?: string) {
     });
   }, [activeAlert, deviceId, toast, broadcastAlert]);
 
-  // Presence 채널 설정 (알림 브로드캐스트 + 스마트폰 해제 수신)
+  // 채널 설정 (broadcast + presence, 모든 리스너는 subscribe 전에 등록)
   useEffect(() => {
     if (!deviceId) return;
+
+    console.log(`[Alerts] 🔗 Setting up channel for device: ${deviceId}`);
+
+    // 기존 동일 이름 채널 정리
+    const existingChannels = supabaseShared.getChannels();
+    const existing = existingChannels.find(
+      ch => ch.topic === `realtime:device-alerts-${deviceId}`
+    );
+    if (existing) {
+      console.log("[Alerts] Removing existing channel before re-subscribe");
+      supabaseShared.removeChannel(existing);
+    }
 
     const channel = supabaseShared.channel(`device-alerts-${deviceId}`, {
       config: { presence: { key: deviceId } },
     });
 
-    // ⚠️ 모든 리스너를 .subscribe() 전에 등록해야 함
+    // ⚠️ 모든 리스너를 .subscribe() 전에 등록
     channel
-      // 1. Broadcast 수신: 스마트폰이 channel.send()로 보낸 경보 해제
+      // 1. Broadcast: 스마트폰이 channel.send()로 보낸 remote_alarm_off
       .on("broadcast", { event: "remote_alarm_off" }, (payload) => {
         console.log("[Alerts] 📢 remote_alarm_off broadcast received:", payload);
         setDismissedBySmartphone(true);
         setActiveAlert(null);
         setTimeout(() => setDismissedBySmartphone(false), 500);
       })
-      // 2. Presence 수신: 하위 호환 (track 방식)
+      // 2. Presence: 하위 호환 (track 방식)
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
-        console.log("[Alerts] Presence sync:", state);
+        // 로그 노이즈 감소: 비어있으면 무시
+        if (Object.keys(state).length > 0) {
+          console.log("[Alerts] Presence sync:", state);
+        }
 
         for (const key of Object.keys(state)) {
           const entries = state[key] as Array<{
@@ -145,7 +160,7 @@ export function useAlerts(deviceId?: string) {
               setTimeout(() => setDismissedBySmartphone(false), 500);
             }
             if (entry.active_alert === null && entry.dismissed_at) {
-              console.log("[Alerts] Smartphone dismissed alarm (Presence) at:", entry.dismissed_at);
+              console.log("[Alerts] Smartphone dismissed via Presence at:", entry.dismissed_at);
               setActiveAlert(null);
               setDismissedBySmartphone(true);
               setTimeout(() => setDismissedBySmartphone(false), 500);
@@ -153,12 +168,12 @@ export function useAlerts(deviceId?: string) {
           }
         }
       })
-      // 3. Subscribe 후 Presence track
+      // 3. Subscribe 후 track
       .subscribe(async (status) => {
+        console.log(`[Alerts] Channel status: ${status}`);
         if (status === "SUBSCRIBED") {
           channelRef.current = channel;
-          console.log("[Alerts] Channel subscribed (broadcast + presence)");
-          // Presence 상태 등록
+          console.log("[Alerts] ✅ Channel subscribed — broadcast + presence ready");
           await channel.track({
             status: "listening",
             updated_at: new Date().toISOString(),
@@ -167,6 +182,7 @@ export function useAlerts(deviceId?: string) {
       });
 
     return () => {
+      console.log("[Alerts] Cleaning up channel");
       supabaseShared.removeChannel(channel);
       channelRef.current = null;
     };
