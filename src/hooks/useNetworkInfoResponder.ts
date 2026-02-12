@@ -29,12 +29,21 @@ export function useNetworkInfoResponder(deviceId?: string) {
       }
 
       try {
+        // Read existing metadata first to preserve smartphone settings
+        const { data: existing } = await supabaseShared
+          .from("devices")
+          .select("metadata")
+          .eq("id", deviceId)
+          .maybeSingle();
+        const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+
         await supabaseShared
           .from("devices")
           .update({
             ip_address: ip,
             is_network_connected: navigator.onLine,
             metadata: {
+              ...existingMeta,
               network_info: {
                 type: connection?.type || "unknown",
                 downlink: connection?.downlink ?? null,
