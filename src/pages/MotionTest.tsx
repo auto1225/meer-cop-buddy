@@ -32,6 +32,9 @@ const MotionTest = () => {
   }, []);
 
   const startCamera = useCallback(async () => {
+    // 카메라 감지 훅에게 devicechange 이벤트를 무시하도록 알림
+    window.dispatchEvent(new Event("camera-acquired"));
+    
     // 기존 스트림이 있으면 먼저 정리
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
