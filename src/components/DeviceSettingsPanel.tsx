@@ -2,12 +2,10 @@ import { useState, useEffect } from "react";
 import { Laptop, Monitor, Save, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { SensorSettings, DEFAULT_SENSOR_SETTINGS } from "@/hooks/useSensorDetection";
 
 interface Device {
   id: string;
@@ -27,24 +25,16 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
   const { toast } = useToast();
   const { user } = useAuth();
   const [deviceName, setDeviceName] = useState(device?.device_name || "");
+  const [deviceType, setDeviceType] = useState(device?.device_type || "laptop");
   const [isSaving, setIsSaving] = useState(false);
-  
-  // Parse existing settings from metadata or use defaults
-  const existingSettings = (device?.metadata as { sensorSettings?: SensorSettings } | null)?.sensorSettings;
-  const [settings, setSettings] = useState<SensorSettings>(
-    existingSettings || DEFAULT_SENSOR_SETTINGS
-  );
 
   useEffect(() => {
     if (device) {
       setDeviceName(device.device_name);
-      const meta = device.metadata as { sensorSettings?: SensorSettings } | null;
-      if (meta?.sensorSettings) {
-        setSettings(meta.sensorSettings);
-      }
+      setDeviceType(device.device_type || "laptop");
     } else if (isNewDevice) {
       setDeviceName("");
-      setSettings(DEFAULT_SENSOR_SETTINGS);
+      setDeviceType("laptop");
     }
   }, [device, isNewDevice]);
 
@@ -61,46 +51,28 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     setIsSaving(true);
     try {
       if (isNewDevice) {
-        // Create new device in smartphone DB schema
         if (!user?.id) {
           throw new Error("로그인이 필요합니다.");
         }
-        const insertData = {
-          user_id: user.id,
-          name: deviceName,  // Smartphone DB uses 'name'
-          device_type: settings.deviceType,
-          status: "offline",
-          is_monitoring: false,
-        };
         const { error } = await supabaseShared
           .from("devices")
-          .insert(insertData);
-
+          .insert({
+            user_id: user.id,
+            name: deviceName,
+            device_type: deviceType,
+            status: "offline",
+            is_monitoring: false,
+          } as any);
         if (error) throw error;
-
-        toast({
-          title: "디바이스 등록 완료",
-          description: "새 디바이스가 등록되었습니다.",
-        });
+        toast({ title: "디바이스 등록 완료", description: "새 디바이스가 등록되었습니다." });
       } else if (device) {
-        // Update existing device in smartphone DB schema
-        const updateData = {
-          name: deviceName,  // Smartphone DB uses 'name'
-          device_type: settings.deviceType,
-        };
         const { error } = await supabaseShared
           .from("devices")
-          .update(updateData)
+          .update({ name: deviceName, device_type: deviceType } as any)
           .eq("id", device.id);
-
         if (error) throw error;
-
-        toast({
-          title: "저장 완료",
-          description: "디바이스 설정이 저장되었습니다.",
-        });
+        toast({ title: "저장 완료", description: "디바이스 설정이 저장되었습니다." });
       }
-      
       onUpdate();
       onClose();
     } catch (error: any) {
@@ -114,29 +86,18 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     }
   };
 
-  const updateSetting = <K extends keyof SensorSettings>(key: K, value: SensorSettings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  };
-
   return (
     <div className="absolute inset-0 bg-primary z-60 overflow-y-auto">
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/20">
         <h2 className="font-bold text-lg text-white">
           {isNewDevice ? "디바이스 등록" : "디바이스 설정"}
         </h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="text-white hover:bg-white/20"
-        >
+        <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20">
           <X className="w-5 h-5" />
         </Button>
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Device Name */}
         <div className="space-y-2">
           <Label className="text-white text-sm font-bold">디바이스 이름</Label>
           <Input
@@ -147,14 +108,13 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
           />
         </div>
 
-        {/* Device Type */}
         <div className="space-y-2">
           <Label className="text-white text-sm font-bold">디바이스 타입</Label>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => updateSetting("deviceType", "laptop")}
+              onClick={() => setDeviceType("laptop")}
               className={`flex items-center justify-center gap-2 p-3 rounded-xl transition-colors ${
-                settings.deviceType === "laptop"
+                deviceType === "laptop"
                   ? "bg-secondary text-secondary-foreground"
                   : "bg-white/10 text-white hover:bg-white/20"
               }`}
@@ -163,9 +123,9 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
               <span className="font-bold text-sm">랩탑</span>
             </button>
             <button
-              onClick={() => updateSetting("deviceType", "desktop")}
+              onClick={() => setDeviceType("desktop")}
               className={`flex items-center justify-center gap-2 p-3 rounded-xl transition-colors ${
-                settings.deviceType === "desktop"
+                deviceType === "desktop"
                   ? "bg-secondary text-secondary-foreground"
                   : "bg-white/10 text-white hover:bg-white/20"
               }`}
@@ -176,146 +136,12 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
           </div>
         </div>
 
-        {/* Sensor Settings */}
-        <div className="space-y-3">
-          <Label className="text-white text-sm font-bold">감지 센서 설정</Label>
-          
-          {/* Laptop specific: Lid */}
-          {settings.deviceType === "laptop" && (
-            <div className="flex items-center space-x-3 p-3 bg-white/10 rounded-xl">
-              <Checkbox
-                id="lidClosed"
-                checked={settings.lidClosed}
-                onCheckedChange={(checked) => updateSetting("lidClosed", !!checked)}
-                className="border-white data-[state=checked]:bg-secondary data-[state=checked]:border-secondary"
-              />
-              <Label htmlFor="lidClosed" className="text-white text-sm cursor-pointer flex-1">
-                랩탑 뚜껑 감지
-              </Label>
-            </div>
-          )}
-
-          {/* Camera */}
-          <div className="flex items-center space-x-3 p-3 bg-white/10 rounded-xl">
-            <Checkbox
-              id="camera"
-              checked={settings.camera}
-              onCheckedChange={(checked) => updateSetting("camera", !!checked)}
-              className="border-white data-[state=checked]:bg-secondary data-[state=checked]:border-secondary"
-            />
-            <Label htmlFor="camera" className="text-white text-sm cursor-pointer flex-1">
-              카메라 감지
-            </Label>
-          </div>
-
-          {/* Microphone - Desktop only */}
-          {settings.deviceType === "desktop" && (
-            <div className="flex items-center space-x-3 p-3 bg-white/10 rounded-xl">
-              <Checkbox
-                id="microphone"
-                checked={settings.microphone}
-                onCheckedChange={(checked) => updateSetting("microphone", !!checked)}
-                className="border-white data-[state=checked]:bg-secondary data-[state=checked]:border-secondary"
-              />
-              <Label htmlFor="microphone" className="text-white text-sm cursor-pointer flex-1">
-                마이크 감지
-              </Label>
-            </div>
-          )}
-
-          {/* Keyboard */}
-          <div className="p-3 bg-white/10 rounded-xl space-y-2">
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="keyboard"
-                checked={settings.keyboard}
-                onCheckedChange={(checked) => updateSetting("keyboard", !!checked)}
-                className="border-white data-[state=checked]:bg-secondary data-[state=checked]:border-secondary"
-              />
-              <Label htmlFor="keyboard" className="text-white text-sm cursor-pointer flex-1">
-                키보드 감지
-              </Label>
-            </div>
-            {settings.keyboard && (
-              <div className="flex gap-2 ml-7">
-                <button
-                  onClick={() => updateSetting("keyboardType", "wired")}
-                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                    settings.keyboardType === "wired"
-                      ? "bg-secondary text-secondary-foreground"
-                      : "bg-white/20 text-white"
-                  }`}
-                >
-                  유선
-                </button>
-                <button
-                  onClick={() => updateSetting("keyboardType", "wireless")}
-                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                    settings.keyboardType === "wireless"
-                      ? "bg-secondary text-secondary-foreground"
-                      : "bg-white/20 text-white"
-                  }`}
-                >
-                  무선
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Mouse */}
-          <div className="p-3 bg-white/10 rounded-xl space-y-2">
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="mouse"
-                checked={settings.mouse}
-                onCheckedChange={(checked) => updateSetting("mouse", !!checked)}
-                className="border-white data-[state=checked]:bg-secondary data-[state=checked]:border-secondary"
-              />
-              <Label htmlFor="mouse" className="text-white text-sm cursor-pointer flex-1">
-                마우스 감지
-              </Label>
-            </div>
-            {settings.mouse && (
-              <div className="flex gap-2 ml-7">
-                <button
-                  onClick={() => updateSetting("mouseType", "wired")}
-                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                    settings.mouseType === "wired"
-                      ? "bg-secondary text-secondary-foreground"
-                      : "bg-white/20 text-white"
-                  }`}
-                >
-                  유선
-                </button>
-                <button
-                  onClick={() => updateSetting("mouseType", "wireless")}
-                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                    settings.mouseType === "wireless"
-                      ? "bg-secondary text-secondary-foreground"
-                      : "bg-white/20 text-white"
-                  }`}
-                >
-                  무선
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* USB */}
-          <div className="flex items-center space-x-3 p-3 bg-white/10 rounded-xl">
-            <Checkbox
-              id="usb"
-              checked={settings.usb}
-              onCheckedChange={(checked) => updateSetting("usb", !!checked)}
-              className="border-white data-[state=checked]:bg-secondary data-[state=checked]:border-secondary"
-            />
-            <Label htmlFor="usb" className="text-white text-sm cursor-pointer flex-1">
-              USB 감지
-            </Label>
-          </div>
+        <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+          <p className="text-white/60 text-xs">
+            💡 감지 센서 설정(카메라, 키보드, 마우스, USB 등)은 스마트폰 앱에서 관리합니다.
+          </p>
         </div>
 
-        {/* Save Button */}
         <Button
           onClick={handleSave}
           disabled={isSaving}
