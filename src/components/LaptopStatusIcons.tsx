@@ -10,6 +10,7 @@ interface LaptopStatusIconsProps {
   networkStatus: boolean;
   cameraStatus: boolean;
   onCameraClick?: () => void;
+  onMeercopClick?: () => void;
 }
 
 export function LaptopStatusIcons({ 
@@ -17,11 +18,15 @@ export function LaptopStatusIcons({
   networkStatus, 
   cameraStatus,
   onCameraClick,
+  onMeercopClick,
 }: LaptopStatusIconsProps) {
   return (
     <div className="flex justify-center items-center gap-8 px-4 py-2 mt-4">
-      {/* MeerCOP Icon */}
-      <div className="flex flex-col items-center gap-1">
+      {/* MeerCOP Icon - Clickable */}
+      <button 
+        onClick={onMeercopClick}
+        className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
+      >
         <div className="w-12 h-12 flex items-center justify-center">
           <img 
             src={meercopStatus ? meercopOn : meercopOff} 
@@ -32,7 +37,7 @@ export function LaptopStatusIcons({
         <span className="text-[9px] font-bold text-white">
           MeerCOP
         </span>
-      </div>
+      </button>
 
       {/* Network Icon */}
       <div className="flex flex-col items-center gap-1">

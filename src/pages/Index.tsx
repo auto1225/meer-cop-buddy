@@ -8,6 +8,7 @@ import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { CameraModal } from "@/components/CameraModal";
 import { AlertOverlay } from "@/components/AlertOverlay";
+import { LocationMapModal } from "@/components/LocationMapModal";
 import { AutoBroadcaster } from "@/components/AutoBroadcaster";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,6 +25,7 @@ const Index = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices();
@@ -292,6 +294,7 @@ const Index = () => {
           networkStatus={isNetworkConnected}
           cameraStatus={isCameraAvailable}
           onCameraClick={() => setIsCameraModalOpen(true)}
+          onMeercopClick={() => setIsLocationModalOpen(true)}
         />
 
         {/* Camera Modal */}
@@ -299,6 +302,13 @@ const Index = () => {
           isOpen={isCameraModalOpen}
           onClose={() => setIsCameraModalOpen(false)}
           onCameraStatusChange={setCameraAvailable}
+          deviceId={currentDevice?.id}
+        />
+
+        {/* Location Map Modal */}
+        <LocationMapModal
+          isOpen={isLocationModalOpen}
+          onClose={() => setIsLocationModalOpen(false)}
           deviceId={currentDevice?.id}
         />
 
