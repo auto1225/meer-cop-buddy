@@ -215,24 +215,29 @@ const Index = () => {
       motionSensitivity?: string;
     } | null;
 
+    console.log("[Index] 📋 Current metadata from DB:", JSON.stringify(meta));
+
     if (meta?.alarm_pin) {
       setAlarmPin(meta.alarm_pin);
       localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+      console.log("[Index] ✅ alarm_pin applied:", meta.alarm_pin);
     }
 
-    // Sync require_pc_pin from metadata
     if (meta?.require_pc_pin !== undefined) {
       setRequirePcPin(meta.require_pc_pin);
-      console.log("[Index] require_pc_pin updated from metadata:", meta.require_pc_pin);
+      console.log("[Index] ✅ require_pc_pin applied:", meta.require_pc_pin);
     }
 
-    // Sync camouflage mode from metadata
     if (meta?.camouflage_mode !== undefined) {
       setIsCamouflageMode(meta.camouflage_mode);
-      console.log("[Index] Camouflage mode updated from metadata:", meta.camouflage_mode);
+      console.log("[Index] ✅ camouflage_mode applied:", meta.camouflage_mode);
     }
 
-    // Sync sensor toggles from metadata
+    if (meta?.alarm_sound_id) {
+      setSelectedSoundId(meta.alarm_sound_id);
+      console.log("[Index] ✅ alarm_sound_id applied:", meta.alarm_sound_id);
+    }
+
     if (meta?.sensorSettings) {
       const s = meta.sensorSettings;
       setSensorToggles({
@@ -242,10 +247,9 @@ const Index = () => {
         mouse: s.mouse ?? true,
         power: s.power ?? true,
       });
-      console.log("[Index] Sensor toggles updated from metadata:", s);
+      console.log("[Index] ✅ sensorSettings applied:", s);
     }
 
-    // Sync motion sensitivity: 민감=10%, 보통=50%, 둔감=80%
     if (meta?.motionSensitivity) {
       const sensitivityMap: Record<string, number> = {
         sensitive: 10,
@@ -254,7 +258,7 @@ const Index = () => {
       };
       const threshold = sensitivityMap[meta.motionSensitivity] ?? 15;
       setMotionThreshold(threshold);
-      console.log("[Index] Motion threshold updated:", meta.motionSensitivity, "→", threshold);
+      console.log("[Index] ✅ motionSensitivity applied:", meta.motionSensitivity, "→", threshold);
     }
   }, [currentDevice?.metadata, currentDevice?.id]);
 

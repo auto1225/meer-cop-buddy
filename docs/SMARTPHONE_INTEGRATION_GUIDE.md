@@ -230,12 +230,13 @@ await supabase
   .update({
     metadata: {
       ...currentMetadata,
-      request_location: new Date().toISOString(),
+      locate_requested: new Date().toISOString(),  // ⚠️ "locate_requested" 정확히 사용
     },
   })
   .eq("id", DEVICE_ID);
 
 // 결과: devices.latitude, devices.longitude, devices.location_updated_at 에 기록됨
+// 완료 후 locate_requested는 null로 초기화됨
 ```
 
 ### 네트워크 정보 요청
@@ -246,12 +247,13 @@ await supabase
   .update({
     metadata: {
       ...currentMetadata,
-      request_network_info: new Date().toISOString(),
+      network_info_requested: new Date().toISOString(),  // ⚠️ "network_info_requested" 정확히 사용
     },
   })
   .eq("id", DEVICE_ID);
 
 // 결과: devices.metadata.network_info 에 기록됨
+// 완료 후 network_info_requested는 null로 초기화됨
 ```
 
 ---
