@@ -15,7 +15,7 @@ import { AutoBroadcaster } from "@/components/AutoBroadcaster";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
-import { useSecuritySurveillance, SecurityEvent } from "@/hooks/useSecuritySurveillance";
+import { useSecuritySurveillance, SecurityEvent, SensorToggles } from "@/hooks/useSecuritySurveillance";
 import { useAlerts } from "@/hooks/useAlerts";
 import { saveAlertPhotos } from "@/lib/localPhotoStorage";
 import { addActivityLog } from "@/lib/localActivityLogs";
@@ -59,6 +59,11 @@ const Index = () => {
   // PIN for alarm dismissal (default: 1234, will be set from smartphone)
   const [alarmPin, setAlarmPin] = useState(() => localStorage.getItem('meercop-alarm-pin') || "1234");
   const [showPinKeypad, setShowPinKeypad] = useState(false);
+  // Sensor toggles from smartphone metadata
+  const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
+    cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true,
+  });
+  const [motionThreshold, setMotionThreshold] = useState(15);
   // Alarm system
   const { 
     isAlarmEnabled, 
@@ -157,6 +162,8 @@ const Index = () => {
     bufferDuration: 10,
     captureInterval: 1000,
     mouseSensitivity: 50,
+    motionThreshold,
+    sensorToggles,
   });
 
   // Handle alarm dismiss (from PIN keypad success)
@@ -181,13 +188,50 @@ const Index = () => {
     }
   }, [dismissedBySmartphone, stopAlarm]);
 
-  // Listen for PIN changes from smartphone via metadata
+  // Listen for settings changes from smartphone via metadata
   useEffect(() => {
     if (!currentDevice?.id) return;
-    const meta = currentDevice?.metadata as { alarm_pin?: string } | null;
+    const meta = currentDevice?.metadata as {
+      alarm_pin?: string;
+      alarm_sound_id?: string;
+      sensorSettings?: {
+        camera?: boolean;
+        lidClosed?: boolean;
+        keyboard?: boolean;
+        mouse?: boolean;
+        usb?: boolean;
+      };
+      motionSensitivity?: string; // "sensitive" | "normal" | "insensitive"
+    } | null;
+
     if (meta?.alarm_pin) {
       setAlarmPin(meta.alarm_pin);
       localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
+    }
+
+    // Sync sensor toggles from metadata
+    if (meta?.sensorSettings) {
+      const s = meta.sensorSettings;
+      setSensorToggles({
+        cameraMotion: s.camera ?? true,
+        lid: s.lidClosed ?? true,
+        keyboard: s.keyboard ?? true,
+        mouse: s.mouse ?? true,
+        power: true, // power not in sensorSettings, always on
+      });
+      console.log("[Index] Sensor toggles updated from metadata:", s);
+    }
+
+    // Sync motion sensitivity: 민감=10%, 보통=50%, 둔감=80%
+    if (meta?.motionSensitivity) {
+      const sensitivityMap: Record<string, number> = {
+        sensitive: 10,
+        normal: 50,
+        insensitive: 80,
+      };
+      const threshold = sensitivityMap[meta.motionSensitivity] ?? 15;
+      setMotionThreshold(threshold);
+      console.log("[Index] Motion threshold updated:", meta.motionSensitivity, "→", threshold);
     }
   }, [currentDevice?.metadata, currentDevice?.id]);
 
@@ -295,7 +339,12 @@ const Index = () => {
 
           // Read metadata changes (alarm_pin, sensorSettings, etc.)
           if (newData.metadata && isMounted) {
-            const meta = newData.metadata as { alarm_pin?: string; alarm_sound_id?: string };
+            const meta = newData.metadata as {
+              alarm_pin?: string;
+              alarm_sound_id?: string;
+              sensorSettings?: { camera?: boolean; lidClosed?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean };
+              motionSensitivity?: string;
+            };
             if (meta.alarm_pin) {
               console.log("[Index] PIN updated from DB:", meta.alarm_pin);
               setAlarmPin(meta.alarm_pin);
@@ -304,6 +353,22 @@ const Index = () => {
             if (meta.alarm_sound_id) {
               console.log("[Index] Alarm sound updated from DB:", meta.alarm_sound_id);
               setSelectedSoundId(meta.alarm_sound_id);
+            }
+            if (meta.sensorSettings) {
+              const s = meta.sensorSettings;
+              setSensorToggles({
+                cameraMotion: s.camera ?? true,
+                lid: s.lidClosed ?? true,
+                keyboard: s.keyboard ?? true,
+                mouse: s.mouse ?? true,
+                power: true,
+              });
+              console.log("[Index] Sensor toggles updated via Realtime:", s);
+            }
+            if (meta.motionSensitivity) {
+              const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
+              setMotionThreshold(sensitivityMap[meta.motionSensitivity] ?? 15);
+              console.log("[Index] Motion threshold updated via Realtime:", meta.motionSensitivity);
             }
           }
 
