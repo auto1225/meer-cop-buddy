@@ -8,6 +8,22 @@ export interface SecurityEvent {
   changePercent?: number;
 }
 
+export interface SensorToggles {
+  cameraMotion: boolean;
+  lid: boolean;
+  keyboard: boolean;
+  mouse: boolean;
+  power: boolean;
+}
+
+const DEFAULT_SENSOR_TOGGLES: SensorToggles = {
+  cameraMotion: true,
+  lid: true,
+  keyboard: true,
+  mouse: true,
+  power: true,
+};
+
 interface UseSecuritySurveillanceOptions {
   onEventDetected?: (event: SecurityEvent) => void;
   bufferDuration?: number;
@@ -16,6 +32,7 @@ interface UseSecuritySurveillanceOptions {
   motionThreshold?: number; // 카메라 변화율(%) 임계값
   motionConsecutive?: number; // 연속 초과 프레임 수
   motionCooldown?: number; // 감지 후 쿨다운 (ms)
+  sensorToggles?: SensorToggles;
 }
 
 const DEFAULT_BUFFER_DURATION = 10;
@@ -33,6 +50,7 @@ export function useSecuritySurveillance({
   motionThreshold = DEFAULT_MOTION_THRESHOLD,
   motionConsecutive = DEFAULT_MOTION_CONSECUTIVE,
   motionCooldown = DEFAULT_MOTION_COOLDOWN,
+  sensorToggles = DEFAULT_SENSOR_TOGGLES,
 }: UseSecuritySurveillanceOptions = {}) {
   const [isActive, setIsActive] = useState(false);
 
@@ -46,10 +64,15 @@ export function useSecuritySurveillance({
   const isMonitoringRef = useRef(false);
   const onEventDetectedRef = useRef(onEventDetected);
   const motionDetectorRef = useRef<MotionDetector | null>(null);
+  const sensorTogglesRef = useRef(sensorToggles);
 
   useEffect(() => {
     onEventDetectedRef.current = onEventDetected;
   }, [onEventDetected]);
+
+  useEffect(() => {
+    sensorTogglesRef.current = sensorToggles;
+  }, [sensorToggles]);
 
   // Initialize hidden video and canvas elements once
   useEffect(() => {
@@ -157,8 +180,9 @@ export function useSecuritySurveillance({
         const photo = capturePhoto();
         if (photo) addToBuffer(photo);
 
-        // 2. 모션 분석
+        // 2. 모션 분석 (센서 토글 확인)
         if (
+          sensorTogglesRef.current.cameraMotion &&
           videoRef.current &&
           analysisCanvasRef.current &&
           motionDetectorRef.current &&
@@ -182,7 +206,7 @@ export function useSecuritySurveillance({
 
       // Keyboard listener
       const handleKeyboard = (e: KeyboardEvent) => {
-        if (isMonitoringRef.current) {
+        if (isMonitoringRef.current && sensorTogglesRef.current.keyboard) {
           console.log("[Surveillance] Keyboard detected:", e.key);
           triggerEvent("keyboard");
         }
@@ -190,7 +214,7 @@ export function useSecuritySurveillance({
 
       // Mouse listener
       const handleMouse = (e: MouseEvent) => {
-        if (!isMonitoringRef.current) return;
+        if (!isMonitoringRef.current || !sensorTogglesRef.current.mouse) return;
         const currentPos = { x: e.clientX, y: e.clientY };
 
         if (lastMousePosition.current) {
@@ -215,7 +239,7 @@ export function useSecuritySurveillance({
       // Power detection
       let lastChargingState: boolean | null = null;
       const handleChargingChange = (charging: boolean) => {
-        if (!isMonitoringRef.current) return;
+        if (!isMonitoringRef.current || !sensorTogglesRef.current.power) return;
         if (lastChargingState === true && charging === false) {
           console.log("[Surveillance] Power unplugged detected!");
           triggerEvent("power");
@@ -244,7 +268,7 @@ export function useSecuritySurveillance({
 
       // Lid close detection
       const handleVisibilityChange = () => {
-        if (!isMonitoringRef.current) return;
+        if (!isMonitoringRef.current || !sensorTogglesRef.current.lid) return;
         if (document.hidden) {
           console.log("[Surveillance] Lid closed / screen hidden detected!");
           triggerEvent("lid");
