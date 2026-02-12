@@ -5,6 +5,9 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 // Global tracking to prevent duplicate Presence channel subscriptions
 const setupDeviceIds = new Set<string>();
 const deviceChannels = new Map<string, RealtimeChannel>();
+const reconnectAttempts = new Map<string, number>();
+const MAX_RECONNECT_ATTEMPTS = 5;
+const BASE_RECONNECT_DELAY = 3000;
 
 interface DeviceStatus {
   isNetworkConnected: boolean;
@@ -138,21 +141,28 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
             channelRef.current = channel;
             deviceChannels.set(deviceId, channel);
             setupDeviceIds.add(deviceId);
+            reconnectAttempts.set(deviceId, 0); // Reset on success
             
             // 초기 상태 동기화 (카메라 상태는 DB Realtime에서만)
             await syncPresence(navigator.onLine);
           } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-            console.log(`[DeviceStatus] ⚠️ Channel ${status}, will reconnect in 3s`);
+            const attempts = reconnectAttempts.get(deviceId) || 0;
             setupDeviceIds.delete(deviceId);
             deviceChannels.delete(deviceId);
             
-            // 3초 후 자동 재연결
-            setTimeout(() => {
-              if (deviceIdRef.current === deviceId) {
-                console.log(`[DeviceStatus] 🔄 Reconnecting Presence channel...`);
-                setupChannel();
-              }
-            }, 3000);
+            if (attempts < MAX_RECONNECT_ATTEMPTS) {
+              const delay = BASE_RECONNECT_DELAY * Math.pow(2, attempts);
+              console.log(`[DeviceStatus] ⚠️ Channel ${status}, reconnect attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s`);
+              reconnectAttempts.set(deviceId, attempts + 1);
+              
+              setTimeout(() => {
+                if (deviceIdRef.current === deviceId) {
+                  setupChannel();
+                }
+              }, delay);
+            } else {
+              console.log(`[DeviceStatus] ❌ Max reconnect attempts reached for ${deviceId}`);
+            }
           }
         });
 

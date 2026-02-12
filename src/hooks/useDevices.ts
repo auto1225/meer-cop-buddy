@@ -15,6 +15,7 @@ interface Device {
   is_streaming_requested: boolean | null;
   battery_level: number | null;
   last_seen_at: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,7 +50,7 @@ function toCompatDevice(d: Device): DeviceCompat {
     ip_address: null,
     os_info: null,
     app_version: null,
-    metadata: null,
+    metadata: d.metadata,
   };
 }
 
