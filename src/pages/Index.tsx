@@ -8,6 +8,7 @@ import { ResizableContainer } from "@/components/ResizableContainer";
 import { SideMenu } from "@/components/SideMenu";
 import { CameraModal } from "@/components/CameraModal";
 import { AlertOverlay } from "@/components/AlertOverlay";
+import { SensorSettingsPanel } from "@/components/SensorSettingsPanel";
 import { PinKeypad } from "@/components/PinKeypad";
 import { LocationMapModal } from "@/components/LocationMapModal";
 import { NetworkInfoModal } from "@/components/NetworkInfoModal";
@@ -36,6 +37,11 @@ const Index = () => {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+  const [alarmVolume, setAlarmVolume] = useState(() => {
+    const saved = localStorage.getItem('meercop-alarm-volume');
+    return saved ? parseInt(saved, 10) : 50;
+  });
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices();
@@ -78,7 +84,7 @@ const Index = () => {
     startAlarm, 
     stopAlarm,
     previewSound,
-  } = useAlarmSystem();
+  } = useAlarmSystem({ volumePercent: alarmVolume });
 
   // Photo transmitter - manages broadcast + offline queue
   const transmitterRef = useRef<PhotoTransmitter | null>(null);
@@ -537,6 +543,20 @@ const Index = () => {
           onCameraClick={() => setIsCameraModalOpen(true)}
           onMeercopClick={() => setIsLocationModalOpen(true)}
           onNetworkClick={() => setIsNetworkModalOpen(true)}
+          onSettingsClick={() => setIsSettingsPanelOpen(true)}
+        />
+
+        {/* Sensor Settings Panel */}
+        <SensorSettingsPanel
+          isOpen={isSettingsPanelOpen}
+          onClose={() => setIsSettingsPanelOpen(false)}
+          sensorToggles={sensorToggles}
+          alarmVolume={alarmVolume}
+          onAlarmVolumeChange={(v) => {
+            setAlarmVolume(v);
+            localStorage.setItem('meercop-alarm-volume', String(v));
+          }}
+          isMonitoring={isMonitoring}
         />
 
         {/* Camera Modal */}
