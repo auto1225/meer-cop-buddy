@@ -14,6 +14,8 @@ export interface SensorToggles {
   keyboard: boolean;
   mouse: boolean;
   power: boolean;
+  microphone: boolean;
+  usb: boolean;
 }
 
 const DEFAULT_SENSOR_TOGGLES: SensorToggles = {
@@ -22,6 +24,8 @@ const DEFAULT_SENSOR_TOGGLES: SensorToggles = {
   keyboard: true,
   mouse: true,
   power: true,
+  microphone: false,
+  usb: false,
 };
 
 interface UseSecuritySurveillanceOptions {

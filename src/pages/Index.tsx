@@ -70,7 +70,7 @@ const Index = () => {
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
-    cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true,
+    cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true, microphone: false, usb: false,
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
   // Alarm system
@@ -213,6 +213,7 @@ const Index = () => {
       sensorSettings?: {
         camera?: boolean;
         lidClosed?: boolean;
+        microphone?: boolean;
         keyboard?: boolean;
         mouse?: boolean;
         usb?: boolean;
@@ -252,6 +253,8 @@ const Index = () => {
         keyboard: s.keyboard ?? true,
         mouse: s.mouse ?? true,
         power: s.power ?? true,
+        microphone: s.microphone ?? false,
+        usb: s.usb ?? false,
       });
       console.log("[Index] ✅ sensorSettings applied:", s);
     }
@@ -377,7 +380,7 @@ const Index = () => {
               alarm_sound_id?: string;
               require_pc_pin?: boolean;
               camouflage_mode?: boolean;
-              sensorSettings?: { camera?: boolean; lidClosed?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean; power?: boolean };
+              sensorSettings?: { camera?: boolean; lidClosed?: boolean; microphone?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean; power?: boolean };
               motionSensitivity?: string;
             };
             if (meta.alarm_pin) {
@@ -405,6 +408,8 @@ const Index = () => {
                 keyboard: s.keyboard ?? true,
                 mouse: s.mouse ?? true,
                 power: s.power ?? true,
+                microphone: s.microphone ?? false,
+                usb: s.usb ?? false,
               });
               console.log("[Index] Sensor toggles updated via Realtime:", s);
             }
@@ -557,6 +562,10 @@ const Index = () => {
             localStorage.setItem('meercop-alarm-volume', String(v));
           }}
           isMonitoring={isMonitoring}
+          availableSounds={availableSounds}
+          selectedSoundId={selectedSoundId}
+          onSoundChange={setSelectedSoundId}
+          onPreviewSound={previewSound}
         />
 
         {/* Camera Modal */}
