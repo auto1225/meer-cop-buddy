@@ -16,6 +16,7 @@ import { AutoBroadcaster } from "@/components/AutoBroadcaster";
 import { CamouflageOverlay } from "@/components/CamouflageOverlay";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
+import { getSavedAuth } from "@/lib/serialAuth";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { useSecuritySurveillance, SecurityEvent, SensorToggles } from "@/hooks/useSecuritySurveillance";
 import { useAlerts } from "@/hooks/useAlerts";
@@ -32,6 +33,7 @@ import mainBg from "@/assets/main-bg.png";
 const Index = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const savedAuth = getSavedAuth();
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -271,12 +273,7 @@ const Index = () => {
     }
   }, [currentDevice?.metadata, currentDevice?.id]);
 
-  // Redirect to auth if not authenticated
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate("/auth");
-    }
-  }, [isAuthenticated, authLoading, navigate]);
+  // No redirect needed - App.tsx handles auth gate
 
   // Set initial device
   useEffect(() => {
