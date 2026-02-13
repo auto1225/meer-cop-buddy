@@ -156,3 +156,23 @@
     50% { transform: scale(1.1); }
   }
 }
+
+/* Themed scrollbar for settings panels */
+.styled-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.styled-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+.styled-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(232, 248, 74, 0.4);
+  border-radius: 4px;
+}
+.styled-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 248, 74, 0.6);
+}
+.styled-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 248, 74, 0.4) rgba(255, 255, 255, 0.05);
+}
