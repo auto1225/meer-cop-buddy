@@ -31,6 +31,9 @@ export function useAlerts(deviceId?: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const deviceIdRef = useRef(deviceId);
   deviceIdRef.current = deviceId;
+  // Track the latest alert timestamp to ignore stale dismissals
+  const lastAlertTimeRef = useRef<string | null>(null);
+  const lastProcessedDismissalRef = useRef<string | null>(null);
 
   // Presence 채널로 알림 전송 (스마트폰 앱이 수신)
   const broadcastAlert = useCallback(async (alert: Alert | null) => {
@@ -70,6 +73,8 @@ export function useAlerts(deviceId?: string) {
       const newLog = addActivityLog(deviceId, eventType, eventData);
       const newAlert = newLog as Alert;
 
+      // Record alert creation time to prevent stale dismissals
+      lastAlertTimeRef.current = newAlert.created_at;
       setActiveAlert(newAlert);
       setAlerts((prev) => [newAlert, ...prev]);
 
@@ -160,7 +165,18 @@ export function useAlerts(deviceId?: string) {
               setTimeout(() => setDismissedBySmartphone(false), 500);
             }
             if (entry.active_alert === null && entry.dismissed_at) {
-              console.log("[Alerts] Smartphone dismissed via Presence at:", entry.dismissed_at);
+              // Only accept dismissals NEWER than the current alert
+              const alertTime = lastAlertTimeRef.current;
+              if (alertTime && new Date(entry.dismissed_at) <= new Date(alertTime)) {
+                // Stale dismissal — ignore
+                continue;
+              }
+              // Prevent re-processing the same dismissal
+              if (lastProcessedDismissalRef.current === entry.dismissed_at) {
+                continue;
+              }
+              lastProcessedDismissalRef.current = entry.dismissed_at;
+              console.log("[Alerts] ✅ Smartphone dismissed via Presence at:", entry.dismissed_at);
               setActiveAlert(null);
               setDismissedBySmartphone(true);
               setTimeout(() => setDismissedBySmartphone(false), 500);
