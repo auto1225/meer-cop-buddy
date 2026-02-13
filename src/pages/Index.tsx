@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
 import { LaptopMascotSection } from "@/components/LaptopMascotSection";
@@ -587,13 +587,6 @@ const Index = () => {
           isAlarming={isAlarming}
         />
 
-        {/* 테스트 페이지 바로가기 (임시) */}
-        <Link 
-          to="/motion-test"
-          className="absolute bottom-2 right-2 bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded shadow-lg z-30 hover:bg-yellow-400"
-        >
-          🔬 모션 테스트
-        </Link>
       </div>
     </ResizableContainer>
   );
