@@ -24,7 +24,16 @@ export function ResizableContainer({
   baseWidth = 480,
   baseHeight = 320,
 }: ResizableContainerProps) {
-  const [size, setSize] = useState({ width: initialWidth, height: initialHeight });
+  const [size, setSize] = useState(() => {
+    const saved = localStorage.getItem('meercop-container-size');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.width && parsed.height) return parsed;
+      } catch {}
+    }
+    return { width: initialWidth, height: initialHeight };
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
 
@@ -64,7 +73,11 @@ export function ResizableContainer({
       newWidth = Math.min(maxWidth, Math.max(minWidth, newWidth));
       newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
 
-      setSize({ width: newWidth, height: newHeight });
+      setSize(newSize => {
+        const s = { width: newWidth, height: newHeight };
+        localStorage.setItem('meercop-container-size', JSON.stringify(s));
+        return s;
+      });
     };
 
     const handleMouseUp = () => {
