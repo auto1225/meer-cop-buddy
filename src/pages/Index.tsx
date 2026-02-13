@@ -532,7 +532,7 @@ const Index = () => {
 
         {/* Device Name Badge */}
         <DeviceNameBadge 
-          deviceName={currentDevice?.device_name || "Laptop1"}
+          deviceName={currentDevice?.device_name || savedAuth?.device_name || "Laptop1"}
         />
 
         {/* Status Icons - Real device status */}
