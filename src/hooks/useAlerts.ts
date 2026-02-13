@@ -95,7 +95,7 @@ export function useAlerts(deviceId?: string) {
   );
 
   // Stop active alert
-  const stopAlert = useCallback(() => {
+  const stopAlert = useCallback(async () => {
     if (!activeAlert || !deviceId) return;
 
     // 로컬에 경보 해제 기록
@@ -106,14 +106,27 @@ export function useAlerts(deviceId?: string) {
 
     setActiveAlert(null);
 
-    // Presence 채널로 알림 해제 전송
-    broadcastAlert(null);
+    // Presence 상태에서 active_alert를 null로 명시적 갱신
+    // → 스마트폰 재접속 시 stale alert 수신 방지
+    if (channelRef.current) {
+      try {
+        await channelRef.current.track({
+          role: "laptop",
+          active_alert: null,
+          status: "listening",
+          last_seen_at: new Date().toISOString(),
+        });
+        console.log("[Alerts] ✅ Presence cleared: active_alert = null");
+      } catch (error) {
+        console.error("[Alerts] Failed to clear Presence:", error);
+      }
+    }
 
     toast({
       title: "경보 해제",
       description: "경보가 성공적으로 해제되었습니다.",
     });
-  }, [activeAlert, deviceId, toast, broadcastAlert]);
+  }, [activeAlert, deviceId, toast]);
 
   // 채널 설정 (broadcast + presence, 모든 리스너는 subscribe 전에 등록)
   useEffect(() => {
