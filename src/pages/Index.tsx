@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
 import { LaptopMascotSection } from "@/components/LaptopMascotSection";
@@ -31,7 +30,6 @@ import { supabaseShared } from "@/lib/supabase";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
-  const navigate = useNavigate();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const savedAuth = getSavedAuth();
   const [isMonitoring, setIsMonitoring] = useState(false);
