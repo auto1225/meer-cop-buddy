@@ -475,8 +475,8 @@ const Index = () => {
       initialHeight={520}
       minWidth={200}
       minHeight={347}
-      maxWidth={450}
-      maxHeight={780}
+      maxWidth={700}
+      maxHeight={1200}
       baseWidth={300}
       baseHeight={520}
     >

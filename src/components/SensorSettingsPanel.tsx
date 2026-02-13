@@ -31,8 +31,11 @@ export function SensorSettingsPanel({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[#1e2a4a] rounded-2xl w-[85%] max-w-[320px] max-h-[80%] overflow-hidden shadow-2xl border border-white/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div 
+        className="bg-[#1e2a4a] rounded-2xl w-[85%] max-w-[320px] max-h-[85vh] overflow-hidden shadow-2xl border border-white/10 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <h2 className="text-white font-bold text-sm">감지 설정</h2>
@@ -41,7 +44,7 @@ export function SensorSettingsPanel({
           </button>
         </div>
 
-        <div className="overflow-y-auto max-h-[60vh] p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 styled-scrollbar">
           {/* Monitoring Status */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
             <div className={`w-2 h-2 rounded-full ${isMonitoring ? "bg-green-400 animate-pulse" : "bg-white/30"}`} />
