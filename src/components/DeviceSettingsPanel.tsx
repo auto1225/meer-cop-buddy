@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { getSavedAuth } from "@/lib/serialAuth";
 
 interface Device {
   id: string;
@@ -23,7 +23,7 @@ interface DeviceSettingsPanelProps {
 
 export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUpdate }: DeviceSettingsPanelProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const savedAuth = getSavedAuth();
   const [deviceName, setDeviceName] = useState(device?.device_name || "");
   const [deviceType, setDeviceType] = useState(device?.device_type || "laptop");
   const [isSaving, setIsSaving] = useState(false);
@@ -51,13 +51,13 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     setIsSaving(true);
     try {
       if (isNewDevice) {
-        if (!user?.id) {
-          throw new Error("로그인이 필요합니다.");
+        if (!savedAuth?.user_id) {
+          throw new Error("시리얼 인증이 필요합니다.");
         }
         const { error } = await supabaseShared
           .from("devices")
           .insert({
-            user_id: user.id,
+            user_id: savedAuth.user_id,
             name: deviceName,
             device_type: deviceType,
             status: "offline",

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { X, User, Laptop, HelpCircle, LogOut, Settings, ChevronRight, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { getSavedAuth } from "@/lib/serialAuth";
 import { DeviceSettingsPanel } from "@/components/DeviceSettingsPanel";
 import { AlarmSoundSelector } from "@/components/AlarmSoundSelector";
 import { type AlarmSoundConfig } from "@/lib/alarmSounds";
@@ -43,15 +43,15 @@ export function SideMenu({
   onSelectSound,
   onPreviewSound,
 }: SideMenuProps) {
-  const { signOut, user } = useAuth();
-  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const savedAuth = getSavedAuth();
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [isAddingDevice, setIsAddingDevice] = useState(false);
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    signOut();
     onClose();
-    navigate("/auth");
+    window.location.reload();
   };
 
   const handleEditDevice = (device: Device, e: React.MouseEvent) => {
@@ -75,9 +75,9 @@ export function SideMenu({
   if (!isOpen) return null;
 
   // Get user display info
-  const userEmail = user?.email || "게스트";
-  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || userEmail.split("@")[0];
-  const userAvatar = user?.user_metadata?.avatar_url;
+  const userEmail = savedAuth?.serial_key || "게스트";
+  const userName = savedAuth ? `SN: ${savedAuth.serial_key}` : "게스트";
+  const userAvatar: string | undefined = undefined;
 
   return (
     <>
