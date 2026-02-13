@@ -1,4 +1,4 @@
-import { X, Camera, Mic, Keyboard, Mouse, Usb, Power, Volume2 } from "lucide-react";
+import { X, Camera, Mic, Keyboard, Mouse, Power, Volume2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { type SensorToggles } from "@/hooks/useSecuritySurveillance";
@@ -31,65 +31,67 @@ export function SensorSettingsPanel({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div 
-        className="bg-[#1e2a4a] rounded-2xl w-[85%] max-w-[320px] max-h-[85vh] overflow-hidden shadow-2xl border border-white/10 flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <h2 className="text-white font-bold text-sm">감지 설정</h2>
-          <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+    <div 
+      className="absolute inset-0 z-50 bg-[#1a2640]/95 flex flex-col"
+      style={{ backdropFilter: "blur(8px)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+        <h2 className="text-white font-bold text-sm">감지 설정</h2>
+        <button 
+          onClick={onClose} 
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+        >
+          <X className="w-4 h-4 text-white" />
+        </button>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 styled-scrollbar">
+        {/* Monitoring Status */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
+          <div className={`w-2 h-2 rounded-full ${isMonitoring ? "bg-green-400 animate-pulse" : "bg-white/30"}`} />
+          <span className="text-[11px] text-white/70">
+            {isMonitoring ? "감시 활성화됨" : "감시 비활성화"}
+          </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 styled-scrollbar">
-          {/* Monitoring Status */}
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
-            <div className={`w-2 h-2 rounded-full ${isMonitoring ? "bg-green-400 animate-pulse" : "bg-white/30"}`} />
-            <span className="text-xs text-white/70">
-              {isMonitoring ? "감시 활성화됨" : "감시 비활성화"}
-            </span>
-          </div>
-
-          {/* Sensor Toggles (read-only, set from smartphone) */}
-          <div>
-            <h3 className="text-[11px] font-bold text-white/50 mb-2 uppercase tracking-wider">감지 센서 설정</h3>
-            <p className="text-[10px] text-white/30 mb-3">스마트폰에서 설정 변경 가능</p>
-            <div className="space-y-1">
-              {SENSOR_ITEMS.map(({ key, icon: Icon, label, desc }) => (
-                <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-white/5">
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${sensorToggles[key] ? "text-[#E8F84A]" : "text-white/30"}`} />
-                    <div>
-                      <div className={`text-xs font-semibold ${sensorToggles[key] ? "text-white" : "text-white/40"}`}>
-                        {label}
-                      </div>
-                      <div className="text-[10px] text-white/30">{desc}</div>
+        {/* Sensor Toggles (read-only, set from smartphone) */}
+        <div>
+          <h3 className="text-[10px] font-bold text-white/50 mb-1.5 uppercase tracking-wider">감지 센서 설정</h3>
+          <p className="text-[9px] text-white/30 mb-2">스마트폰에서 설정 변경 가능</p>
+          <div className="space-y-1.5">
+            {SENSOR_ITEMS.map(({ key, icon: Icon, label, desc }) => (
+              <div key={key} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/5">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <Icon className={`w-4 h-4 shrink-0 ${sensorToggles[key] ? "text-[#E8F84A]" : "text-white/30"}`} />
+                  <div className="min-w-0">
+                    <div className={`text-[11px] font-semibold truncate ${sensorToggles[key] ? "text-white" : "text-white/40"}`}>
+                      {label}
                     </div>
+                    <div className="text-[9px] text-white/30 truncate">{desc}</div>
                   </div>
-                  <Switch checked={sensorToggles[key]} disabled className="pointer-events-none opacity-80" />
                 </div>
-              ))}
-            </div>
+                <Switch checked={sensorToggles[key]} disabled className="pointer-events-none opacity-80 shrink-0 ml-2" />
+              </div>
+            ))}
           </div>
+        </div>
 
-          {/* Alarm Volume */}
-          <div>
-            <h3 className="text-[11px] font-bold text-white/50 mb-3 uppercase tracking-wider">경보음 크기</h3>
-            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/5">
-              <Volume2 className="w-4 h-4 text-[#E8F84A] shrink-0" />
-              <Slider
-                value={[alarmVolume]}
-                onValueChange={(v) => onAlarmVolumeChange(v[0])}
-                min={0}
-                max={100}
-                step={5}
-                className="flex-1"
-              />
-              <span className="text-xs font-bold text-white/70 w-8 text-right">{alarmVolume}%</span>
-            </div>
+        {/* Alarm Volume */}
+        <div>
+          <h3 className="text-[10px] font-bold text-white/50 mb-2 uppercase tracking-wider">경보음 크기</h3>
+          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/5">
+            <Volume2 className="w-4 h-4 text-[#E8F84A] shrink-0" />
+            <Slider
+              value={[alarmVolume]}
+              onValueChange={(v) => onAlarmVolumeChange(v[0])}
+              min={0}
+              max={100}
+              step={5}
+              className="flex-1"
+            />
+            <span className="text-[11px] font-bold text-white/70 w-8 text-right shrink-0">{alarmVolume}%</span>
           </div>
         </div>
       </div>
