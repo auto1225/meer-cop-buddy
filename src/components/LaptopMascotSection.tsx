@@ -57,14 +57,16 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
 
       {/* MeerCOP ON Status Bar - shows when monitoring */}
       {isMonitoring && !isAlarming && (
-        <div className="absolute bottom-0 left-0 right-0 z-30">
-          <div className="bg-[#E8F84A] py-2 px-4 flex items-center justify-center gap-2">
-            <img 
-              src={shieldCheck} 
-              alt="Shield" 
-              className="h-5 w-5 object-contain"
-            />
-            <span className="font-bold text-sm text-gray-800">MeerCOP ON</span>
+        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-2">
+          <div className="rounded-2xl border border-white/25 bg-white/20 backdrop-blur-xl py-2.5 px-4 flex items-center justify-center gap-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
+            <div className="w-6 h-6 rounded-full bg-secondary/30 flex items-center justify-center shadow-[0_0_10px_hsla(68,100%,64%,0.4)]">
+              <img 
+                src={shieldCheck} 
+                alt="Shield" 
+                className="h-4 w-4 object-contain"
+              />
+            </div>
+            <span className="font-extrabold text-sm text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.25)]">MeerCOP ON</span>
           </div>
         </div>
       )}
