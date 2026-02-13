@@ -7,11 +7,15 @@ export interface SerialAuthData {
   serial_key: string;
   device_id: string;
   user_id: string;
+  device_name: string;
   authenticated_at: string;
 }
 
 // 시리얼 넘버 검증 & 기기 등록
-export async function validateSerial(serialKey: string): Promise<SerialAuthData> {
+export async function validateSerial(
+  serialKey: string,
+  deviceName: string = "My Laptop"
+): Promise<SerialAuthData> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/validate-serial`, {
     method: "POST",
     headers: {
@@ -20,7 +24,7 @@ export async function validateSerial(serialKey: string): Promise<SerialAuthData>
     },
     body: JSON.stringify({
       serial_key: serialKey.trim().toUpperCase(),
-      device_name: "My Laptop",
+      device_name: deviceName,
       device_type: "laptop",
     }),
   });
@@ -35,6 +39,7 @@ export async function validateSerial(serialKey: string): Promise<SerialAuthData>
     serial_key: data.serial_key,
     device_id: data.device_id,
     user_id: data.user_id,
+    device_name: data.device_name || deviceName,
     authenticated_at: new Date().toISOString(),
   };
 
@@ -45,10 +50,9 @@ export async function validateSerial(serialKey: string): Promise<SerialAuthData>
 
 // 저장된 인증 정보 가져오기
 export function getSavedAuth(): SerialAuthData | null {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return null;
   try {
-    return JSON.parse(saved) as SerialAuthData;
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
   }
