@@ -122,6 +122,9 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
       
       setStream(mediaStream);
       setIsStarted(true);
+      
+      // getUserMedia 성공 → 카메라 감지 시스템에 알림
+      window.dispatchEvent(new Event("camera-permission-granted"));
       onStatusChange?.(true);
     } catch (err: any) {
       console.error("[Camera] ❌ Error:", err.name, err.message);
