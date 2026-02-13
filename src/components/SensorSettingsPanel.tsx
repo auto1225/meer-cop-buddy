@@ -56,24 +56,24 @@ export function SensorSettingsPanel({
 
   const deviceLabel = deviceType === "desktop" ? "데스크탑" : deviceType === "tablet" ? "태블릿" : "노트북";
 
-  const glassCard = "rounded-2xl border border-white/[0.12] bg-white/[0.07] backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.15)]";
+  const glassCard = "rounded-2xl border border-white/20 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]";
 
   return (
     <div
       className="absolute inset-0 z-50 flex flex-col"
       style={{
-        background: "linear-gradient(160deg, hsla(222,47%,24%,0.97) 0%, hsla(222,47%,16%,0.98) 100%)",
+        background: "linear-gradient(180deg, hsla(199,85%,55%,0.97) 0%, hsla(199,80%,48%,0.98) 100%)",
         backdropFilter: "blur(20px)",
       }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 shrink-0">
-        <h2 className="text-white font-extrabold text-sm">설정</h2>
+        <h2 className="text-white font-extrabold text-sm drop-shadow-sm">설정</h2>
         <button
           onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          className="w-6 h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
         >
-          <X className="w-3.5 h-3.5 text-white/70" />
+          <X className="w-3.5 h-3.5 text-white" />
         </button>
       </div>
 
@@ -82,15 +82,15 @@ export function SensorSettingsPanel({
 
         {/* Device Type */}
         <section className={`${glassCard} px-3 py-2.5`}>
-          <p className="text-[10px] font-bold text-white/40 mb-1.5">기기 타입</p>
+          <p className="text-[10px] font-bold text-white/60 mb-1.5">기기 타입</p>
           <div className="flex gap-1.5">
             {(["노트북", "데스크탑", "태블릿"] as const).map((type) => (
               <span
                 key={type}
                 className={`text-[10px] px-3 py-1 rounded-full font-bold transition-all ${
                   type === deviceLabel
-                    ? "bg-secondary/90 text-secondary-foreground shadow-[0_0_12px_hsla(68,100%,64%,0.3)]"
-                    : "bg-white/[0.06] text-white/25"
+                    ? "bg-secondary text-secondary-foreground shadow-[0_0_12px_hsla(68,100%,64%,0.35)]"
+                    : "bg-white/10 text-white/40"
                 }`}
               >
                 {type}
@@ -101,7 +101,7 @@ export function SensorSettingsPanel({
 
         {/* Alarm Settings */}
         <section className={`${glassCard} px-3 py-2.5 space-y-2`}>
-          <p className="text-[10px] font-bold text-white/40">경보음</p>
+          <p className="text-[10px] font-bold text-white/60">경보음</p>
           {/* Volume */}
           <div className="flex items-center gap-2">
             <Volume2 className="w-3.5 h-3.5 text-secondary shrink-0" />
@@ -113,7 +113,7 @@ export function SensorSettingsPanel({
               step={5}
               className="flex-1"
             />
-            <span className="text-[10px] font-bold text-white/60 w-7 text-right">{alarmVolume}%</span>
+            <span className="text-[10px] font-bold text-white/80 w-7 text-right">{alarmVolume}%</span>
           </div>
           {/* Sound List */}
           <div className="space-y-0.5 max-h-24 overflow-y-auto styled-scrollbar">
@@ -125,18 +125,18 @@ export function SensorSettingsPanel({
                   onClick={() => onSoundChange(sound.id)}
                   className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left transition-all ${
                     isSelected
-                      ? "bg-secondary/15 ring-1 ring-secondary/30"
-                      : "bg-white/[0.03] hover:bg-white/[0.07]"
+                      ? "bg-secondary/25 ring-1 ring-secondary/40"
+                      : "bg-white/5 hover:bg-white/10"
                   }`}
                 >
-                  <span className={`text-[10px] font-semibold ${isSelected ? "text-secondary" : "text-white/50"}`}>
+                  <span className={`text-[10px] font-semibold ${isSelected ? "text-secondary" : "text-white/70"}`}>
                     {sound.nameKo}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); onPreviewSound(sound.id); }}
-                    className="w-5 h-5 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] transition-colors"
+                    className="w-5 h-5 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
                   >
-                    <Play className="w-2.5 h-2.5 text-white/50" />
+                    <Play className="w-2.5 h-2.5 text-white/70" />
                   </button>
                 </button>
               );
@@ -147,8 +147,8 @@ export function SensorSettingsPanel({
         {/* Sensor Toggles */}
         <section className={`${glassCard} px-3 py-2.5`}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold text-white/40">감지 센서</p>
-            <span className="text-[9px] text-secondary/60 font-semibold">스마트폰에서 변경</span>
+            <p className="text-[10px] font-bold text-white/60">감지 센서</p>
+            <span className="text-[9px] text-secondary font-semibold">스마트폰에서 변경</span>
           </div>
 
           <div>
@@ -159,11 +159,11 @@ export function SensorSettingsPanel({
                 <div key={key}>
                   <div className="flex items-center gap-2.5 py-1.5">
                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                      active ? "bg-secondary/15" : "bg-white/[0.05]"
+                      active ? "bg-secondary/25" : "bg-white/10"
                     }`}>
-                      <Icon className={`w-3 h-3 ${active ? "text-secondary" : "text-white/25"}`} />
+                      <Icon className={`w-3 h-3 ${active ? "text-secondary" : "text-white/40"}`} />
                     </div>
-                    <p className={`text-[11px] font-bold flex-1 ${active ? "text-white/90" : "text-white/35"}`}>{label}</p>
+                    <p className={`text-[11px] font-bold flex-1 ${active ? "text-white" : "text-white/40"}`}>{label}</p>
                     <Switch
                       checked={active}
                       disabled
@@ -174,7 +174,7 @@ export function SensorSettingsPanel({
                   {key === "cameraMotion" && (
                     <Link
                       to="/motion-test"
-                      className="flex items-center gap-0.5 ml-[34px] -mt-0.5 mb-1 text-[9px] text-secondary/80 hover:text-secondary font-semibold transition-colors"
+                      className="flex items-center gap-0.5 ml-[34px] -mt-0.5 mb-1 text-[9px] text-secondary hover:text-secondary/80 font-semibold transition-colors"
                     >
                       🔬 모션 테스트
                       <ChevronRight className="w-2.5 h-2.5" />
@@ -182,7 +182,7 @@ export function SensorSettingsPanel({
                   )}
 
                   {idx < SENSOR_ITEMS.length - 1 && (
-                    <div className="ml-[34px] border-b border-white/[0.05]" />
+                    <div className="ml-[34px] border-b border-white/10" />
                   )}
                 </div>
               );
