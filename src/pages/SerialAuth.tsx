@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { validateSerial } from "@/lib/serialAuth";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { LogOut } from "lucide-react";
 import meercopLogo from "@/assets/meercop-logo.png";
 import loginTreesBg from "@/assets/login-trees-bg.png";
@@ -12,6 +13,7 @@ interface SerialAuthProps {
 
 export default function SerialAuth({ onSuccess }: SerialAuthProps) {
   const [parts, setParts] = useState(["", "", ""]);
+  const [deviceName, setDeviceName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -46,12 +48,16 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
       setError("시리얼 넘버를 모두 입력해주세요.");
       return;
     }
+    if (!deviceName.trim()) {
+      setError("기기 이름을 입력해주세요.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      const authData = await validateSerial(serialKey);
+      const authData = await validateSerial(serialKey, deviceName.trim());
       onSuccess(authData.device_id, authData.user_id);
     } catch (err: any) {
       setError(err.message || "인증에 실패했습니다.");
@@ -90,18 +96,27 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
         {/* Main content */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 z-10">
           {/* Logo */}
-          <div className="mb-6">
+          <div className="mb-4">
             <img
               src={meercopLogo}
               alt="MeerCOP"
-              className="h-16 object-contain"
+              className="h-14 object-contain"
             />
           </div>
 
           {/* Instructions */}
           <p className="text-white/80 text-xs text-center mb-4">
-            스마트폰 앱의 설정에서 시리얼 넘버를 확인하세요
+            스마트폰 앱 → 설정에서 시리얼 넘버를 확인하세요
           </p>
+
+          {/* Device Name Input */}
+          <Input
+            value={deviceName}
+            onChange={(e) => setDeviceName(e.target.value)}
+            placeholder="기기 이름 (예: 안방 노트북)"
+            disabled={loading}
+            className="w-full max-w-[240px] h-9 mb-3 bg-white/90 border-0 rounded-md text-foreground placeholder:text-muted-foreground/50 text-center text-sm"
+          />
 
           {/* Serial Input */}
           <div className="flex items-center gap-2 mb-4">
