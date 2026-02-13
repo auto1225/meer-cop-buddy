@@ -54,8 +54,8 @@ export function SensorSettingsPanel({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/10 shrink-0">
         <div>
-          <h2 className="text-white font-bold text-xs">감지 설정</h2>
-          <p className="text-[8px] text-white/30">스마트폰에서만 설정 변경이 가능합니다</p>
+          <h2 className="text-white font-bold text-sm">감지 설정</h2>
+          <p className="text-[10px] text-[#E8F84A]/60 font-semibold">스마트폰에서만 설정 변경이 가능합니다</p>
         </div>
         <button 
           onClick={onClose} 
