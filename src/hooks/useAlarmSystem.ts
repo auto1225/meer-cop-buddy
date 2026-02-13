@@ -4,9 +4,10 @@ import { ALARM_SOUNDS, DEFAULT_ALARM_SOUND_ID, getAlarmSoundById, type AlarmSoun
 interface UseAlarmSystemOptions {
   onAlarmStart?: () => void;
   onAlarmStop?: () => void;
+  volumePercent?: number;
 }
 
-export function useAlarmSystem({ onAlarmStart, onAlarmStop }: UseAlarmSystemOptions = {}) {
+export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }: UseAlarmSystemOptions = {}) {
   const [isAlarmEnabled, setIsAlarmEnabled] = useState(true);
   const [isAlarming, setIsAlarming] = useState(false);
   const [selectedSoundId, setSelectedSoundId] = useState<string>(() => {
@@ -60,13 +61,16 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop }: UseAlarmSystemOpti
     stopSound();
     const ctx = getAudioContext();
     
+    // Apply volume multiplier from settings
+    const volumeMultiplier = volumePercent / 100;
+    
     // Create oscillator for alarm tone
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     
     oscillator.type = config.oscillatorType;
     oscillator.frequency.value = config.baseFrequency;
-    gain.gain.value = config.volume;
+    gain.gain.value = config.volume * volumeMultiplier;
     
     oscillator.connect(gain);
     gain.connect(ctx.destination);
@@ -155,7 +159,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop }: UseAlarmSystemOpti
         }, config.interval);
         break;
     }
-  }, [getAudioContext]);
+  }, [getAudioContext, stopSound, volumePercent]);
 
   // Start alarm
   const startAlarm = useCallback(() => {

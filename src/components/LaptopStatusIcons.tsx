@@ -1,3 +1,4 @@
+import { Settings } from "lucide-react";
 import wifiOn from "@/assets/wifi-on.png";
 import wifiOff from "@/assets/wifi-off.png";
 import cameraOn from "@/assets/camera-on.png";
@@ -12,6 +13,7 @@ interface LaptopStatusIconsProps {
   onCameraClick?: () => void;
   onMeercopClick?: () => void;
   onNetworkClick?: () => void;
+  onSettingsClick?: () => void;
 }
 
 export function LaptopStatusIcons({ 
@@ -21,9 +23,10 @@ export function LaptopStatusIcons({
   onCameraClick,
   onMeercopClick,
   onNetworkClick,
+  onSettingsClick,
 }: LaptopStatusIconsProps) {
   return (
-    <div className="flex justify-center items-center gap-8 px-4 py-2 mt-4">
+    <div className="flex justify-center items-center gap-6 px-4 py-2 mt-4">
       {/* MeerCOP Icon - Clickable */}
       <button 
         onClick={onMeercopClick}
@@ -72,6 +75,19 @@ export function LaptopStatusIcons({
         </div>
         <span className="text-[9px] font-bold text-white">
           Camera
+        </span>
+      </button>
+
+      {/* Settings Icon */}
+      <button 
+        onClick={onSettingsClick}
+        className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
+      >
+        <div className="w-12 h-12 flex items-center justify-center">
+          <Settings className="h-8 w-8 text-white/80" />
+        </div>
+        <span className="text-[9px] font-bold text-white">
+          Settings
         </span>
       </button>
     </div>
