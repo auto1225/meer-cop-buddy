@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { MotionDetector, captureFrameData, compareFrames } from "@/lib/motionDetection";
-import { Button } from "@/components/ui/button";
+import { MotionDetector, captureFrameData } from "@/lib/motionDetection";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Camera, Activity, Settings, List } from "lucide-react";
 
 const MotionTest = () => {
   const navigate = useNavigate();
@@ -22,9 +21,11 @@ const MotionTest = () => {
   const [eventLog, setEventLog] = useState<string[]>([]);
   const [threshold, setThreshold] = useState(15);
   const [consecutiveRequired, setConsecutiveRequired] = useState(2);
-  const [cooldown, setCooldown] = useState(1); // 테스트용 짧은 쿨다운
+  const [cooldown, setCooldown] = useState(1);
   const [peakPercent, setPeakPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const glass = "rounded-2xl border border-white/20 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]";
 
   const addLog = useCallback((msg: string) => {
     const time = new Date().toLocaleTimeString("ko-KR", { hour12: false });
@@ -62,14 +63,12 @@ const MotionTest = () => {
           setPeakPercent(prev => Math.max(prev, result.changePercent));
         }
 
-        // 연속 카운트 표시 (내부 상태 추적)
         if (result.changePercent >= threshold) {
           setConsecutiveCount(prev => prev + 1);
         } else {
           setConsecutiveCount(0);
         }
 
-        // 차이 시각화
         if (prevFrameRef.current && diffCanvasRef.current) {
           renderDiffVisualization(prevFrameRef.current, frameData, diffCanvasRef.current);
         }
@@ -79,7 +78,6 @@ const MotionTest = () => {
           addLog(`🚨 모션 감지! 변화율: ${result.changePercent.toFixed(1)}%`);
         }
       }, 1000);
-
     } catch (err: any) {
       setError(err.message || "카메라를 시작할 수 없습니다.");
       addLog(`❌ 카메라 오류: ${err.message}`);
@@ -106,7 +104,6 @@ const MotionTest = () => {
 
   const resetPeak = () => setPeakPercent(0);
 
-  // 설정 변경 시 감지기 재생성
   useEffect(() => {
     if (isRunning && detectorRef.current) {
       detectorRef.current = new MotionDetector(threshold, consecutiveRequired, cooldown * 1000);
@@ -121,7 +118,6 @@ const MotionTest = () => {
     };
   }, []);
 
-  // 변화 부분을 빨간색으로 시각화
   function renderDiffVisualization(prev: ImageData, curr: ImageData, canvas: HTMLCanvasElement) {
     canvas.width = 160;
     canvas.height = 120;
@@ -136,13 +132,11 @@ const MotionTest = () => {
       const avg = (dr + dg + db) / 3;
 
       if (avg > 30) {
-        // 변화된 픽셀: 빨강
         output.data[i] = 255;
-        output.data[i + 1] = 0;
-        output.data[i + 2] = 0;
-        output.data[i + 3] = 200;
+        output.data[i + 1] = 80;
+        output.data[i + 2] = 80;
+        output.data[i + 3] = 220;
       } else {
-        // 변화 없음: 어두운 원본
         output.data[i] = curr.data[i] * 0.3;
         output.data[i + 1] = curr.data[i + 1] * 0.3;
         output.data[i + 2] = curr.data[i + 2] * 0.3;
@@ -153,147 +147,171 @@ const MotionTest = () => {
   }
 
   const getBarColor = (pct: number) => {
-    if (pct >= threshold) return "bg-red-500";
-    if (pct >= threshold * 0.6) return "bg-yellow-500";
-    return "bg-green-500";
+    if (pct >= threshold) return "bg-destructive";
+    if (pct >= threshold * 0.6) return "bg-warning";
+    return "bg-success";
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
+    <div
+      className="min-h-screen p-4"
+      style={{
+        background: "linear-gradient(180deg, hsl(199 85% 60%) 0%, hsl(199 80% 50%) 100%)",
+      }}
+    >
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="text-white">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl font-bold">🔬 모션 감지 테스트</h1>
+        <button
+          onClick={() => navigate("/")}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 text-white drop-shadow-sm" />
+        </button>
+        <h1 className="text-base font-extrabold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+          🔬 모션 감지 테스트
+        </h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-6xl mx-auto">
-        {/* Left: Camera + Diff */}
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-6xl mx-auto">
+        {/* Left Column */}
+        <div className="space-y-3">
           {/* Camera Feed */}
-          <div className="bg-gray-800 rounded-lg p-3">
-            <h3 className="text-sm font-semibold mb-2 text-gray-400">📹 카메라 피드</h3>
+          <section className={glass + " p-3"}>
+            <h3 className="text-[11px] font-extrabold text-white/80 mb-2 flex items-center gap-1.5 drop-shadow-sm">
+              <Camera className="w-3.5 h-3.5 text-secondary" />
+              카메라 피드
+            </h3>
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className="w-full rounded bg-black aspect-video"
+              className="w-full rounded-xl bg-black/30 aspect-video"
             />
             <canvas ref={canvasRef} className="hidden" />
             <canvas ref={analysisCanvasRef} className="hidden" />
-          </div>
+          </section>
 
           {/* Diff Visualization */}
-          <div className="bg-gray-800 rounded-lg p-3">
-            <h3 className="text-sm font-semibold mb-2 text-gray-400">🔴 변화 감지 시각화 (빨간색 = 변화 영역)</h3>
+          <section className={glass + " p-3"}>
+            <h3 className="text-[11px] font-extrabold text-white/80 mb-2 drop-shadow-sm">
+              🔴 변화 감지 시각화
+            </h3>
             <canvas
               ref={diffCanvasRef}
-              className="w-full rounded bg-black"
+              className="w-full rounded-xl bg-black/30"
               style={{ imageRendering: "pixelated", aspectRatio: "4/3" }}
             />
-          </div>
+          </section>
 
-          {/* Controls */}
+          {/* Start/Stop */}
           <div className="flex gap-2">
             {!isRunning ? (
-              <Button onClick={startCamera} className="flex-1 bg-green-600 hover:bg-green-700">
+              <button
+                onClick={startCamera}
+                className={`${glass} flex-1 py-3 text-sm font-extrabold text-white hover:bg-white/25 transition-all drop-shadow-sm`}
+              >
                 ▶ 테스트 시작
-              </Button>
+              </button>
             ) : (
-              <Button onClick={stopCamera} className="flex-1 bg-red-600 hover:bg-red-700">
+              <button
+                onClick={stopCamera}
+                className="flex-1 py-3 text-sm font-extrabold text-white rounded-2xl border border-destructive/40 bg-destructive/20 backdrop-blur-xl hover:bg-destructive/30 transition-all drop-shadow-sm"
+              >
                 ⏹ 중지
-              </Button>
+              </button>
             )}
           </div>
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p className="text-destructive-foreground bg-destructive/20 rounded-xl px-3 py-2 text-xs font-bold backdrop-blur-sm">{error}</p>}
         </div>
 
-        {/* Right: Stats + Settings + Log */}
-        <div className="space-y-4">
+        {/* Right Column */}
+        <div className="space-y-3">
           {/* Real-time Stats */}
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-3 text-gray-400">📊 실시간 감지 상태</h3>
-            
-            {/* Change Percent Bar */}
+          <section className={glass + " p-3"}>
+            <h3 className="text-[11px] font-extrabold text-white/80 mb-2.5 flex items-center gap-1.5 drop-shadow-sm">
+              <Activity className="w-3.5 h-3.5 text-secondary" />
+              실시간 감지 상태
+            </h3>
+
+            {/* Change Bar */}
             <div className="mb-3">
-              <div className="flex justify-between text-sm mb-1">
-                <span>변화율</span>
-                <span className={changePercent >= threshold ? "text-red-400 font-bold" : ""}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="font-bold text-white/80 drop-shadow-sm">변화율</span>
+                <span className={`font-extrabold drop-shadow-sm ${changePercent >= threshold ? "text-destructive-foreground" : "text-white"}`}>
                   {changePercent.toFixed(1)}%
                 </span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-6 relative overflow-hidden">
+              <div className="w-full bg-white/10 rounded-full h-5 relative overflow-hidden backdrop-blur-sm">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${getBarColor(changePercent)}`}
                   style={{ width: `${Math.min(changePercent, 100)}%` }}
                 />
-                {/* Threshold line */}
                 <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-white/80"
+                  className="absolute top-0 bottom-0 w-0.5 bg-white/70"
                   style={{ left: `${threshold}%` }}
                 />
                 <span
-                  className="absolute text-[10px] text-white/70 top-0"
-                  style={{ left: `${threshold + 1}%` }}
+                  className="absolute text-[9px] font-bold text-white/80 top-0.5 drop-shadow-sm"
+                  style={{ left: `${Math.min(threshold + 1, 85)}%` }}
                 >
-                  임계값 {threshold}%
+                  {threshold}%
                 </span>
               </div>
             </div>
 
-            {/* Consecutive Count */}
-            <div className="flex gap-4 text-sm">
-              <div className="flex-1 bg-gray-700 rounded p-2 text-center">
-                <div className="text-gray-400 text-xs">연속 감지</div>
-                <div className={`text-2xl font-bold ${consecutiveCount >= consecutiveRequired ? "text-red-400" : "text-white"}`}>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-2.5 text-center">
+                <div className="text-[10px] font-bold text-white/60">연속 감지</div>
+                <div className={`text-xl font-extrabold drop-shadow-sm ${consecutiveCount >= consecutiveRequired ? "text-destructive-foreground" : "text-white"}`}>
                   {consecutiveCount} / {consecutiveRequired}
                 </div>
               </div>
-              <div className="flex-1 bg-gray-700 rounded p-2 text-center">
-                <div className="text-gray-400 text-xs">최대 변화율</div>
-                <div className="text-2xl font-bold text-yellow-400">{peakPercent.toFixed(1)}%</div>
-                <button onClick={resetPeak} className="text-[10px] text-gray-500 underline">리셋</button>
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-2.5 text-center">
+                <div className="text-[10px] font-bold text-white/60">최대 변화율</div>
+                <div className="text-xl font-extrabold text-secondary drop-shadow-sm">{peakPercent.toFixed(1)}%</div>
+                <button onClick={resetPeak} className="text-[9px] text-white/50 underline font-semibold">리셋</button>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Settings */}
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-3 text-gray-400">⚙️ 감도 설정 (실시간 적용)</h3>
-            
-            <div className="space-y-4">
-            <div>
-                <div className="text-sm mb-2">감지 민감도</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "민감", value: 10, desc: "작은 움직임도 감지", emoji: "🔴" },
-                    { label: "보통", value: 50, desc: "일반적인 움직임 감지", emoji: "🟡" },
-                    { label: "둔감", value: 80, desc: "큰 움직임만 감지", emoji: "🟢" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setThreshold(opt.value)}
-                      className={`rounded-lg p-3 text-center transition-all border-2 ${
-                        threshold === opt.value
-                          ? "border-yellow-400 bg-yellow-400/10"
-                          : "border-gray-600 bg-gray-700 hover:border-gray-500"
-                      }`}
-                    >
-                      <div className="text-lg">{opt.emoji}</div>
-                      <div className="text-sm font-bold">{opt.label}</div>
-                      <div className="text-[10px] text-gray-400">{opt.desc}</div>
-                      <div className="text-[10px] text-yellow-400/70 mt-1">{opt.value}%</div>
-                    </button>
-                  ))}
-                </div>
+          <section className={glass + " p-3"}>
+            <h3 className="text-[11px] font-extrabold text-white/80 mb-2.5 flex items-center gap-1.5 drop-shadow-sm">
+              <Settings className="w-3.5 h-3.5 text-secondary" />
+              감도 설정
+            </h3>
+
+            <div className="space-y-3">
+              {/* Sensitivity Presets */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { label: "민감", value: 10, emoji: "🔴" },
+                  { label: "보통", value: 50, emoji: "🟡" },
+                  { label: "둔감", value: 80, emoji: "🟢" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setThreshold(opt.value)}
+                    className={`rounded-xl p-2 text-center transition-all ${
+                      threshold === opt.value
+                        ? "bg-secondary/25 ring-1 ring-secondary/50"
+                        : "bg-white/8 hover:bg-white/12"
+                    }`}
+                  >
+                    <div className="text-sm">{opt.emoji}</div>
+                    <div className={`text-[11px] font-extrabold drop-shadow-sm ${threshold === opt.value ? "text-secondary" : "text-white/80"}`}>{opt.label}</div>
+                    <div className="text-[9px] font-bold text-white/50">{opt.value}%</div>
+                  </button>
+                ))}
               </div>
 
+              {/* Consecutive Frames */}
               <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>연속 프레임 필요 수</span>
-                  <span className="text-yellow-400">{consecutiveRequired}회</span>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="font-bold text-white/80 drop-shadow-sm">연속 프레임</span>
+                  <span className="font-extrabold text-secondary drop-shadow-sm">{consecutiveRequired}회</span>
                 </div>
                 <Slider
                   value={[consecutiveRequired]}
@@ -305,10 +323,11 @@ const MotionTest = () => {
                 />
               </div>
 
+              {/* Cooldown */}
               <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>쿨다운 시간</span>
-                  <span className="text-yellow-400">{cooldown}초</span>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="font-bold text-white/80 drop-shadow-sm">쿨다운</span>
+                  <span className="font-extrabold text-secondary drop-shadow-sm">{cooldown}초</span>
                 </div>
                 <Slider
                   value={[cooldown]}
@@ -320,22 +339,25 @@ const MotionTest = () => {
                 />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Event Log */}
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-2 text-gray-400">📋 이벤트 로그</h3>
-            <div className="h-48 overflow-y-auto text-xs font-mono space-y-0.5">
+          <section className={glass + " p-3"}>
+            <h3 className="text-[11px] font-extrabold text-white/80 mb-2 flex items-center gap-1.5 drop-shadow-sm">
+              <List className="w-3.5 h-3.5 text-secondary" />
+              이벤트 로그
+            </h3>
+            <div className="h-40 overflow-y-auto styled-scrollbar text-[10px] font-mono space-y-0.5">
               {eventLog.length === 0 && (
-                <p className="text-gray-500">테스트를 시작하면 이벤트가 표시됩니다</p>
+                <p className="text-white/40 font-sans text-xs">테스트를 시작하면 이벤트가 표시됩니다</p>
               )}
               {eventLog.map((log, i) => (
-                <div key={i} className={log.includes("🚨") ? "text-red-400 font-bold" : "text-gray-300"}>
+                <div key={i} className={`drop-shadow-sm ${log.includes("🚨") ? "text-destructive-foreground font-bold" : "text-white/80"}`}>
                   {log}
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>
