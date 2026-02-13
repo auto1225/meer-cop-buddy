@@ -55,18 +55,30 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
         />
       </div>
 
-      {/* MeerCOP ON Status Bar - shows when monitoring */}
-      {isMonitoring && !isAlarming && (
+      {/* MeerCOP Status Bar - always visible */}
+      {!isAlarming && (
         <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-2">
-          <div className="rounded-2xl border border-white/25 bg-white/20 backdrop-blur-xl py-2.5 px-4 flex items-center justify-center gap-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
-            <div className="w-6 h-6 rounded-full bg-secondary/30 flex items-center justify-center shadow-[0_0_10px_hsla(68,100%,64%,0.4)]">
+          <div className={`rounded-2xl border backdrop-blur-xl py-2.5 px-4 flex items-center justify-center gap-2 transition-all duration-500 ${
+            isMonitoring
+              ? 'border-secondary/40 bg-secondary/20 shadow-[0_0_24px_hsla(68,100%,64%,0.25)]'
+              : 'border-white/15 bg-white/10 shadow-[0_4px_16px_rgba(0,0,0,0.06)]'
+          }`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-500 ${
+              isMonitoring
+                ? 'bg-secondary/30 shadow-[0_0_10px_hsla(68,100%,64%,0.4)]'
+                : 'bg-white/15'
+            }`}>
               <img 
                 src={shieldCheck} 
                 alt="Shield" 
-                className="h-4 w-4 object-contain"
+                className={`h-4 w-4 object-contain transition-all duration-500 ${isMonitoring ? '' : 'opacity-40 grayscale'}`}
               />
             </div>
-            <span className="font-extrabold text-sm text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.25)]">MeerCOP ON</span>
+            <span className={`font-extrabold text-sm drop-shadow-[0_1px_3px_rgba(0,0,0,0.25)] transition-all duration-500 ${
+              isMonitoring ? 'text-secondary' : 'text-white/50'
+            }`}>
+              MeerCOP {isMonitoring ? 'ON' : 'OFF'}
+            </span>
           </div>
         </div>
       )}
