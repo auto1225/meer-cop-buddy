@@ -159,12 +159,21 @@ export function useAlerts(deviceId?: string) {
             remote_alarm_off?: boolean;
           }>;
           for (const entry of entries) {
-            if (entry.remote_alarm_off === true) {
-              console.log("[Alerts] 📢 remote_alarm_off via Presence");
+            if (entry.remote_alarm_off === true && entry.dismissed_at) {
+              // Validate timestamp: only accept if dismissed AFTER the current alert
+              const alertTime = lastAlertTimeRef.current;
+              if (alertTime && new Date(entry.dismissed_at) <= new Date(alertTime)) {
+                continue; // Stale dismissal — ignore
+              }
+              if (lastProcessedDismissalRef.current === entry.dismissed_at) {
+                continue; // Already processed
+              }
+              lastProcessedDismissalRef.current = entry.dismissed_at;
+              console.log("[Alerts] 📢 remote_alarm_off via Presence at:", entry.dismissed_at);
               setDismissedBySmartphone(true);
+              setActiveAlert(null);
               setTimeout(() => setDismissedBySmartphone(false), 500);
-            }
-            if (entry.active_alert === null && entry.dismissed_at) {
+            } else if (entry.active_alert === null && entry.dismissed_at && !entry.remote_alarm_off) {
               // Only accept dismissals NEWER than the current alert
               const alertTime = lastAlertTimeRef.current;
               if (alertTime && new Date(entry.dismissed_at) <= new Date(alertTime)) {
