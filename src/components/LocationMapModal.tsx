@@ -20,6 +20,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState<string>("스마트폰");
+  const [locationSource, setLocationSource] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabaseShared.channel> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -83,6 +84,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
               const lng = updated.longitude as number;
               setCoords({ lat, lng });
               setUpdatedAt(updated.location_updated_at as string);
+              setLocationSource((meta.location_source as string) || null);
               setIsLoading(false);
 
               // Clear timeout
@@ -100,8 +102,10 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
       // Timeout: if no response in 20 seconds, show last known location or error
       timeoutRef.current = setTimeout(() => {
         if (deviceData?.latitude && deviceData?.longitude) {
+          const meta = (deviceData?.metadata as Record<string, unknown>) || {};
           setCoords({ lat: deviceData.latitude, lng: deviceData.longitude });
           setUpdatedAt(deviceData.location_updated_at);
+          setLocationSource((meta.location_source as string) || null);
           setError("스마트폰이 응답하지 않아 마지막 저장된 위치를 표시합니다.");
         } else {
           setError("스마트폰이 위치 요청에 응답하지 않습니다.\n스마트폰 앱이 실행 중인지 확인해주세요.");
@@ -253,8 +257,14 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
             <p className="text-xs text-white/70 font-bold">
               위도: {coords.lat.toFixed(6)} | 경도: {coords.lng.toFixed(6)}
             </p>
-            <p className="text-[10px] text-white/40 font-semibold">
-              📡 스마트폰 GPS 기반 실시간 위치 정보
+            <p className="text-[10px] font-semibold">
+              {locationSource === "wifi" ? (
+                <span className="text-orange-300">📶 Wi-Fi 기반 위치 (GPS 사용 불가)</span>
+              ) : locationSource === "gps" ? (
+                <span className="text-accent">📡 GPS 기반 실시간 위치 정보</span>
+              ) : (
+                <span className="text-white/40">📡 위치 정보</span>
+              )}
             </p>
           </div>
         )}
