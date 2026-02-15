@@ -341,6 +341,9 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const stopBroadcasting = useCallback(async () => {
     const currentDeviceId = deviceIdRef.current;
     
+    // Only clean up if we were actually broadcasting
+    const wasActive = channelRef.current !== null || peersRef.current.size > 0;
+    
     // Close all peer connections
     peersRef.current.forEach((peer) => {
       peer.pc.close();
@@ -356,11 +359,13 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       channelRef.current = null;
     }
 
-    // Clear signaling data
-    await supabaseShared
-      .from("webrtc_signaling")
-      .delete()
-      .eq("device_id", currentDeviceId);
+    // Only delete signaling data if we were actually broadcasting
+    if (wasActive) {
+      await supabaseShared
+        .from("webrtc_signaling")
+        .delete()
+        .eq("device_id", currentDeviceId);
+    }
 
     streamRef.current = null;
     setIsBroadcasting(false);
