@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Wifi, Loader2, Globe, Signal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabaseShared } from "@/lib/supabase";
@@ -84,18 +84,20 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card rounded-2xl shadow-2xl w-[90%] max-w-md overflow-hidden border border-border">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-[90%] max-w-md overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-primary text-primary-foreground">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/15">
           <div className="flex items-center gap-2">
-            <Wifi className="h-5 w-5" />
-            <span className="font-bold text-sm">네트워크 정보</span>
+            <div className="w-7 h-7 rounded-lg bg-accent/20 flex items-center justify-center">
+              <Wifi className="h-4 w-4 text-accent" />
+            </div>
+            <span className="font-extrabold text-sm text-white drop-shadow">네트워크 정보</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-primary-foreground hover:bg-white/20"
+            className="h-7 w-7 text-white/70 hover:bg-white/15 rounded-lg"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -103,69 +105,71 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <div className="p-3">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <span className="text-sm text-muted-foreground font-medium">네트워크 정보를 가져오는 중...</span>
+              <Loader2 className="h-8 w-8 animate-spin text-accent mb-2" />
+              <span className="text-sm text-white/70 font-bold">네트워크 정보를 가져오는 중...</span>
             </div>
           ) : networkInfo ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {/* Online Status */}
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-                <div className={`w-3 h-3 rounded-full ${networkInfo.online ? "bg-green-500" : "bg-destructive"}`} />
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/10 border border-white/10">
+                <div className={`w-3 h-3 rounded-full ${networkInfo.online ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]" : "bg-red-400"}`} />
                 <div>
-                  <p className="text-xs text-muted-foreground">연결 상태</p>
-                  <p className="text-sm font-bold">{networkInfo.online ? "온라인" : "오프라인"}</p>
+                  <p className="text-[10px] text-white/50 font-semibold">연결 상태</p>
+                  <p className="text-sm font-bold text-white">{networkInfo.online ? "온라인" : "오프라인"}</p>
                 </div>
               </div>
 
               {/* IP Address */}
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-                <Globe className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/10 border border-white/10">
+                <Globe className="h-5 w-5 text-accent" />
                 <div>
-                  <p className="text-xs text-muted-foreground">IP 주소</p>
-                  <p className="text-sm font-bold font-mono">{networkInfo.ip || "확인 불가"}</p>
+                  <p className="text-[10px] text-white/50 font-semibold">IP 주소</p>
+                  <p className="text-sm font-bold text-white font-mono">{networkInfo.ip || "확인 불가"}</p>
                 </div>
               </div>
 
               {/* Connection Type */}
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-                <Signal className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/10 border border-white/10">
+                <Signal className="h-5 w-5 text-accent" />
                 <div>
-                  <p className="text-xs text-muted-foreground">연결 유형</p>
-                  <p className="text-sm font-bold">{networkInfo.type === "unknown" ? "알 수 없음" : networkInfo.type}</p>
+                  <p className="text-[10px] text-white/50 font-semibold">연결 유형</p>
+                  <p className="text-sm font-bold text-white">{networkInfo.type === "unknown" ? "알 수 없음" : networkInfo.type}</p>
                 </div>
               </div>
 
               {/* Speed Info */}
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-3 rounded-xl bg-muted/50 text-center">
-                  <p className="text-xs text-muted-foreground">속도</p>
-                  <p className="text-sm font-bold">
+                <div className="p-3 rounded-xl bg-white/10 border border-white/10 text-center">
+                  <p className="text-[10px] text-white/50 font-semibold">속도</p>
+                  <p className="text-sm font-bold text-white">
                     {networkInfo.downlink !== null ? `${networkInfo.downlink} Mbps` : "—"}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-muted/50 text-center">
-                  <p className="text-xs text-muted-foreground">지연시간 (RTT)</p>
-                  <p className="text-sm font-bold">
+                <div className="p-3 rounded-xl bg-white/10 border border-white/10 text-center">
+                  <p className="text-[10px] text-white/50 font-semibold">지연시간 (RTT)</p>
+                  <p className="text-sm font-bold text-white">
                     {networkInfo.rtt !== null ? `${networkInfo.rtt} ms` : "—"}
                   </p>
                 </div>
               </div>
 
               {/* Effective Type */}
-              <div className="p-3 rounded-xl bg-muted/50 text-center">
-                <p className="text-xs text-muted-foreground">유효 연결 등급</p>
-                <p className="text-sm font-bold uppercase">{networkInfo.effectiveType}</p>
+              <div className="p-3 rounded-xl bg-white/10 border border-white/10 text-center">
+                <p className="text-[10px] text-white/50 font-semibold">유효 연결 등급</p>
+                <p className="text-sm font-bold text-white uppercase">{networkInfo.effectiveType}</p>
               </div>
             </div>
           ) : null}
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2 bg-muted/50 text-[10px] text-muted-foreground text-center opacity-70">
-          📡 브라우저 Network Information API 기반으로, 실제 속도와 차이가 있을 수 있습니다.
+        <div className="px-4 py-2 border-t border-white/10 text-center">
+          <p className="text-[10px] text-white/40 font-semibold">
+            📡 브라우저 Network Information API 기반
+          </p>
         </div>
       </div>
     </div>
