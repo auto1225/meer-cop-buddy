@@ -36,6 +36,10 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+    // Resume if suspended (browser autoplay policy)
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
     return audioContextRef.current;
   }, []);
 
