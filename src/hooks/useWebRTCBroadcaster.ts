@@ -50,6 +50,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const processedAnswersRef = useRef<Set<string>>(new Set());
   const iceCandidateQueueRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const deviceIdRef = useRef(deviceId);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Keep deviceId ref updated
   useEffect(() => {
@@ -335,11 +336,52 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       });
 
     channelRef.current = channel;
+
+    // Fallback polling: check for new viewer-joins every 3 seconds
+    // This compensates for Realtime subscription events that may be missed
+    const pollingInterval = setInterval(async () => {
+      if (!streamRef.current) {
+        clearInterval(pollingInterval);
+        return;
+      }
+      
+      try {
+        const { data: pendingJoins } = await supabaseShared
+          .from("webrtc_signaling")
+          .select("*")
+          .eq("device_id", currentDeviceId)
+          .eq("type", "viewer-join")
+          .eq("sender_type", "viewer");
+        
+        if (pendingJoins) {
+          for (const join of pendingJoins) {
+            const viewerSessionId = join.session_id;
+            if (!processedViewerJoinsRef.current.has(viewerSessionId) && 
+                !peersRef.current.has(viewerSessionId)) {
+              processedViewerJoinsRef.current.add(viewerSessionId);
+              console.log(`[WebRTC Broadcaster] 🔄 Poll: found new viewer-join: ${viewerSessionId}`);
+              await createPeerConnectionAndOffer(viewerSessionId);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[WebRTC Broadcaster] Poll error:", e);
+      }
+    }, 3000);
+
+    // Store interval ref for cleanup
+    pollingIntervalRef.current = pollingInterval;
   }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate]);
 
   // Stop broadcasting
   const stopBroadcasting = useCallback(async () => {
     const currentDeviceId = deviceIdRef.current;
+    
+    // Clear polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
     
     // Only clean up if we were actually broadcasting
     const wasActive = channelRef.current !== null || peersRef.current.size > 0;
@@ -376,6 +418,9 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
       if (channelRef.current) {
         supabaseShared.removeChannel(channelRef.current);
       }
