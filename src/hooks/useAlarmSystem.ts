@@ -19,11 +19,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
   });
   
   const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
   const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const frequencyRef = useRef<number>(0);
   const customAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Save selected sound to localStorage
@@ -31,12 +27,11 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     localStorage.setItem('meercop-alarm-sound', selectedSoundId);
   }, [selectedSoundId]);
 
-  // Get audio context
+  // Get audio context (always create fresh since stopSound closes it)
   const getAudioContext = useCallback(() => {
-    if (!audioContextRef.current) {
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-    // Resume if suspended (browser autoplay policy)
     if (audioContextRef.current.state === 'suspended') {
       audioContextRef.current.resume();
     }
@@ -49,126 +44,55 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
     }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    if (oscillatorRef.current) {
-      try { oscillatorRef.current.stop(); } catch (e) {}
-      oscillatorRef.current = null;
-    }
     if (customAudioRef.current) {
       customAudioRef.current.pause();
       customAudioRef.current.currentTime = 0;
       customAudioRef.current = null;
     }
-    gainRef.current = null;
+    // Close AudioContext to immediately stop all scheduled oscillators
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch {}
+      audioContextRef.current = null;
+    }
   }, []);
 
-  // Play alarm with specific sound config
+  // Play alarm with specific sound config (matching mobile app's playBuiltinSound)
   const playAlarmSound = useCallback((config: AlarmSoundConfig) => {
-    // Always stop previous sound first to prevent orphaned oscillators
     stopSound();
     const ctx = getAudioContext();
     
-    // Apply volume multiplier from settings
     const volumeMultiplier = volumePercent / 100;
-    
-    // Create oscillator for alarm tone
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    oscillator.type = config.oscillatorType;
-    oscillator.frequency.value = config.baseFrequency;
-    gain.gain.value = config.volume * volumeMultiplier;
-    
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    
-    oscillatorRef.current = oscillator;
-    gainRef.current = gain;
-    frequencyRef.current = config.baseFrequency;
-    
-    oscillator.start();
-    
-    // Apply pattern based on config - 강력한 보안 경보 패턴
-    switch (config.pattern) {
-      case 'police':
-        // 경찰 사이렌 - 부드럽게 오르내리는 주파수
-        const policeStep = () => {
-          if (!oscillatorRef.current || !audioContextRef.current) return;
-          const time = audioContextRef.current.currentTime;
-          const freq = config.baseFrequency + 
-            Math.sin(time * Math.PI * 2 / (config.interval / 1000)) * 
-            (config.altFrequency - config.baseFrequency) / 2;
-          oscillatorRef.current.frequency.value = freq;
-          animationFrameRef.current = requestAnimationFrame(policeStep);
-        };
-        policeStep();
-        break;
+    const vol = config.volume * volumeMultiplier;
 
-      case 'klaxon':
-        // 클랙슨 - 강한 on/off 비프
-        let klaxonOn = true;
-        alarmIntervalRef.current = setInterval(() => {
-          if (gainRef.current) {
-            gainRef.current.gain.value = klaxonOn ? config.volume * volumeMultiplier : 0;
-            klaxonOn = !klaxonOn;
-          }
-        }, config.interval);
-        break;
+    // Play one cycle of the sound pattern
+    const playCycle = () => {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') return;
+      const currentCtx = audioContextRef.current;
+      let t = 0;
+      for (let i = 0; i < config.frequencies.length; i++) {
+        const osc = currentCtx.createOscillator();
+        const gain = currentCtx.createGain();
+        osc.connect(gain);
+        gain.connect(currentCtx.destination);
+        osc.frequency.value = config.frequencies[i];
+        osc.type = 'square';
+        gain.gain.value = vol;
+        osc.start(currentCtx.currentTime + t);
+        osc.stop(currentCtx.currentTime + t + config.pattern[i]);
+        t += config.pattern[i] + 0.05;
+      }
+    };
 
-      case 'air-raid':
-        // 공습 사이렌 - 천천히 상승 후 하강
-        const airRaidStep = () => {
-          if (!oscillatorRef.current || !audioContextRef.current) return;
-          const time = audioContextRef.current.currentTime;
-          const cycle = (time * 1000 % config.interval) / config.interval;
-          // 0->0.5: 상승, 0.5->1: 하강
-          const freq = cycle < 0.5 
-            ? config.baseFrequency + (config.altFrequency - config.baseFrequency) * (cycle * 2)
-            : config.altFrequency - (config.altFrequency - config.baseFrequency) * ((cycle - 0.5) * 2);
-          oscillatorRef.current.frequency.value = freq;
-          animationFrameRef.current = requestAnimationFrame(airRaidStep);
-        };
-        airRaidStep();
-        break;
-
-      case 'intruder':
-        // 침입자 경보 - 빠르게 교대하는 주파수
-        let intruderHigh = true;
-        alarmIntervalRef.current = setInterval(() => {
-          if (oscillatorRef.current) {
-            oscillatorRef.current.frequency.value = intruderHigh ? config.baseFrequency : config.altFrequency;
-            intruderHigh = !intruderHigh;
-          }
-        }, config.interval);
-        break;
-
-      case 'panic':
-        // 비상 경보 - 매우 빠른 교대 + 볼륨 펄스
-        let panicState = 0;
-        alarmIntervalRef.current = setInterval(() => {
-          if (oscillatorRef.current && gainRef.current) {
-            panicState = (panicState + 1) % 4;
-            oscillatorRef.current.frequency.value = panicState < 2 ? config.baseFrequency : config.altFrequency;
-            gainRef.current.gain.value = (panicState % 2 === 0) ? config.volume * volumeMultiplier : config.volume * 0.7 * volumeMultiplier;
-          }
-        }, config.interval);
-        break;
-
-      case 'siren':
-      default:
-        // 기본 사이렌 - 두 주파수 교대
-        let sirenHigh = true;
-        alarmIntervalRef.current = setInterval(() => {
-          if (oscillatorRef.current) {
-            oscillatorRef.current.frequency.value = sirenHigh ? config.baseFrequency : config.altFrequency;
-            sirenHigh = !sirenHigh;
-          }
-        }, config.interval);
-        break;
-    }
+    // Play immediately then repeat
+    playCycle();
+    
+    // Calculate cycle duration
+    const cycleDuration = config.pattern.reduce((sum, p) => sum + p + 0.05, 0);
+    const intervalMs = Math.max(cycleDuration * 1000, 200);
+    
+    alarmIntervalRef.current = setInterval(() => {
+      playCycle();
+    }, intervalMs);
   }, [getAudioContext, stopSound, volumePercent]);
 
   // Play custom audio file
