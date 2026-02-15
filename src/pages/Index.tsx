@@ -573,7 +573,7 @@ const Index = () => {
         <LocationMapModal
           isOpen={isLocationModalOpen}
           onClose={() => setIsLocationModalOpen(false)}
-          deviceId={currentDevice?.id}
+          smartphoneDeviceId={smartphoneDevice?.id}
         />
 
         {/* Network Info Modal */}
