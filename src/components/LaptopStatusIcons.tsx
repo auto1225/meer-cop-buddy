@@ -32,11 +32,11 @@ export function LaptopStatusIcons({
         onClick={onSmartphoneClick}
         className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
       >
-        <div className="w-12 h-12 flex items-center justify-center">
+        <div className="w-12 h-12 flex items-center justify-center overflow-visible">
           <img 
             src={smartphoneStatus ? smartphoneOn : smartphoneOff} 
             alt="Smartphone" 
-            className="h-14 w-14 object-contain"
+            className="h-[4.5rem] w-[4.5rem] object-contain"
           />
         </div>
         <span className="text-[9px] font-bold text-white">
