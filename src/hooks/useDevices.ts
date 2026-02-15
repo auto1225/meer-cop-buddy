@@ -16,6 +16,7 @@ interface Device {
   battery_level: number | null;
   last_seen_at: string | null;
   metadata: Record<string, unknown> | null;
+  user_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -60,7 +61,7 @@ function toCompatDevice(d: Device): DeviceCompat {
   };
 }
 
-export function useDevices() {
+export function useDevices(userId?: string) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,10 +69,17 @@ export function useDevices() {
   const fetchDevices = useCallback(async () => {
     try {
       setIsLoading(true);
-      const { data, error: fetchError } = await supabaseShared
+      let query = supabaseShared
         .from("devices")
         .select("*")
         .order("updated_at", { ascending: false });
+
+      // 사용자별 기기만 필터링 (공유 DB에서 다른 사용자 기기 제외)
+      if (userId) {
+        query = query.eq("user_id", userId);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
       setDevices((data || []) as Device[]);
@@ -82,21 +90,14 @@ export function useDevices() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchDevices();
 
-    const channelName = "devices-changes";
-    
-    // Reuse existing channel if available
-    const existingChannel = supabaseShared.getChannels().find(
-      ch => ch.topic === `realtime:${channelName}`
-    );
-    
-    if (existingChannel) {
-      return;
-    }
+    const channelName = userId 
+      ? `devices-changes-${userId}` 
+      : "devices-changes";
 
     // Subscribe to realtime updates
     const channel = supabaseShared
@@ -107,6 +108,7 @@ export function useDevices() {
           event: "*",
           schema: "public",
           table: "devices",
+          ...(userId ? { filter: `user_id=eq.${userId}` } : {}),
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
@@ -125,6 +127,7 @@ export function useDevices() {
         }
       )
       .subscribe((status) => {
+        console.log(`[useDevices] Channel status: ${status}`);
         if (status === "CHANNEL_ERROR") {
           console.error("[useDevices] Channel error");
         }
@@ -133,7 +136,7 @@ export function useDevices() {
     return () => {
       supabaseShared.removeChannel(channel);
     };
-  }, [fetchDevices]);
+  }, [fetchDevices, userId]);
 
   // Convert to compatible format for components
   const compatDevices = devices.map(toCompatDevice);
