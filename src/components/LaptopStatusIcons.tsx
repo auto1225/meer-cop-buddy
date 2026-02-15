@@ -3,7 +3,7 @@ import wifiOn from "@/assets/wifi-on.png";
 import wifiOff from "@/assets/wifi-off.png";
 import cameraOn from "@/assets/camera-on.png";
 import cameraOff from "@/assets/camera-off.png";
-import smartphoneOn from "@/assets/smartphone-on.png";
+import smartphoneOn from "@/assets/smartphone-icon-clean.png";
 import smartphoneOff from "@/assets/smartphone-off.png";
 
 interface LaptopStatusIconsProps {
