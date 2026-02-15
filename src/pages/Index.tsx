@@ -277,38 +277,34 @@ const Index = () => {
 
   // No redirect needed - App.tsx handles auth gate
 
-  // Set initial device using savedAuth.device_id (not devices[0] which could be smartphone)
-  // Set initial device - always log for debugging
+  // Set initial device - match by savedAuth, allow correction if wrong
   useEffect(() => {
     if (devices.length === 0) return;
     
-    console.log("[Index] 🔍 Device matching - currentDeviceId:", currentDeviceId, 
-      "savedAuth:", savedAuth ? { device_id: savedAuth.device_id } : null,
-      "devices:", devices.map(d => ({ id: d.id, device_id: d.device_id, type: d.device_type, name: d.device_name })));
-    
-    if (currentDeviceId) return; // Already set
+    // Determine the correct device ID
+    let correctDeviceId: string | null = null;
     
     if (savedAuth?.device_id) {
-      // Try matching by UUID (id) first, then by device_id string
       const myDevice = devices.find(d => d.id === savedAuth.device_id) 
         || devices.find(d => d.device_id === savedAuth.device_id);
       if (myDevice) {
-        console.log("[Index] ✅ Matched device by savedAuth.device_id:", myDevice.id, myDevice.device_name);
-        setCurrentDeviceId(myDevice.id);
-        return;
+        correctDeviceId = myDevice.id;
       }
     }
     
     // Fallback: find laptop/desktop/notebook type device
-    const laptopDevice = devices.find(d => 
-      d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook'
-    );
-    if (laptopDevice) {
-      console.log("[Index] ⚠️ Matched device by type fallback:", laptopDevice.id, laptopDevice.device_name);
-      setCurrentDeviceId(laptopDevice.id);
-    } else {
-      console.warn("[Index] ❌ No matching device found, using first device");
-      setCurrentDeviceId(devices[0].id);
+    if (!correctDeviceId) {
+      const laptopDevice = devices.find(d => 
+        d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook'
+      );
+      correctDeviceId = laptopDevice?.id || devices[0].id;
+    }
+    
+    // Set or correct if wrong
+    if (currentDeviceId !== correctDeviceId) {
+      console.log("[Index] ✅ Setting currentDeviceId:", correctDeviceId, 
+        "(was:", currentDeviceId, ") savedAuth:", savedAuth?.device_id);
+      setCurrentDeviceId(correctDeviceId);
     }
   }, [devices, currentDeviceId, savedAuth?.device_id]);
 
