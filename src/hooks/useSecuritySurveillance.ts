@@ -41,7 +41,7 @@ interface UseSecuritySurveillanceOptions {
 
 const DEFAULT_BUFFER_DURATION = 10;
 const DEFAULT_CAPTURE_INTERVAL = 1000;
-const DEFAULT_MOUSE_SENSITIVITY = 50;
+const DEFAULT_MOUSE_SENSITIVITY = 30; // pixels within 200ms window (≈3cm)
 const DEFAULT_MOTION_THRESHOLD = 15;
 const DEFAULT_MOTION_CONSECUTIVE = 2;
 const DEFAULT_MOTION_COOLDOWN = 1000;
@@ -65,6 +65,7 @@ export function useSecuritySurveillance({
   const streamRef = useRef<MediaStream | null>(null);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMousePosition = useRef<{ x: number; y: number } | null>(null);
+  const mouseMovementAccum = useRef<{ distance: number; startTime: number }>({ distance: 0, startTime: 0 });
   const isMonitoringRef = useRef(false);
   const onEventDetectedRef = useRef(onEventDetected);
   const motionDetectorRef = useRef<MotionDetector | null>(null);
@@ -216,28 +217,42 @@ export function useSecuritySurveillance({
         }
       };
 
-      // Mouse listener
+      // Mouse listener — accumulate distance within 200ms window
+      const MOUSE_TIME_WINDOW = 200; // ms
       const handleMouse = (e: MouseEvent) => {
         if (!isMonitoringRef.current || !sensorTogglesRef.current.mouse) return;
         const currentPos = { x: e.clientX, y: e.clientY };
+        const now = Date.now();
 
         if (lastMousePosition.current) {
-          const dx = Math.abs(currentPos.x - lastMousePosition.current.x);
-          const dy = Math.abs(currentPos.y - lastMousePosition.current.y);
-          const distance = Math.sqrt(dx * dx + dy * dy);
+          const dx = currentPos.x - lastMousePosition.current.x;
+          const dy = currentPos.y - lastMousePosition.current.y;
+          const segmentDist = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance >= mouseSensitivity) {
+          const accum = mouseMovementAccum.current;
+          if (now - accum.startTime > MOUSE_TIME_WINDOW) {
+            // Start new window
+            accum.distance = segmentDist;
+            accum.startTime = now;
+          } else {
+            accum.distance += segmentDist;
+          }
+
+          // Check threshold within the time window
+          if (accum.distance >= mouseSensitivity) {
             console.log(
               "[Surveillance] Mouse movement detected:",
-              distance.toFixed(0),
-              "px"
+              accum.distance.toFixed(0),
+              "px in 200ms (threshold:", mouseSensitivity, "px)"
             );
             triggerEvent("mouse");
-            lastMousePosition.current = currentPos;
+            // Reset accumulator after triggering
+            accum.distance = 0;
+            accum.startTime = now;
           }
-        } else {
-          lastMousePosition.current = currentPos;
         }
+
+        lastMousePosition.current = currentPos;
       };
 
       // Power detection
@@ -343,6 +358,7 @@ export function useSecuritySurveillance({
 
     photoBufferRef.current = [];
     lastMousePosition.current = null;
+    mouseMovementAccum.current = { distance: 0, startTime: 0 };
 
     isMonitoringRef.current = false;
     setIsActive(false);
