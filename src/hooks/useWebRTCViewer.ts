@@ -12,7 +12,26 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    // Free TURN servers for mobile NAT traversal
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) {
@@ -24,6 +43,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const sessionIdRef = useRef<string>("");
   const streamRef = useRef<MediaStream | null>(null);
+  const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
 
   // Generate unique session ID
   const generateSessionId = useCallback(() => {
@@ -37,21 +57,40 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     try {
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
       console.log("[WebRTC Viewer] Set remote description (answer)");
+      
+      // Flush queued ICE candidates
+      if (iceCandidateQueueRef.current.length > 0) {
+        console.log(`[WebRTC Viewer] 🧊 Flushing ${iceCandidateQueueRef.current.length} queued ICE candidates`);
+        for (const candidate of iceCandidateQueueRef.current) {
+          try {
+            await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.warn("[WebRTC Viewer] Failed to add queued ICE candidate:", e);
+          }
+        }
+        iceCandidateQueueRef.current = [];
+      }
     } catch (err) {
       console.error("[WebRTC Viewer] Error setting remote description:", err);
       setError("연결에 실패했습니다");
     }
   }, []);
 
-  // Handle incoming ICE candidate from broadcaster
+  // Handle incoming ICE candidate from broadcaster (with queuing)
   const handleIceCandidate = useCallback(async (candidate: RTCIceCandidateInit) => {
-    if (!pcRef.current || !pcRef.current.remoteDescription) return;
+    if (!pcRef.current) return;
 
-    try {
-      await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-      console.log("[WebRTC Viewer] Added ICE candidate from broadcaster");
-    } catch (err) {
-      console.error("[WebRTC Viewer] Error adding ICE candidate:", err);
+    if (pcRef.current.remoteDescription) {
+      try {
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log("[WebRTC Viewer] Added ICE candidate from broadcaster");
+      } catch (err) {
+        console.error("[WebRTC Viewer] Error adding ICE candidate:", err);
+      }
+    } else {
+      // Queue until remoteDescription is set
+      iceCandidateQueueRef.current.push(candidate);
+      console.log(`[WebRTC Viewer] 🧊 Queued ICE candidate (${iceCandidateQueueRef.current.length} total)`);
     }
   }, []);
 
@@ -178,6 +217,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       pcRef.current.close();
       pcRef.current = null;
     }
+    iceCandidateQueueRef.current = [];
 
     if (channelRef.current) {
       await supabaseShared.removeChannel(channelRef.current);

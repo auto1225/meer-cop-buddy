@@ -16,7 +16,26 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    // Free TURN servers for mobile NAT traversal
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) {
@@ -28,7 +47,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const peersRef = useRef<Map<string, PeerConnection>>(new Map());
   const channelRef = useRef<RealtimeChannel | null>(null);
   const processedViewerJoinsRef = useRef<Set<string>>(new Set());
-  const processedAnswersRef = useRef<Set<string>>(new Set()); // Track processed answers
+  const processedAnswersRef = useRef<Set<string>>(new Set());
+  const iceCandidateQueueRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const deviceIdRef = useRef(deviceId);
 
   // Keep deviceId ref updated
@@ -160,23 +180,46 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         sdp: sdpString,
       }));
       console.log(`[WebRTC Broadcaster] ✅ Set remote description for ${sessionId}`);
+      
+      // Flush queued ICE candidates
+      const queued = iceCandidateQueueRef.current.get(sessionId) || [];
+      if (queued.length > 0) {
+        console.log(`[WebRTC Broadcaster] 🧊 Flushing ${queued.length} queued ICE candidates for ${sessionId}`);
+        for (const candidate of queued) {
+          try {
+            await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.warn("[WebRTC Broadcaster] Failed to add queued ICE candidate:", e);
+          }
+        }
+        iceCandidateQueueRef.current.delete(sessionId);
+      }
     } catch (err) {
       console.error("[WebRTC Broadcaster] ❌ Error setting remote description:", err);
-      processedAnswersRef.current.delete(sessionId); // Allow retry on error
+      processedAnswersRef.current.delete(sessionId);
       cleanupPeer(sessionId);
     }
   }, [cleanupPeer]);
 
-  // Handle incoming ICE candidate from viewer
+  // Handle incoming ICE candidate from viewer (with queuing)
   const handleIceCandidate = useCallback(async (sessionId: string, candidate: RTCIceCandidateInit) => {
     const peer = peersRef.current.get(sessionId);
-    if (peer && peer.pc.remoteDescription) {
+    if (!peer) return;
+    
+    if (peer.pc.remoteDescription) {
       try {
         await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
         console.log(`[WebRTC Broadcaster] Added ICE candidate from ${sessionId}`);
       } catch (err) {
         console.error("[WebRTC Broadcaster] Error adding ICE candidate:", err);
       }
+    } else {
+      // Queue the candidate until remoteDescription is set
+      if (!iceCandidateQueueRef.current.has(sessionId)) {
+        iceCandidateQueueRef.current.set(sessionId, []);
+      }
+      iceCandidateQueueRef.current.get(sessionId)!.push(candidate);
+      console.log(`[WebRTC Broadcaster] 🧊 Queued ICE candidate for ${sessionId} (${iceCandidateQueueRef.current.get(sessionId)!.length} total)`);
     }
   }, []);
 
@@ -290,7 +333,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     });
     peersRef.current.clear();
     processedViewerJoinsRef.current.clear();
-    processedAnswersRef.current.clear(); // Clear processed answers
+    processedAnswersRef.current.clear();
+    iceCandidateQueueRef.current.clear();
 
     // Unsubscribe from channel
     if (channelRef.current) {
