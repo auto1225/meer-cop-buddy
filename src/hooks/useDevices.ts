@@ -69,19 +69,34 @@ export function useDevices(userId?: string) {
   const fetchDevices = useCallback(async () => {
     try {
       setIsLoading(true);
-      let query = supabaseShared
+      
+      // 먼저 user_id로 필터링 시도, 결과가 없으면 필터 없이 전체 조회
+      if (userId) {
+        const { data: userDevices, error: userErr } = await supabaseShared
+          .from("devices")
+          .select("*")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false });
+        
+        if (!userErr && userDevices && userDevices.length > 0) {
+          console.log("[useDevices] Found devices by user_id:", userDevices.length);
+          setDevices(userDevices as Device[]);
+          setError(null);
+          return;
+        }
+        
+        // user_id 필터 실패 - device_id 기반으로 폴백
+        console.log("[useDevices] No devices found by user_id, trying without filter");
+      }
+
+      // 필터 없이 전체 기기 조회 (공유 DB에 user_id가 없는 경우)
+      const { data, error: fetchError } = await supabaseShared
         .from("devices")
         .select("*")
         .order("updated_at", { ascending: false });
 
-      // 사용자별 기기만 필터링 (공유 DB에서 다른 사용자 기기 제외)
-      if (userId) {
-        query = query.eq("user_id", userId);
-      }
-
-      const { data, error: fetchError } = await query;
-
       if (fetchError) throw fetchError;
+      console.log("[useDevices] All devices fetched:", (data || []).length);
       setDevices((data || []) as Device[]);
       setError(null);
     } catch (err) {
@@ -128,7 +143,6 @@ export function useDevices(userId?: string) {
           event: "*",
           schema: "public",
           table: "devices",
-          ...(userId ? { filter: `user_id=eq.${userId}` } : {}),
         },
         (payload) => {
           realtimeWorking = true;
