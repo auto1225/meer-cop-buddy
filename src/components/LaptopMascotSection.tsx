@@ -30,16 +30,16 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
       {/* Speech Bubble - shows different text based on monitoring state */}
       {!isAlarming && (
         <div className={`relative z-20 ${isMonitoring ? '-mb-8' : 'mb-1'}`}>
-          <div className="bg-white rounded-2xl px-4 py-2 shadow-lg relative">
-            <p className="text-foreground font-bold text-[11px] text-center whitespace-nowrap">
+        <div className="backdrop-blur-xl bg-white/15 border border-white/25 rounded-2xl px-5 py-2.5 shadow-lg relative">
+            <p className="text-white font-extrabold text-[11px] text-center whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
               {isMonitoring ? (
                 <>미어캅이 당신의 노트북을 감시중입니다.</>
               ) : (
-                <>스마트폰에서 감시를 <span className="text-success font-black">ON</span>해 주세요.</>
+                <>스마트폰에서 감시를 <span className="text-secondary font-black">ON</span>해 주세요.</>
               )}
             </p>
             {/* Speech bubble tail */}
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-l-transparent border-r-transparent border-t-white" />
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-l-transparent border-r-transparent border-t-white/15" />
           </div>
         </div>
       )}
