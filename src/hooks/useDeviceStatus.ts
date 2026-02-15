@@ -369,6 +369,33 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     }
   }, [deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Periodic heartbeat: update last_seen_at every 60s
+  useEffect(() => {
+    if (!deviceId) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        await supabaseShared
+          .from("devices")
+          .update({
+            last_seen_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", deviceId);
+        console.log("[DeviceStatus] 💓 Heartbeat sent");
+      } catch (error) {
+        console.error("[DeviceStatus] Heartbeat failed:", error);
+      }
+    };
+
+    // Send immediately on mount
+    sendHeartbeat();
+
+    const intervalId = setInterval(sendHeartbeat, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [deviceId]);
+
   const setCameraAvailable = useCallback((available: boolean) => {
     setStatus((prev) => {
       // 카메라 상태는 DB만 업데이트, Presence에서는 제외
