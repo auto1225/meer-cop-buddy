@@ -1,10 +1,20 @@
 import { useState, useRef, useEffect } from "react";
-import { validateSerial } from "@/lib/serialAuth";
+import { validateSerial, clearAuth } from "@/lib/serialAuth";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LogOut } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import meercopLogo from "@/assets/meercop-logo.png";
 import loginTreesBg from "@/assets/login-trees-bg.png";
 
@@ -20,6 +30,7 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // 저장된 입력값 복원
@@ -88,6 +99,17 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
   };
 
   const handleExit = () => {
+    setShowExitDialog(true);
+  };
+
+  const confirmExit = () => {
+    // 저장된 인증 정보 및 기억하기 데이터 삭제
+    clearAuth();
+    localStorage.removeItem(REMEMBER_KEY);
+    setParts(["", "", ""]);
+    setDeviceName("");
+    setRememberMe(false);
+    setShowExitDialog(false);
     window.close();
   };
 
@@ -136,7 +158,7 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
             onChange={(e) => setDeviceName(e.target.value)}
             placeholder="기기 이름 (예: 안방 노트북)"
             disabled={loading}
-            className="w-full max-w-[240px] h-9 mb-3 bg-white/90 border-0 rounded-md text-foreground placeholder:text-muted-foreground/50 text-center text-sm"
+            className="w-full max-w-[240px] h-9 mb-3 backdrop-blur-xl bg-white/15 border border-white/25 rounded-full text-white placeholder:text-white/40 text-center text-sm font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
           />
 
           {/* Serial Input */}
@@ -151,7 +173,7 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
                   maxLength={4}
                   placeholder="XXXX"
                   disabled={loading}
-                  className="w-[68px] h-10 px-2 text-center text-sm font-mono font-bold tracking-widest bg-white/90 border-0 rounded-md text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-secondary disabled:opacity-50"
+                  className="w-[68px] h-10 px-2 text-center text-sm font-mono font-bold tracking-widest backdrop-blur-xl bg-white/15 border border-white/25 rounded-full text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
                 />
                 {i < 2 && <span className="text-white/60 font-bold">-</span>}
               </div>
@@ -192,6 +214,32 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
             style={{ maxHeight: "120px" }}
           />
         </div>
+
+        {/* Exit Confirmation Dialog */}
+        <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+          <AlertDialogContent className="backdrop-blur-xl bg-white/15 border border-white/25 shadow-2xl max-w-[280px] rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white font-extrabold text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                종료하시겠습니까?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-white/80 text-center text-xs">
+                종료하면 저장된 <span className="font-bold text-white">컴퓨터 이름</span>과{" "}
+                <span className="font-bold text-white">시리얼 넘버</span>가 모두 삭제됩니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row gap-2 sm:justify-center">
+              <AlertDialogCancel className="flex-1 bg-white/20 border-white/30 text-white hover:bg-white/30 hover:text-white rounded-full text-xs">
+                취소
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmExit}
+                className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-full text-xs"
+              >
+                종료
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ResizableContainer>
   );
