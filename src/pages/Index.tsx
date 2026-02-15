@@ -53,7 +53,9 @@ const Index = () => {
 
   // Detect smartphone online status from devices list
   const smartphoneDevice = devices.find(d => d.device_type === 'smartphone');
-  const smartphoneOnline = smartphoneDevice?.status === 'online';
+  const smartphoneOnline = smartphoneDevice
+    ? (smartphoneDevice.status === 'online' || smartphoneDevice.is_monitoring === true || smartphoneDevice.is_network_connected === true)
+    : false;
   
   const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated);
 
