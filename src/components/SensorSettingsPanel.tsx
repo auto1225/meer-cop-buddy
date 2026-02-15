@@ -1,9 +1,10 @@
-import { X, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight } from "lucide-react";
+import { useRef } from "react";
+import { X, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { type SensorToggles } from "@/hooks/useSecuritySurveillance";
-import { type AlarmSoundConfig } from "@/lib/alarmSounds";
+import { type AlarmSoundConfig, getSelectedSoundName, getCustomSounds, saveCustomSound, deleteCustomSound, isCustomSound, type CustomAlarmSound } from "@/lib/alarmSounds";
 
 interface SensorSettingsPanelProps {
   isOpen: boolean;
@@ -38,6 +39,52 @@ const SENSOR_ITEMS: { key: keyof SensorToggles; label: string }[] = [
   { key: "usb", label: "USB" },
   { key: "power", label: "전원 케이블" },
 ];
+
+function CustomSoundUploader({ onSoundAdded }: { onSoundAdded: (sound: CustomAlarmSound) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      alert('오디오 파일만 업로드할 수 있습니다.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('파일 크기는 5MB 이하여야 합니다.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const name = file.name.replace(/\.[^/.]+$/, '');
+      onSoundAdded({
+        id: `custom-${Date.now()}`,
+        nameKo: `🎵 ${name}`,
+        audioDataUrl: dataUrl,
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  return (
+    <button
+      onClick={() => fileInputRef.current?.click()}
+      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 border border-dashed border-white/20 transition-all"
+    >
+      <Upload className="w-3 h-3 text-white/50" />
+      <span className="text-[10px] font-bold text-white/50">내 기기에서 경보음 선택...</span>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+    </button>
+  );
+}
 
 export function SensorSettingsPanel({
   isOpen,
@@ -101,7 +148,12 @@ export function SensorSettingsPanel({
 
         {/* Alarm Settings */}
         <section className={`${glassCard} px-3 py-2.5 space-y-2`}>
-          <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">경보음</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">경보음</p>
+            <span className="text-[9px] font-bold text-secondary bg-secondary/15 px-2 py-0.5 rounded-full truncate max-w-[140px]">
+              🔊 {getSelectedSoundName(selectedSoundId)}
+            </span>
+          </div>
           {/* Volume */}
           <div className="flex items-center gap-2">
             <Volume2 className="w-3.5 h-3.5 text-secondary shrink-0" />
@@ -116,7 +168,7 @@ export function SensorSettingsPanel({
             <span className="text-[11px] font-extrabold text-white w-7 text-right drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{alarmVolume}%</span>
           </div>
           {/* Sound List */}
-          <div className="space-y-0.5 max-h-24 overflow-y-auto styled-scrollbar">
+          <div className="space-y-0.5 max-h-28 overflow-y-auto styled-scrollbar">
             {availableSounds.map((sound) => {
               const isSelected = selectedSoundId === sound.id;
               return (
@@ -141,6 +193,53 @@ export function SensorSettingsPanel({
                 </button>
               );
             })}
+
+            {/* Custom sounds */}
+            {getCustomSounds().map((sound) => {
+              const isSelected = selectedSoundId === sound.id;
+              return (
+                <div
+                  key={sound.id}
+                  onClick={() => onSoundChange(sound.id)}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer transition-all ${
+                    isSelected
+                      ? "bg-secondary/25 ring-1 ring-secondary/40"
+                      : "bg-white/5 hover:bg-white/10"
+                  }`}
+                >
+                  <span className={`text-[11px] font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] flex items-center gap-1 ${isSelected ? "text-secondary" : "text-white/90"}`}>
+                    <Music className="w-3 h-3" />
+                    {sound.nameKo}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onPreviewSound(sound.id); }}
+                      className="w-5 h-5 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
+                    >
+                      <Play className="w-2.5 h-2.5 text-white/70" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCustomSound(sound.id);
+                        if (isSelected) onSoundChange('police-siren');
+                        // Force re-render
+                        onAlarmVolumeChange(alarmVolume);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 hover:bg-red-500/40 transition-colors"
+                    >
+                      <Trash2 className="w-2.5 h-2.5 text-red-300" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Upload custom sound */}
+            <CustomSoundUploader onSoundAdded={(sound) => {
+              saveCustomSound(sound);
+              onSoundChange(sound.id);
+            }} />
           </div>
         </section>
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { ALARM_SOUNDS, DEFAULT_ALARM_SOUND_ID, getAlarmSoundById, type AlarmSoundConfig } from "@/lib/alarmSounds";
+import { ALARM_SOUNDS, DEFAULT_ALARM_SOUND_ID, getAlarmSoundById, isCustomSound, getCustomSounds, type AlarmSoundConfig } from "@/lib/alarmSounds";
 
 interface UseAlarmSystemOptions {
   onAlarmStart?: () => void;
@@ -24,6 +24,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
   const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const frequencyRef = useRef<number>(0);
+  const customAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Save selected sound to localStorage
   useEffect(() => {
@@ -51,6 +52,11 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     if (oscillatorRef.current) {
       try { oscillatorRef.current.stop(); } catch (e) {}
       oscillatorRef.current = null;
+    }
+    if (customAudioRef.current) {
+      customAudioRef.current.pause();
+      customAudioRef.current.currentTime = 0;
+      customAudioRef.current = null;
     }
     gainRef.current = null;
   }, []);
@@ -161,6 +167,16 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     }
   }, [getAudioContext, stopSound, volumePercent]);
 
+  // Play custom audio file
+  const playCustomAudio = useCallback((dataUrl: string, loop: boolean = true) => {
+    stopSound();
+    const audio = new Audio(dataUrl);
+    audio.loop = loop;
+    audio.volume = volumePercent / 100;
+    audio.play().catch(console.error);
+    customAudioRef.current = audio;
+  }, [stopSound, volumePercent]);
+
   // Start alarm
   const startAlarm = useCallback(() => {
     if (!isAlarmEnabled) {
@@ -169,15 +185,22 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
       return;
     }
 
-    // If already alarming, don't create another oscillator
     if (isAlarming) return;
     
     setIsAlarming(true);
     onAlarmStart?.();
     
+    if (isCustomSound(selectedSoundId)) {
+      const custom = getCustomSounds().find(s => s.id === selectedSoundId);
+      if (custom) {
+        playCustomAudio(custom.audioDataUrl);
+        return;
+      }
+    }
+    
     const soundConfig = getAlarmSoundById(selectedSoundId);
-    playAlarmSound(soundConfig);
-  }, [isAlarmEnabled, isAlarming, selectedSoundId, playAlarmSound, onAlarmStart]);
+    if (soundConfig) playAlarmSound(soundConfig);
+  }, [isAlarmEnabled, isAlarming, selectedSoundId, playAlarmSound, playCustomAudio, onAlarmStart]);
 
   // Stop alarm
   const stopAlarm = useCallback(() => {
@@ -188,14 +211,21 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
 
   // Preview a sound (play for 2 seconds)
   const previewSound = useCallback((soundId: string) => {
+    if (isCustomSound(soundId)) {
+      const custom = getCustomSounds().find(s => s.id === soundId);
+      if (custom) {
+        playCustomAudio(custom.audioDataUrl, false);
+        setTimeout(() => stopSound(), 2000);
+        return;
+      }
+    }
     const soundConfig = getAlarmSoundById(soundId);
-    playAlarmSound(soundConfig);
+    if (soundConfig) playAlarmSound(soundConfig);
     
-    // Auto-stop after 2 seconds
     setTimeout(() => {
       stopSound();
     }, 2000);
-  }, [playAlarmSound, stopSound]);
+  }, [playAlarmSound, playCustomAudio, stopSound]);
 
   // Toggle alarm enabled
   const toggleAlarmEnabled = useCallback(() => {
