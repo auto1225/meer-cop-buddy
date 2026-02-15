@@ -306,7 +306,28 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
             })
             .eq("id", currentDeviceId);
             
-          console.log("[WebRTC Broadcaster] ✅ Ready for viewers");
+          console.log("[WebRTC Broadcaster] ✅ Ready for viewers, checking for pending viewer-joins...");
+          
+          // Catch-up: process any viewer-join records that arrived before subscription
+          const { data: pendingJoins } = await supabaseShared
+            .from("webrtc_signaling")
+            .select("*")
+            .eq("device_id", currentDeviceId)
+            .eq("type", "viewer-join")
+            .eq("sender_type", "viewer");
+          
+          if (pendingJoins && pendingJoins.length > 0) {
+            console.log(`[WebRTC Broadcaster] 📥 Found ${pendingJoins.length} pending viewer-join(s)`);
+            for (const join of pendingJoins) {
+              const viewerSessionId = join.session_id;
+              if (!processedViewerJoinsRef.current.has(viewerSessionId) && 
+                  !peersRef.current.has(viewerSessionId)) {
+                processedViewerJoinsRef.current.add(viewerSessionId);
+                console.log(`[WebRTC Broadcaster] 👋 Processing pending viewer: ${viewerSessionId}`);
+                await createPeerConnectionAndOffer(viewerSessionId);
+              }
+            }
+          }
         } else if (status === 'CHANNEL_ERROR') {
           console.error('[WebRTC Broadcaster] Channel error:', err);
           setError('Failed to subscribe to signaling channel');
