@@ -112,7 +112,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
         let klaxonOn = true;
         alarmIntervalRef.current = setInterval(() => {
           if (gainRef.current) {
-            gainRef.current.gain.value = klaxonOn ? config.volume : 0;
+            gainRef.current.gain.value = klaxonOn ? config.volume * volumeMultiplier : 0;
             klaxonOn = !klaxonOn;
           }
         }, config.interval);
@@ -152,7 +152,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
           if (oscillatorRef.current && gainRef.current) {
             panicState = (panicState + 1) % 4;
             oscillatorRef.current.frequency.value = panicState < 2 ? config.baseFrequency : config.altFrequency;
-            gainRef.current.gain.value = (panicState % 2 === 0) ? config.volume : config.volume * 0.7;
+            gainRef.current.gain.value = (panicState % 2 === 0) ? config.volume * volumeMultiplier : config.volume * 0.7 * volumeMultiplier;
           }
         }, config.interval);
         break;
