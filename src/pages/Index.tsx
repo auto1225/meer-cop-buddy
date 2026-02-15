@@ -280,10 +280,21 @@ const Index = () => {
   // Set initial device using savedAuth.device_id (not devices[0] which could be smartphone)
   useEffect(() => {
     if (!currentDeviceId && savedAuth?.device_id) {
-      const myDevice = devices.find(d => d.device_id === savedAuth.device_id);
+      // Try matching by UUID (id) first, then by device_id string
+      const myDevice = devices.find(d => d.id === savedAuth.device_id) 
+        || devices.find(d => d.device_id === savedAuth.device_id);
       if (myDevice) {
         console.log("[Index] ✅ Matched device by savedAuth.device_id:", myDevice.id, myDevice.device_name);
         setCurrentDeviceId(myDevice.id);
+      } else if (devices.length > 0) {
+        // Fallback: find laptop/desktop type device
+        const laptopDevice = devices.find(d => d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook');
+        if (laptopDevice) {
+          console.log("[Index] ⚠️ Matched device by type fallback:", laptopDevice.id, laptopDevice.device_name);
+          setCurrentDeviceId(laptopDevice.id);
+        } else {
+          console.warn("[Index] ❌ No matching device found. savedAuth.device_id:", savedAuth.device_id, "Available:", devices.map(d => ({ id: d.id, device_id: d.device_id, type: d.device_type })));
+        }
       }
     }
   }, [devices, currentDeviceId, savedAuth?.device_id]);
