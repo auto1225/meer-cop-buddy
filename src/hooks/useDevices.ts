@@ -93,7 +93,27 @@ export function useDevices(userId?: string) {
   }, [userId]);
 
   useEffect(() => {
+    let isMounted = true;
+    let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let pollInterval = 5000;
+    let realtimeWorking = false;
+
     fetchDevices();
+
+    // Always-on polling fallback for device status (especially smartphone)
+    const schedulePoll = () => {
+      if (!isMounted) return;
+      pollTimeoutId = setTimeout(async () => {
+        await fetchDevices();
+        if (realtimeWorking) {
+          pollInterval = Math.min(pollInterval * 1.5, 30000);
+        } else {
+          pollInterval = Math.min(pollInterval * 1.2, 10000);
+        }
+        schedulePoll();
+      }, pollInterval);
+    };
+    schedulePoll();
 
     const channelName = userId 
       ? `devices-changes-${userId}` 
@@ -111,6 +131,9 @@ export function useDevices(userId?: string) {
           ...(userId ? { filter: `user_id=eq.${userId}` } : {}),
         },
         (payload) => {
+          realtimeWorking = true;
+          pollInterval = 15000;
+
           if (payload.eventType === "INSERT") {
             setDevices((prev) => [payload.new as Device, ...prev]);
           } else if (payload.eventType === "UPDATE") {
@@ -128,12 +151,19 @@ export function useDevices(userId?: string) {
       )
       .subscribe((status) => {
         console.log(`[useDevices] Channel status: ${status}`);
-        if (status === "CHANNEL_ERROR") {
+        if (status === "SUBSCRIBED") {
+          realtimeWorking = true;
+          pollInterval = 15000;
+        } else if (status === "CHANNEL_ERROR") {
+          realtimeWorking = false;
+          pollInterval = 5000;
           console.error("[useDevices] Channel error");
         }
       });
 
     return () => {
+      isMounted = false;
+      if (pollTimeoutId) clearTimeout(pollTimeoutId);
       supabaseShared.removeChannel(channel);
     };
   }, [fetchDevices, userId]);
