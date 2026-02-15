@@ -54,26 +54,11 @@ const Index = () => {
     : undefined;
 
   // Detect smartphone online status from devices list
-  // Match various device_type values for smartphone
-  const SMARTPHONE_TYPES = ['smartphone', 'mobile', 'phone', 'android', 'ios'];
-  const smartphoneDevice = devices.find(d => 
-    SMARTPHONE_TYPES.includes(d.device_type?.toLowerCase())
-  );
-  // Also check: any device that is NOT laptop/desktop/notebook could be a smartphone
-  const smartphoneDeviceFallback = smartphoneDevice || devices.find(d => 
-    !['laptop', 'desktop', 'notebook'].includes(d.device_type?.toLowerCase()) && 
-    d.id !== currentDeviceId
-  );
-  const effectiveSmartphone = smartphoneDevice || smartphoneDeviceFallback;
-  const smartphoneOnline = effectiveSmartphone
-    ? (effectiveSmartphone.status === 'online' || effectiveSmartphone.is_monitoring === true)
+  // device_type enum: laptop | desktop | smartphone | tablet
+  const smartphoneDevice = devices.find(d => d.device_type === 'smartphone');
+  const smartphoneOnline = smartphoneDevice
+    ? (smartphoneDevice.status === 'online' || smartphoneDevice.is_monitoring === true)
     : false;
-  
-  console.log("[Index] 📱 Smartphone detection:", {
-    allDevices: devices.map(d => ({ id: d.id, type: d.device_type, status: d.status, name: d.device_name })),
-    smartphoneDevice: effectiveSmartphone ? { id: effectiveSmartphone.id, type: effectiveSmartphone.device_type, status: effectiveSmartphone.status } : null,
-    smartphoneOnline,
-  });
   
   const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated, savedAuth?.user_id);
 
