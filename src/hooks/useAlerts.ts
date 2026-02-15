@@ -21,7 +21,7 @@ export interface Alert {
   created_at: string;
 }
 
-export function useAlerts(deviceId?: string) {
+export function useAlerts(deviceId?: string, userId?: string) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [activeAlert, setActiveAlert] = useState<Alert | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +41,7 @@ export function useAlerts(deviceId?: string) {
 
     try {
       await channelRef.current.track({
+        device_id: deviceId,
         active_alert: alert,
         updated_at: new Date().toISOString(),
       });
@@ -123,6 +124,7 @@ export function useAlerts(deviceId?: string) {
     if (channelRef.current) {
       try {
         await channelRef.current.track({
+          device_id: deviceId,
           role: "laptop",
           active_alert: null,
           status: "listening",
@@ -144,19 +146,20 @@ export function useAlerts(deviceId?: string) {
   useEffect(() => {
     if (!deviceId) return;
 
-    console.log(`[Alerts] 🔗 Setting up channel for device: ${deviceId}`);
+    const channelKey = userId || deviceId;
+    console.log(`[Alerts] 🔗 Setting up channel for user: ${channelKey}, device: ${deviceId}`);
 
     // 기존 동일 이름 채널 정리
     const existingChannels = supabaseShared.getChannels();
     const existing = existingChannels.find(
-      ch => ch.topic === `realtime:device-alerts-${deviceId}`
+      ch => ch.topic === `realtime:user-alerts-${channelKey}`
     );
     if (existing) {
       console.log("[Alerts] Removing existing channel before re-subscribe");
       supabaseShared.removeChannel(existing);
     }
 
-    const channel = supabaseShared.channel(`device-alerts-${deviceId}`, {
+    const channel = supabaseShared.channel(`user-alerts-${channelKey}`, {
       config: { presence: { key: deviceId } },
     });
 
@@ -165,6 +168,12 @@ export function useAlerts(deviceId?: string) {
       // 1. Broadcast: 스마트폰이 channel.send()로 보낸 remote_alarm_off
       .on("broadcast", { event: "remote_alarm_off" }, (payload) => {
         console.log("[Alerts] 📢 remote_alarm_off broadcast received:", payload);
+        // 통합 채널: 자기 기기 대상인 경우만 해제
+        const targetDeviceId = payload?.payload?.device_id;
+        if (targetDeviceId && targetDeviceId !== deviceIdRef.current) {
+          console.log("[Alerts] ⏭️ remote_alarm_off for different device:", targetDeviceId);
+          return;
+        }
         setDismissedBySmartphone(true);
         setActiveAlert(null);
         setTimeout(() => setDismissedBySmartphone(false), 500);
@@ -225,6 +234,7 @@ export function useAlerts(deviceId?: string) {
           channelRef.current = channel;
           console.log("[Alerts] ✅ Channel subscribed — broadcast + presence ready");
           await channel.track({
+            device_id: deviceId,
             status: "listening",
             updated_at: new Date().toISOString(),
           });
@@ -236,7 +246,7 @@ export function useAlerts(deviceId?: string) {
       supabaseShared.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [deviceId]);
+  }, [deviceId, userId]);
 
   // 다른 컴포넌트에서 추가된 알림 감지
   useEffect(() => {

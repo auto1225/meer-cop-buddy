@@ -61,7 +61,7 @@ const Index = () => {
     ? (smartphoneDevice.status === 'online' || smartphoneDevice.is_monitoring === true)
     : false;
   
-  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated);
+  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated, savedAuth?.user_id);
 
   // Camera detection - auto-sync to DB
   useCameraDetection({ deviceId: currentDevice?.id });
@@ -70,7 +70,7 @@ const Index = () => {
   // Network info responder - listens for network_info commands from smartphone
   useNetworkInfoResponder(currentDevice?.id);
   // Alerts system - broadcasts alerts to smartphone via Presence
-  const { triggerAlert, dismissedBySmartphone } = useAlerts(currentDevice?.id);
+  const { triggerAlert, dismissedBySmartphone } = useAlerts(currentDevice?.id, savedAuth?.user_id);
   const triggerAlertRef = useRef(triggerAlert);
   triggerAlertRef.current = triggerAlert;
   // PIN for alarm dismissal (default: 1234, will be set from smartphone)
@@ -102,7 +102,7 @@ const Index = () => {
   
   useEffect(() => {
     if (currentDevice?.id) {
-      transmitterRef.current = new PhotoTransmitter(currentDevice.id);
+      transmitterRef.current = new PhotoTransmitter(currentDevice.id, savedAuth?.user_id);
     }
     return () => {
       transmitterRef.current?.destroy();
@@ -262,6 +262,7 @@ const Index = () => {
   // 도난 복구 시스템
   useStealRecovery({
     deviceId: currentDevice?.id,
+    userId: savedAuth?.user_id,
     isAlarming,
     onRecoveryTriggered: () => {
       console.log("[Index] 🔄 Steal recovery triggered — alarm re-activated");

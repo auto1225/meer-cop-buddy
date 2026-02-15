@@ -22,7 +22,7 @@ interface PresenceState {
   last_seen_at: string;
 }
 
-export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
+export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, userId?: string) {
   const [status, setStatus] = useState<DeviceStatus>({
     isNetworkConnected: navigator.onLine,
     isCameraAvailable: false,
@@ -137,7 +137,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
 
       console.log(`[DeviceStatus] 🔗 Setting up Presence channel for ${deviceId} (attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
       
-      const channel = supabaseShared.channel(`device-presence-${deviceId}`, {
+      const channelKey = userId || deviceId;
+      const channel = supabaseShared.channel(`user-presence-${channelKey}`, {
         config: { presence: { key: deviceId } },
       });
 
@@ -158,6 +159,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
             
             try {
               await channel.track({
+                device_id: deviceId,
                 status: "online",
                 is_network_connected: navigator.onLine,
                 last_seen_at: new Date().toISOString(),
@@ -203,7 +205,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
       }
       channelRef.current = null;
     };
-  }, [deviceId]);
+  }, [deviceId, userId]);
 
   // Sync status when authentication changes
   useEffect(() => {

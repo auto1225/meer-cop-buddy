@@ -86,11 +86,12 @@ function getCurrentPosition(): Promise<GeolocationCoordinates | null> {
 
 interface UseStealRecoveryOptions {
   deviceId?: string;
+  userId?: string;
   isAlarming: boolean;
   onRecoveryTriggered?: () => void;
 }
 
-export function useStealRecovery({ deviceId, isAlarming, onRecoveryTriggered }: UseStealRecoveryOptions) {
+export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTriggered }: UseStealRecoveryOptions) {
   const trackingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isRecoveringRef = useRef(false);
   const deviceIdRef = useRef(deviceId);
@@ -212,8 +213,9 @@ export function useStealRecovery({ deviceId, isAlarming, onRecoveryTriggered }: 
 
       console.log("[StealRecovery] ✅ DB updated with location + streaming request");
 
-      // 3. Presence 채널로 경보 재전송
-      const alertChannel = supabaseShared.channel(`device-alerts-${devId}`, {
+      // 3. Presence 채널로 경보 재전송 (통합 채널: user-alerts-{userId})
+      const channelKey = userId || devId;
+      const alertChannel = supabaseShared.channel(`user-alerts-${channelKey}`, {
         config: { presence: { key: devId } },
       });
 
@@ -221,6 +223,7 @@ export function useStealRecovery({ deviceId, isAlarming, onRecoveryTriggered }: 
         alertChannel.subscribe(async (status) => {
           if (status === "SUBSCRIBED") {
             await alertChannel.track({
+              device_id: devId,
               active_alert: {
                 id: `recovery-${Date.now()}`,
                 device_id: devId,
