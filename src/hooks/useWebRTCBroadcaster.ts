@@ -377,7 +377,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       } catch (e) {
         console.warn("[WebRTC Broadcaster] Poll error:", e);
       }
-    }, 3000);
+    }, 5000);
 
     // Store interval ref for cleanup
     pollingIntervalRef.current = pollingInterval;
