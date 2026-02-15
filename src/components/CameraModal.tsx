@@ -38,11 +38,13 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [snapshotPreview, setSnapshotPreview] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const animFrameRef = useRef<number>(0);
+  const pauseCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Auto-start camera when modal opens
   useEffect(() => {
@@ -157,23 +159,55 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
   }, [stream, isRecording]);
 
   const togglePause = useCallback(() => {
-    if (!stream) return;
+    if (!stream || !videoRef.current) return;
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) return;
 
     if (isPaused) {
+      // Resume: remove frozen frame overlay
       videoTrack.enabled = true;
       if (mediaRecorderRef.current?.state === "paused") {
         mediaRecorderRef.current.resume();
       }
     } else {
+      // Pause: capture current frame as overlay, then disable track
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        pauseCanvasRef.current = canvas;
+      }
       videoTrack.enabled = false;
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.pause();
       }
     }
     setIsPaused(!isPaused);
-  }, [stream, isPaused]);
+  }, [stream, isPaused, videoRef]);
+
+  const handleSnapshot = useCallback(() => {
+    if (!stream || !videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(video, 0, 0);
+      setSnapshotPreview(canvas.toDataURL("image/png"));
+    }
+  }, [stream, videoRef]);
+
+  const downloadSnapshotPreview = useCallback(() => {
+    if (!snapshotPreview) return;
+    const a = document.createElement("a");
+    a.href = snapshotPreview;
+    a.download = `meercop_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, "")}.png`;
+    a.click();
+  }, [snapshotPreview]);
 
   if (!isOpen) return null;
 
@@ -227,24 +261,6 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
                 다시 시도
               </Button>
             </div>
-          ) : snapshot ? (
-            <div className="space-y-2">
-              <img src={snapshot} alt="Snapshot" className="w-full rounded-xl" />
-              <div className="flex gap-2">
-                <Button
-                  onClick={clearSnapshot}
-                  className="flex-1 bg-white/15 border border-white/20 text-white hover:bg-white/25 font-bold text-xs backdrop-blur-sm"
-                >
-                  다시 찍기
-                </Button>
-                <Button
-                  onClick={downloadSnapshot}
-                  className="flex-1 bg-white/25 border border-white/30 text-white hover:bg-white/35 font-bold text-xs backdrop-blur-sm"
-                >
-                  저장하기
-                </Button>
-              </div>
-            </div>
           ) : (
             <div className="relative">
               <video
@@ -254,6 +270,15 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
                 muted
                 className="w-full rounded-xl bg-black aspect-video object-cover"
               />
+
+              {/* Frozen frame overlay when paused */}
+              {isPaused && pauseCanvasRef.current && (
+                <img
+                  src={pauseCanvasRef.current.toDataURL()}
+                  alt="Paused frame"
+                  className="absolute inset-0 w-full h-full rounded-xl object-cover"
+                />
+              )}
 
               {/* Audio Level Indicator - top left */}
               {stream && (
@@ -305,60 +330,97 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
         </div>
 
         {/* Bottom Control Bar */}
-        {stream && !snapshot && (
+        {stream && (
           <div className="flex items-center justify-center gap-5 px-4 py-3">
-            {/* Sound toggle */}
             <button
               onClick={toggleMute}
-              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
+              className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
             >
               {isMuted ? (
-                <VolumeX className="w-5 h-5 text-white/70" />
+                <VolumeX className="w-4 h-4 text-white/70" />
               ) : (
-                <Volume2 className="w-5 h-5 text-white" />
+                <Volume2 className="w-4 h-4 text-white" />
               )}
             </button>
 
-            {/* Record toggle */}
             <button
               onClick={toggleRecording}
-              className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center hover:scale-105 active:scale-95 transition-all ${
+              className={`w-10 h-10 rounded-full backdrop-blur-sm border flex items-center justify-center hover:scale-105 active:scale-95 transition-all ${
                 isRecording
                   ? "bg-red-500/30 border-red-400/40"
                   : "bg-white/15 border-white/20 hover:bg-white/25"
               }`}
             >
               <Circle
-                className={`w-5 h-5 ${isRecording ? "text-red-400 fill-red-400 animate-pulse" : "text-white"}`}
+                className={`w-4 h-4 ${isRecording ? "text-red-400 fill-red-400 animate-pulse" : "text-white"}`}
                 strokeWidth={isRecording ? 0 : 2}
               />
             </button>
 
-            {/* Pause/Play toggle */}
             <button
               onClick={togglePause}
-              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
+              className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
             >
               {isPaused ? (
-                <Play className="w-5 h-5 text-white" />
+                <Play className="w-4 h-4 text-white" />
               ) : (
-                <Pause className="w-5 h-5 text-white" />
+                <Pause className="w-4 h-4 text-white" />
               )}
             </button>
 
-            {/* Snapshot */}
             <button
-              onClick={takeSnapshot}
+              onClick={handleSnapshot}
               disabled={!stream}
-              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
+              className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
             >
-              <Camera className="w-5 h-5 text-white" />
+              <Camera className="w-4 h-4 text-white" />
             </button>
           </div>
         )}
 
         <canvas ref={canvasRef} className="hidden" />
       </div>
+
+      {/* Snapshot Preview Modal */}
+      {snapshotPreview && (
+        <div
+          className="w-[92%] max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl absolute"
+          style={{
+            background: "linear-gradient(180deg, hsla(199, 70%, 55%, 0.85) 0%, hsla(199, 65%, 45%, 0.9) 100%)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <span className="font-extrabold text-base text-white drop-shadow">스냅샷</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white/70 hover:bg-white/15 rounded-xl"
+              onClick={() => setSnapshotPreview(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="px-3 pb-2">
+            <img src={snapshotPreview} alt="Snapshot" className="w-full rounded-xl" />
+          </div>
+          <div className="flex gap-2 px-3 pb-3">
+            <Button
+              onClick={downloadSnapshotPreview}
+              className="flex-1 bg-white/20 border border-white/25 text-white hover:bg-white/30 font-bold text-xs backdrop-blur-sm"
+            >
+              저장하기
+            </Button>
+            <Button
+              onClick={() => setSnapshotPreview(null)}
+              className="flex-1 bg-white/10 border border-white/15 text-white/80 hover:bg-white/20 font-bold text-xs backdrop-blur-sm"
+            >
+              닫기
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
