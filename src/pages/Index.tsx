@@ -46,10 +46,10 @@ const Index = () => {
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices();
   
-  // Get the current device (this laptop)
+  // Get the current device (this laptop) - use savedAuth.device_id to match correctly
   const currentDevice = currentDeviceId 
     ? devices.find(d => d.id === currentDeviceId) 
-    : devices[0];
+    : undefined;
 
   // Detect smartphone online status from devices list
   const smartphoneDevice = devices.find(d => d.device_type === 'smartphone');
@@ -277,12 +277,16 @@ const Index = () => {
 
   // No redirect needed - App.tsx handles auth gate
 
-  // Set initial device
+  // Set initial device using savedAuth.device_id (not devices[0] which could be smartphone)
   useEffect(() => {
-    if (devices.length > 0 && !currentDeviceId) {
-      setCurrentDeviceId(devices[0].id);
+    if (!currentDeviceId && savedAuth?.device_id) {
+      const myDevice = devices.find(d => d.device_id === savedAuth.device_id);
+      if (myDevice) {
+        console.log("[Index] ✅ Matched device by savedAuth.device_id:", myDevice.id, myDevice.device_name);
+        setCurrentDeviceId(myDevice.id);
+      }
     }
-  }, [devices, currentDeviceId]);
+  }, [devices, currentDeviceId, savedAuth?.device_id]);
 
   // Subscribe to monitoring status from smartphone via DB
   // Only start surveillance when smartphone requests it
