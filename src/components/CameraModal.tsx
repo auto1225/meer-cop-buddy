@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { X, Camera, Video, Loader2, Radio, Users } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { X, Camera, Video, Loader2, Radio, Users, Volume2, VolumeX, Circle, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCamera } from "@/hooks/useCamera";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
@@ -34,6 +34,23 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
     stopBroadcasting,
   } = useWebRTCBroadcaster({ deviceId: deviceId || "" });
 
+  const [isMuted, setIsMuted] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number>(0);
+
+  // Auto-start camera when modal opens
+  useEffect(() => {
+    if (isOpen && !isStarted && !isLoading) {
+      startCamera();
+    }
+  }, [isOpen, isStarted, isLoading, startCamera]);
+
   // Start WebRTC broadcasting when camera is active
   useEffect(() => {
     if (stream && deviceId && !isBroadcasting) {
@@ -48,82 +65,159 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
   }, [isOpen, stream, stopBroadcasting]);
 
   useEffect(() => {
-    if (!isOpen) reset();
+    if (!isOpen) {
+      reset();
+      setIsRecording(false);
+      setIsPaused(false);
+      setIsMuted(false);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+    }
   }, [isOpen, reset]);
+
+  // Audio level analysis
+  useEffect(() => {
+    if (!stream) return;
+
+    const audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    audioCtxRef.current = audioCtx;
+    analyserRef.current = analyser;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteFrequencyData(dataArray);
+      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      setAudioLevel(Math.min(avg / 80, 1));
+      animFrameRef.current = requestAnimationFrame(tick);
+    };
+    tick();
+
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      audioCtx.close();
+    };
+  }, [stream]);
 
   const handleClose = () => {
     stopBroadcasting();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
     reset();
     onClose();
   };
 
+  const toggleMute = useCallback(() => {
+    if (!stream) return;
+    const audioTracks = stream.getAudioTracks();
+    audioTracks.forEach(t => { t.enabled = isMuted; });
+    setIsMuted(!isMuted);
+  }, [stream, isMuted]);
+
+  const toggleRecording = useCallback(() => {
+    if (!stream) return;
+
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+      setIsPaused(false);
+    } else {
+      // Start recording
+      recordedChunksRef.current = [];
+      const recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp9,opus" });
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `meercop_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, "")}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setIsPaused(false);
+    }
+  }, [stream, isRecording]);
+
+  const togglePause = useCallback(() => {
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    if (isPaused) {
+      videoTrack.enabled = true;
+      if (mediaRecorderRef.current?.state === "paused") {
+        mediaRecorderRef.current.resume();
+      }
+    } else {
+      videoTrack.enabled = false;
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.pause();
+      }
+    }
+    setIsPaused(!isPaused);
+  }, [stream, isPaused]);
+
   if (!isOpen) return null;
+
+  // Number of active audio bars (0-5)
+  const activeBars = Math.round(audioLevel * 5);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-[92%] max-w-md overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl">
+      <div
+        className="w-[92%] max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl"
+        style={{
+          background: "linear-gradient(180deg, hsla(199, 70%, 55%, 0.85) 0%, hsla(199, 65%, 45%, 0.9) 100%)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/15">
+        <div className="flex items-center justify-between px-4 py-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-accent/20 flex items-center justify-center">
-              <Camera className="h-4 w-4 text-accent" />
+            <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
+              <Video className="h-4 w-4 text-white" />
             </div>
-            <span className="font-extrabold text-sm text-white drop-shadow">카메라</span>
-            {isBroadcasting && (
-              <div className="flex items-center gap-1 bg-red-500/20 px-2 py-0.5 rounded-full">
-                <Radio className="w-3 h-3 text-red-400 animate-pulse" />
-                <span className="text-[10px] text-red-400 font-bold">LIVE</span>
-              </div>
-            )}
-            {viewerCount > 0 && (
-              <div className="flex items-center gap-1 bg-green-500/20 px-2 py-0.5 rounded-full">
-                <Users className="w-3 h-3 text-green-400" />
-                <span className="text-[10px] text-green-400 font-bold">{viewerCount}</span>
-              </div>
-            )}
+            <span className="font-extrabold text-base text-white drop-shadow">카메라</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-white/70 hover:bg-white/15 rounded-lg"
+            className="h-8 w-8 text-white/70 hover:bg-white/15 rounded-xl"
             onClick={handleClose}
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Content - minimal padding for max video area */}
-        <div className="p-2">
-          {!isStarted ? (
-            <div className="aspect-video rounded-xl bg-black/30 flex flex-col items-center justify-center gap-3">
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-10 h-10 text-accent animate-spin" />
-                  <p className="text-white/70 text-sm font-bold">카메라 연결 중...</p>
-                </>
-              ) : (
-                <>
-                  <Video className="w-10 h-10 text-white/40" />
-                  <p className="text-white/60 text-sm font-semibold text-center px-4">
-                    카메라를 시작하려면 아래 버튼을 눌러주세요
-                  </p>
-                  <Button
-                    onClick={startCamera}
-                    className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs px-4 py-2"
-                  >
-                    <Camera className="w-3.5 h-3.5 mr-1.5" />
-                    카메라 시작
-                  </Button>
-                </>
-              )}
+        {/* Video Area */}
+        <div className="px-3 pb-2">
+          {isLoading && !stream ? (
+            <div className="aspect-video rounded-xl bg-black/40 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-10 h-10 text-white animate-spin" />
+              <p className="text-white/80 text-sm font-bold">카메라 연결 중...</p>
             </div>
-          ) : error ? (
-            <div className="aspect-video rounded-xl bg-black/30 flex flex-col items-center justify-center gap-3 p-4">
-              <p className="text-white/70 text-center whitespace-pre-line text-sm font-semibold">{error}</p>
+          ) : error && !stream ? (
+            <div className="aspect-video rounded-xl bg-black/40 flex flex-col items-center justify-center gap-3 p-4">
+              <p className="text-white/80 text-center whitespace-pre-line text-sm font-semibold">{error}</p>
               <Button
                 onClick={startCamera}
                 disabled={isLoading}
-                className="bg-white/10 border border-white/20 text-white hover:bg-white/20 font-bold text-xs"
+                className="bg-white/15 border border-white/20 text-white hover:bg-white/25 font-bold text-xs backdrop-blur-sm"
               >
                 {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
                 다시 시도
@@ -135,48 +229,129 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
               <div className="flex gap-2">
                 <Button
                   onClick={clearSnapshot}
-                  className="flex-1 bg-white/10 border border-white/20 text-white hover:bg-white/20 font-bold text-xs"
+                  className="flex-1 bg-white/15 border border-white/20 text-white hover:bg-white/25 font-bold text-xs backdrop-blur-sm"
                 >
                   다시 찍기
                 </Button>
                 <Button
                   onClick={downloadSnapshot}
-                  className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs"
+                  className="flex-1 bg-white/25 border border-white/30 text-white hover:bg-white/35 font-bold text-xs backdrop-blur-sm"
                 >
                   저장하기
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full rounded-xl bg-black aspect-video object-cover"
-                />
-                {isBroadcasting && (
-                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] text-white font-bold">
-                      {viewerCount > 0 ? `${viewerCount}명 시청 중` : "WebRTC 대기 중"}
-                    </span>
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full rounded-xl bg-black aspect-video object-cover"
+              />
+
+              {/* Audio Level Indicator - top left */}
+              {stream && (
+                <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-black/50 backdrop-blur-sm px-2 py-1.5 rounded-lg border border-white/10">
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${isMuted ? "bg-red-500/60" : "bg-green-500/60"}`}>
+                    {isMuted ? (
+                      <VolumeX className="w-2.5 h-2.5 text-white" />
+                    ) : (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-white">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                      </svg>
+                    )}
                   </div>
-                )}
-              </div>
-              <Button
-                onClick={takeSnapshot}
-                disabled={!stream}
-                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs py-2"
-              >
-                <Camera className="w-3.5 h-3.5 mr-1.5" />
-                스냅샷 찍기
-              </Button>
+                  <div className="flex items-end gap-[2px] h-3.5">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className="w-[3px] rounded-full transition-all duration-100"
+                        style={{
+                          height: `${40 + i * 15}%`,
+                          backgroundColor: i < activeBars && !isMuted
+                            ? `hsl(120, 70%, ${55 - i * 5}%)`
+                            : "hsla(0, 0%, 100%, 0.25)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* LIVE badge - top right */}
+              {isBroadcasting && (
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-white/10">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-[11px] text-white font-extrabold tracking-wide">LIVE</span>
+                  {viewerCount > 0 && (
+                    <>
+                      <div className="w-px h-3 bg-white/30" />
+                      <div className="flex items-center gap-0.5">
+                        <Users className="w-2.5 h-2.5 text-white/80" />
+                        <span className="text-[10px] text-white/80 font-bold">{viewerCount}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {/* Bottom Control Bar */}
+        {stream && !snapshot && (
+          <div className="flex items-center justify-center gap-5 px-4 py-3">
+            {/* Sound toggle */}
+            <button
+              onClick={toggleMute}
+              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
+            >
+              {isMuted ? (
+                <VolumeX className="w-5 h-5 text-white/70" />
+              ) : (
+                <Volume2 className="w-5 h-5 text-white" />
+              )}
+            </button>
+
+            {/* Record toggle */}
+            <button
+              onClick={toggleRecording}
+              className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center hover:scale-105 active:scale-95 transition-all ${
+                isRecording
+                  ? "bg-red-500/30 border-red-400/40"
+                  : "bg-white/15 border-white/20 hover:bg-white/25"
+              }`}
+            >
+              <Circle
+                className={`w-5 h-5 ${isRecording ? "text-red-400 fill-red-400 animate-pulse" : "text-white"}`}
+                strokeWidth={isRecording ? 0 : 2}
+              />
+            </button>
+
+            {/* Pause/Play toggle */}
+            <button
+              onClick={togglePause}
+              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
+            >
+              {isPaused ? (
+                <Play className="w-5 h-5 text-white" />
+              ) : (
+                <Pause className="w-5 h-5 text-white" />
+              )}
+            </button>
+
+            {/* Snapshot */}
+            <button
+              onClick={takeSnapshot}
+              disabled={!stream}
+              className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/25 active:scale-95 transition-all"
+            >
+              <Camera className="w-5 h-5 text-white" />
+            </button>
+          </div>
+        )}
 
         <canvas ref={canvasRef} className="hidden" />
       </div>
