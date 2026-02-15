@@ -41,7 +41,7 @@ export function useAlerts(deviceId?: string, userId?: string) {
 
     try {
       await channelRef.current.track({
-        device_id: deviceId,
+        device_id: deviceIdRef.current,
         active_alert: alert,
         updated_at: new Date().toISOString(),
       });

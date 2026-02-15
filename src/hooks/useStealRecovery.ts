@@ -273,7 +273,7 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
     } finally {
       isRecoveringRef.current = false;
     }
-  }, [startPeriodicTracking, onRecoveryTriggered]);
+  }, [userId, startPeriodicTracking, onRecoveryTriggered]);
 
   // 네트워크 online 이벤트 감지
   useEffect(() => {
