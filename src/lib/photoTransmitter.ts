@@ -23,6 +23,9 @@ export interface PhotoTransmission {
   event_type: string;
   photos: string[]; // base64 JPEG data URLs
   change_percent?: number;
+  latitude?: number;
+  longitude?: number;
+  auto_streaming?: boolean;
   created_at: string;
 }
 
@@ -128,13 +131,16 @@ async function sendViaChannel(
       console.log(`[PhotoTx] Sent chunk ${i + 1}/${chunks.length}`);
     }
 
-    // 3. 전송 완료 알림
+    // 3. 전송 완료 알림 (위치 + 스트리밍 정보 포함)
     await channel.send({
       type: "broadcast",
       event: "photo_alert_end",
       payload: {
         id: tx.id,
         total_photos: tx.photos.length,
+        latitude: tx.latitude,
+        longitude: tx.longitude,
+        auto_streaming: tx.auto_streaming ?? false,
       },
     });
 

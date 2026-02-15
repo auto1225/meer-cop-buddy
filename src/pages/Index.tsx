@@ -25,6 +25,7 @@ import { addActivityLog } from "@/lib/localActivityLogs";
 import { PhotoTransmitter, PhotoTransmission } from "@/lib/photoTransmitter";
 import { useCameraDetection } from "@/hooks/useCameraDetection";
 import { useAlarmSystem } from "@/hooks/useAlarmSystem";
+import { useStealRecovery, markAlertActive, markAlertCleared } from "@/hooks/useStealRecovery";
 import { useLocationResponder } from "@/hooks/useLocationResponder";
 import { useNetworkInfoResponder } from "@/hooks/useNetworkInfoResponder";
 import { supabaseShared } from "@/lib/supabase";
@@ -113,20 +114,61 @@ const Index = () => {
   const startAlarmRef = useRef(startAlarm);
   startAlarmRef.current = startAlarm;
 
-  const handleSecurityEvent = useCallback((event: SecurityEvent) => {
+  const handleSecurityEvent = useCallback(async (event: SecurityEvent) => {
     console.log("[Security] Event detected:", event.type, "Photos:", event.photos.length, 
       event.changePercent ? `Change: ${event.changePercent.toFixed(1)}%` : "");
     setCurrentEventType(event.type);
     startAlarmRef.current();
 
-    // 스마트폰에 경보 알림 전송 (Presence 채널)
+    const alertMessage = event.type === "camera_motion"
+      ? `카메라 모션 감지 (변화율: ${event.changePercent?.toFixed(1)}%)`
+      : `${event.type} 이벤트 감지됨`;
+
+    // localStorage에 경보 상태 영속 저장 (도난 복구용)
+    markAlertActive(`alert_${event.type}`, alertMessage);
+
+    // GPS 위치 확인 (경보 시점)
+    let alertCoords: { latitude: number; longitude: number } | null = null;
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true, timeout: 5000, maximumAge: 0,
+        });
+      });
+      alertCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      
+      // DB에 위치 업데이트
+      if (currentDevice?.id) {
+        const { data: existing } = await supabaseShared
+          .from("devices")
+          .select("metadata")
+          .eq("id", currentDevice.id)
+          .single();
+        const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+        await supabaseShared
+          .from("devices")
+          .update({
+            latitude: alertCoords.latitude,
+            longitude: alertCoords.longitude,
+            location_updated_at: new Date().toISOString(),
+            is_streaming_requested: true, // 스트리밍 자동 시작
+            metadata: { ...existingMeta, last_location_source: "alert_triggered" },
+          })
+          .eq("id", currentDevice.id);
+      }
+    } catch {
+      console.log("[Security] GPS unavailable at alert time");
+    }
+
+    // 스마트폰에 경보 알림 전송 (위치 + 스트리밍 포함)
     triggerAlertRef.current(`alert_${event.type}`, {
       alert_type: event.type,
       change_percent: event.changePercent,
       photo_count: event.photos.length,
-      message: event.type === "camera_motion"
-        ? `카메라 모션 감지 (변화율: ${event.changePercent?.toFixed(1)}%)`
-        : `${event.type} 이벤트 감지됨`,
+      message: alertMessage,
+      latitude: alertCoords?.latitude,
+      longitude: alertCoords?.longitude,
+      auto_streaming: true,
     });
 
     const alertId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -149,6 +191,9 @@ const Index = () => {
         event_type: event.type,
         photos: event.photos,
         change_percent: event.changePercent,
+        latitude: alertCoords?.latitude,
+        longitude: alertCoords?.longitude,
+        auto_streaming: true,
         created_at: now,
       };
       
@@ -190,6 +235,7 @@ const Index = () => {
     stopAlarm();
     setCurrentEventType(undefined);
     setShowPinKeypad(false);
+    markAlertCleared(); // 도난 복구 상태 해제
   }, [stopAlarm]);
 
   // When AlertOverlay dismiss is clicked, show PIN keypad or dismiss directly
@@ -209,8 +255,19 @@ const Index = () => {
       stopAlarm();
       setCurrentEventType(undefined);
       setShowPinKeypad(false);
+      markAlertCleared(); // 스마트폰 해제 → 도난 복구 비활성화
     }
   }, [dismissedBySmartphone, stopAlarm]);
+
+  // 도난 복구 시스템
+  useStealRecovery({
+    deviceId: currentDevice?.id,
+    isAlarming,
+    onRecoveryTriggered: () => {
+      console.log("[Index] 🔄 Steal recovery triggered — alarm re-activated");
+      startAlarm();
+    },
+  });
 
   // Listen for settings changes from smartphone via metadata
   useEffect(() => {

@@ -1,0 +1,319 @@
+/**
+ * 도난 복구 시스템 (Steal Recovery)
+ * 
+ * 경보가 활성화된 상태에서 네트워크가 끊기면(도난 후 이동 등):
+ * 1. 경보 상태를 localStorage에 영속 저장
+ * 2. 네트워크 재연결 시 자동으로:
+ *    - GPS 위치 확인 → DB 업데이트
+ *    - 스마트폰에 경보 재전송 (Presence)
+ *    - 푸시 알림 전송 (위치 포함)
+ *    - 스트리밍 자동 시작 요청
+ *    - 주기적 위치 추적 시작 (30초 간격)
+ * 
+ * 스마트폰에서 경보 해제 시 → 복구 비활성화
+ */
+
+import { useEffect, useRef, useCallback } from "react";
+import { supabaseShared } from "@/lib/supabase";
+
+const STOLEN_STATE_KEY = "meercop_stolen_state";
+const TRACKING_INTERVAL_MS = 30_000; // 30초 간격 위치 추적
+
+export interface StolenState {
+  isActive: boolean;
+  alertEventType: string;
+  alertMessage: string;
+  alertCreatedAt: string;
+  lostAt: string; // 네트워크 끊긴 시각
+}
+
+function getStolenState(): StolenState | null {
+  try {
+    const raw = localStorage.getItem(STOLEN_STATE_KEY);
+    if (!raw) return null;
+    const state = JSON.parse(raw) as StolenState;
+    return state.isActive ? state : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStolenState(state: StolenState): void {
+  localStorage.setItem(STOLEN_STATE_KEY, JSON.stringify(state));
+}
+
+export function clearStolenState(): void {
+  localStorage.removeItem(STOLEN_STATE_KEY);
+}
+
+/**
+ * 경보 활성 상태를 localStorage에 기록
+ * (경보 발생 시 호출)
+ */
+export function markAlertActive(eventType: string, message: string): void {
+  saveStolenState({
+    isActive: true,
+    alertEventType: eventType,
+    alertMessage: message,
+    alertCreatedAt: new Date().toISOString(),
+    lostAt: "",
+  });
+  console.log("[StealRecovery] 🔴 Alert state persisted to localStorage");
+}
+
+/**
+ * 경보 해제 시 호출 (스마트폰 해제 OR 로컬 해제)
+ */
+export function markAlertCleared(): void {
+  clearStolenState();
+  console.log("[StealRecovery] ✅ Alert state cleared from localStorage");
+}
+
+// GPS 좌표 얻기
+function getCurrentPosition(): Promise<GeolocationCoordinates | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(pos.coords),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+}
+
+interface UseStealRecoveryOptions {
+  deviceId?: string;
+  isAlarming: boolean;
+  onRecoveryTriggered?: () => void;
+}
+
+export function useStealRecovery({ deviceId, isAlarming, onRecoveryTriggered }: UseStealRecoveryOptions) {
+  const trackingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRecoveringRef = useRef(false);
+  const deviceIdRef = useRef(deviceId);
+  deviceIdRef.current = deviceId;
+
+  // 네트워크 끊김 감지 → stolen state 기록
+  useEffect(() => {
+    if (!isAlarming) return;
+
+    const handleOffline = () => {
+      const existing = getStolenState();
+      if (existing && existing.isActive) {
+        // 이미 경보 상태 기록됨 → lostAt만 업데이트
+        saveStolenState({ ...existing, lostAt: new Date().toISOString() });
+        console.log("[StealRecovery] 📡 Network lost during alarm — lostAt updated");
+      }
+    };
+
+    window.addEventListener("offline", handleOffline);
+    return () => window.removeEventListener("offline", handleOffline);
+  }, [isAlarming]);
+
+  // 주기적 위치 추적
+  const startPeriodicTracking = useCallback((devId: string) => {
+    if (trackingIntervalRef.current) return;
+
+    console.log("[StealRecovery] 📍 Starting periodic location tracking (30s)");
+    trackingIntervalRef.current = setInterval(async () => {
+      const stolenState = getStolenState();
+      if (!stolenState?.isActive) {
+        // 경보 해제됨 → 추적 중단
+        if (trackingIntervalRef.current) {
+          clearInterval(trackingIntervalRef.current);
+          trackingIntervalRef.current = null;
+        }
+        return;
+      }
+
+      const coords = await getCurrentPosition();
+      if (coords) {
+        // 기존 metadata 보존하면서 위치 업데이트
+        try {
+          const { data: existing } = await supabaseShared
+            .from("devices")
+            .select("metadata")
+            .eq("id", devId)
+            .single();
+
+          const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+          
+          await supabaseShared
+            .from("devices")
+            .update({
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              location_updated_at: new Date().toISOString(),
+              metadata: {
+                ...existingMeta,
+                last_location_source: "steal_recovery_tracking",
+              },
+            })
+            .eq("id", devId);
+
+          console.log("[StealRecovery] 📍 Location updated:", coords.latitude, coords.longitude);
+        } catch (e) {
+          console.error("[StealRecovery] Failed to update location:", e);
+        }
+      }
+    }, TRACKING_INTERVAL_MS);
+  }, []);
+
+  // 네트워크 복구 시 복구 시퀀스 실행
+  const executeRecovery = useCallback(async (stolenState: StolenState) => {
+    const devId = deviceIdRef.current;
+    if (!devId || isRecoveringRef.current) return;
+    isRecoveringRef.current = true;
+
+    console.log("[StealRecovery] 🔄 Network reconnected! Starting recovery sequence...");
+
+    try {
+      // 1. GPS 위치 확인
+      const coords = await getCurrentPosition();
+      
+      // 2. DB에 위치 + 상태 업데이트 (metadata 병합)
+      const { data: existing } = await supabaseShared
+        .from("devices")
+        .select("metadata")
+        .eq("id", devId)
+        .single();
+
+      const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+      
+      const updatePayload: Record<string, unknown> = {
+        status: "online",
+        is_network_connected: true,
+        updated_at: new Date().toISOString(),
+        is_streaming_requested: true, // 스트리밍 자동 시작
+        metadata: {
+          ...existingMeta,
+          steal_recovery: {
+            recovered_at: new Date().toISOString(),
+            lost_at: stolenState.lostAt,
+            alert_type: stolenState.alertEventType,
+          },
+          last_location_source: "steal_recovery",
+        },
+      };
+
+      if (coords) {
+        updatePayload.latitude = coords.latitude;
+        updatePayload.longitude = coords.longitude;
+        updatePayload.location_updated_at = new Date().toISOString();
+      }
+
+      await supabaseShared
+        .from("devices")
+        .update(updatePayload)
+        .eq("id", devId);
+
+      console.log("[StealRecovery] ✅ DB updated with location + streaming request");
+
+      // 3. Presence 채널로 경보 재전송
+      const alertChannel = supabaseShared.channel(`device-alerts-${devId}`, {
+        config: { presence: { key: devId } },
+      });
+
+      await new Promise<void>((resolve) => {
+        alertChannel.subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await alertChannel.track({
+              active_alert: {
+                id: `recovery-${Date.now()}`,
+                device_id: devId,
+                event_type: stolenState.alertEventType,
+                event_data: {
+                  alert_type: stolenState.alertEventType.replace("alert_", ""),
+                  message: `🔄 네트워크 복구 — ${stolenState.alertMessage}`,
+                  is_recovery: true,
+                  lost_at: stolenState.lostAt,
+                  recovered_at: new Date().toISOString(),
+                  latitude: coords?.latitude,
+                  longitude: coords?.longitude,
+                  auto_streaming: true,
+                },
+                created_at: new Date().toISOString(),
+              },
+              updated_at: new Date().toISOString(),
+            });
+            console.log("[StealRecovery] ✅ Alert re-broadcasted via Presence");
+            resolve();
+          }
+        });
+      });
+
+      // 4. 푸시 알림 전송 (위치 포함)
+      const locationText = coords 
+        ? `위도: ${coords.latitude.toFixed(6)}, 경도: ${coords.longitude.toFixed(6)}` 
+        : "위치 확인 불가";
+
+      supabaseShared.functions.invoke("push-notifications", {
+        body: {
+          action: "send",
+          device_id: devId,
+          title: "🔄 도난 기기 네트워크 복구!",
+          body: `기기가 다시 연결되었습니다. ${locationText}`,
+        },
+      }).catch(() => {});
+
+      console.log("[StealRecovery] ✅ Push notification sent");
+
+      // 5. 주기적 위치 추적 시작
+      startPeriodicTracking(devId);
+
+      onRecoveryTriggered?.();
+    } catch (error) {
+      console.error("[StealRecovery] Recovery failed:", error);
+    } finally {
+      isRecoveringRef.current = false;
+    }
+  }, [startPeriodicTracking, onRecoveryTriggered]);
+
+  // 네트워크 online 이벤트 감지
+  useEffect(() => {
+    const handleOnline = () => {
+      const stolenState = getStolenState();
+      if (stolenState?.isActive) {
+        // 약간의 딜레이 후 복구 (네트워크 안정화 대기)
+        setTimeout(() => executeRecovery(stolenState), 2000);
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+
+    // 마운트 시에도 확인 (이미 온라인이지만 stolen state가 남아있는 경우)
+    if (navigator.onLine) {
+      const stolenState = getStolenState();
+      if (stolenState?.isActive) {
+        setTimeout(() => executeRecovery(stolenState), 3000);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      if (trackingIntervalRef.current) {
+        clearInterval(trackingIntervalRef.current);
+        trackingIntervalRef.current = null;
+      }
+    };
+  }, [executeRecovery]);
+
+  // 경보 해제 시 추적 중단 + stolen state 정리
+  useEffect(() => {
+    if (!isAlarming) {
+      if (trackingIntervalRef.current) {
+        clearInterval(trackingIntervalRef.current);
+        trackingIntervalRef.current = null;
+        console.log("[StealRecovery] 🛑 Periodic tracking stopped (alarm cleared)");
+      }
+    }
+  }, [isAlarming]);
+
+  return {
+    stolenState: getStolenState(),
+    clearStolenState,
+  };
+}
