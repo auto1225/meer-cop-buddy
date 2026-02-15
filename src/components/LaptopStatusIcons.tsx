@@ -36,7 +36,7 @@ export function LaptopStatusIcons({
           <img 
             src={smartphoneStatus ? smartphoneOn : smartphoneOff} 
             alt="Smartphone" 
-            className="h-[4.5rem] w-[4.5rem] object-contain"
+            className="h-24 w-24 object-contain -my-4"
           />
         </div>
         <span className="text-[9px] font-bold text-white">
