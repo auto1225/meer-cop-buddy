@@ -203,7 +203,9 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     }
     
     const soundConfig = getAlarmSoundById(selectedSoundId);
-    if (soundConfig) playAlarmSound(soundConfig);
+    // Fallback to default if selected sound not found
+    const configToPlay = soundConfig || getAlarmSoundById(DEFAULT_ALARM_SOUND_ID);
+    if (configToPlay) playAlarmSound(configToPlay);
   }, [isAlarmEnabled, isAlarming, selectedSoundId, playAlarmSound, playCustomAudio, onAlarmStart]);
 
   // Stop alarm
