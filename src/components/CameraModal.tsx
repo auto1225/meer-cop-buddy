@@ -79,6 +79,10 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
   // Audio level analysis
   useEffect(() => {
     if (!stream) return;
+    if (!stream.getAudioTracks().length) {
+      console.warn("[CameraModal] No audio track in stream, skipping audio analysis");
+      return;
+    }
 
     const audioCtx = new AudioContext();
     const source = audioCtx.createMediaStreamSource(stream);
