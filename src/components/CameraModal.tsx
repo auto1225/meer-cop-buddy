@@ -63,10 +63,10 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
   }, [stream, deviceId, isBroadcasting, startBroadcasting]);
 
   useEffect(() => {
-    if (!isOpen || !stream) {
+    if ((!isOpen || !stream) && isBroadcasting) {
       stopBroadcasting();
     }
-  }, [isOpen, stream, stopBroadcasting]);
+  }, [isOpen, stream, isBroadcasting, stopBroadcasting]);
 
   useEffect(() => {
     if (!isOpen) {
