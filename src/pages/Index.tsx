@@ -82,6 +82,7 @@ const Index = () => {
     cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true, microphone: false, usb: false,
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
+  const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
   // Alarm system
   const { 
     isAlarmEnabled, 
@@ -179,7 +180,7 @@ const Index = () => {
     onEventDetected: handleSecurityEvent,
     bufferDuration: 10,
     captureInterval: 1000,
-    mouseSensitivity: 50,
+    mouseSensitivity: mouseSensitivityPx,
     motionThreshold,
     sensorToggles,
   });
@@ -229,6 +230,7 @@ const Index = () => {
         power?: boolean;
       };
       motionSensitivity?: string;
+      mouseSensitivity?: string;
     } | null;
 
     console.log("[Index] 📋 Current metadata from DB:", JSON.stringify(meta));
@@ -274,6 +276,18 @@ const Index = () => {
       const threshold = sensitivityMap[meta.motionSensitivity] ?? 15;
       setMotionThreshold(threshold);
       console.log("[Index] ✅ motionSensitivity applied:", meta.motionSensitivity, "→", threshold);
+    }
+
+    if (meta?.mouseSensitivity) {
+      // 0.2초 내 이동 거리 임계값 (px): 민감 5px(≈0.5cm), 보통 30px(≈3cm), 둔감 100px(≈10cm)
+      const mouseMap: Record<string, number> = {
+        sensitive: 5,
+        normal: 30,
+        insensitive: 100,
+      };
+      const px = mouseMap[meta.mouseSensitivity] ?? 30;
+      setMouseSensitivityPx(px);
+      console.log("[Index] ✅ mouseSensitivity applied:", meta.mouseSensitivity, "→", px, "px");
     }
   }, [currentDevice?.metadata, currentDevice?.id]);
 
@@ -432,6 +446,7 @@ const Index = () => {
               camouflage_mode?: boolean;
               sensorSettings?: { camera?: boolean; lidClosed?: boolean; microphone?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean; power?: boolean };
               motionSensitivity?: string;
+              mouseSensitivity?: string;
             };
             if (meta.alarm_pin) {
               console.log("[Index] PIN updated from DB:", meta.alarm_pin);
@@ -464,6 +479,11 @@ const Index = () => {
               const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
               setMotionThreshold(sensitivityMap[meta.motionSensitivity] ?? 15);
               console.log("[Index] Motion threshold updated via Realtime:", meta.motionSensitivity);
+            }
+            if (meta.mouseSensitivity) {
+              const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
+              setMouseSensitivityPx(mouseMap[meta.mouseSensitivity] ?? 30);
+              console.log("[Index] Mouse sensitivity updated via Realtime:", meta.mouseSensitivity);
             }
           }
 
