@@ -278,24 +278,37 @@ const Index = () => {
   // No redirect needed - App.tsx handles auth gate
 
   // Set initial device using savedAuth.device_id (not devices[0] which could be smartphone)
+  // Set initial device - always log for debugging
   useEffect(() => {
-    if (!currentDeviceId && savedAuth?.device_id) {
+    if (devices.length === 0) return;
+    
+    console.log("[Index] 🔍 Device matching - currentDeviceId:", currentDeviceId, 
+      "savedAuth:", savedAuth ? { device_id: savedAuth.device_id } : null,
+      "devices:", devices.map(d => ({ id: d.id, device_id: d.device_id, type: d.device_type, name: d.device_name })));
+    
+    if (currentDeviceId) return; // Already set
+    
+    if (savedAuth?.device_id) {
       // Try matching by UUID (id) first, then by device_id string
       const myDevice = devices.find(d => d.id === savedAuth.device_id) 
         || devices.find(d => d.device_id === savedAuth.device_id);
       if (myDevice) {
         console.log("[Index] ✅ Matched device by savedAuth.device_id:", myDevice.id, myDevice.device_name);
         setCurrentDeviceId(myDevice.id);
-      } else if (devices.length > 0) {
-        // Fallback: find laptop/desktop type device
-        const laptopDevice = devices.find(d => d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook');
-        if (laptopDevice) {
-          console.log("[Index] ⚠️ Matched device by type fallback:", laptopDevice.id, laptopDevice.device_name);
-          setCurrentDeviceId(laptopDevice.id);
-        } else {
-          console.warn("[Index] ❌ No matching device found. savedAuth.device_id:", savedAuth.device_id, "Available:", devices.map(d => ({ id: d.id, device_id: d.device_id, type: d.device_type })));
-        }
+        return;
       }
+    }
+    
+    // Fallback: find laptop/desktop/notebook type device
+    const laptopDevice = devices.find(d => 
+      d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook'
+    );
+    if (laptopDevice) {
+      console.log("[Index] ⚠️ Matched device by type fallback:", laptopDevice.id, laptopDevice.device_name);
+      setCurrentDeviceId(laptopDevice.id);
+    } else {
+      console.warn("[Index] ❌ No matching device found, using first device");
+      setCurrentDeviceId(devices[0].id);
     }
   }, [devices, currentDeviceId, savedAuth?.device_id]);
 
