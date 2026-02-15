@@ -126,6 +126,47 @@ export const ALARM_SOUNDS: AlarmSoundConfig[] = [
 
 export const DEFAULT_ALARM_SOUND_ID = 'police-siren';
 
-export function getAlarmSoundById(id: string): AlarmSoundConfig {
-  return ALARM_SOUNDS.find(s => s.id === id) || ALARM_SOUNDS[0];
+// Custom sound stored in localStorage
+const CUSTOM_SOUND_STORAGE_KEY = 'meercop-custom-alarm-sounds';
+
+export interface CustomAlarmSound {
+  id: string;
+  nameKo: string;
+  audioDataUrl: string; // base64 data URL
+}
+
+export function getCustomSounds(): CustomAlarmSound[] {
+  try {
+    const stored = localStorage.getItem(CUSTOM_SOUND_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomSound(sound: CustomAlarmSound): void {
+  const existing = getCustomSounds();
+  const updated = [...existing.filter(s => s.id !== sound.id), sound];
+  localStorage.setItem(CUSTOM_SOUND_STORAGE_KEY, JSON.stringify(updated));
+}
+
+export function deleteCustomSound(id: string): void {
+  const existing = getCustomSounds();
+  localStorage.setItem(CUSTOM_SOUND_STORAGE_KEY, JSON.stringify(existing.filter(s => s.id !== id)));
+}
+
+export function isCustomSound(id: string): boolean {
+  return id.startsWith('custom-');
+}
+
+export function getAlarmSoundById(id: string): AlarmSoundConfig | null {
+  return ALARM_SOUNDS.find(s => s.id === id) || null;
+}
+
+export function getSelectedSoundName(id: string): string {
+  const built = ALARM_SOUNDS.find(s => s.id === id);
+  if (built) return built.nameKo;
+  const custom = getCustomSounds().find(s => s.id === id);
+  if (custom) return custom.nameKo;
+  return ALARM_SOUNDS[0].nameKo;
 }
