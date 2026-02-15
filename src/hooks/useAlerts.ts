@@ -81,22 +81,19 @@ export function useAlerts(deviceId?: string) {
       // Presence 채널로 스마트폰에 알림 전송
       broadcastAlert(newAlert);
 
-      // 푸시 알림 전송 (서버에서 5회 반복)
-      try {
-        supabaseShared.functions.invoke('push-notifications', {
-          body: {
-            action: 'send',
-            device_id: deviceId,
-            title: '🚨 경보 발생!',
-            body: eventData?.message || `${eventType} 감지`,
-          },
-        }).then(({ error }) => {
-          if (error) console.error("[Alerts] Push notification error:", error);
-          else console.log("[Alerts] ✅ Push notification triggered (5x repeat)");
-        });
-      } catch (e) {
-        console.error("[Alerts] Failed to invoke push-notifications:", e);
-      }
+      // 푸시 알림 전송 (공유 프로젝트의 Edge Function — 실패 시 무시)
+      supabaseShared.functions.invoke('push-notifications', {
+        body: {
+          action: 'send',
+          device_id: deviceId,
+          title: '🚨 경보 발생!',
+          body: eventData?.message || `${eventType} 감지`,
+        },
+      }).then(({ error }) => {
+        if (error) console.warn("[Alerts] Push notification unavailable (shared project):", error.message ?? error);
+      }).catch(() => {
+        // Edge function not deployed on shared project — silently ignore
+      });
 
       // Play alert sound
       try {
@@ -273,22 +270,19 @@ export function useAlerts(deviceId?: string) {
         // Presence 채널로 스마트폰에 알림 전송
         broadcastAlert(newAlert);
 
-        // 푸시 알림 전송 (서버에서 5회 반복)
-        try {
-          supabaseShared.functions.invoke('push-notifications', {
-            body: {
-              action: 'send',
-              device_id: newAlert.device_id,
-              title: '🚨 경보 발생!',
-              body: newAlert.event_data?.message || `${newAlert.event_type} 감지`,
-            },
-          }).then(({ error }) => {
-            if (error) console.error("[Alerts] Push notification error:", error);
-            else console.log("[Alerts] ✅ Push notification triggered (5x repeat)");
-          });
-        } catch (e) {
-          console.error("[Alerts] Failed to invoke push-notifications:", e);
-        }
+        // 푸시 알림 전송 (공유 프로젝트의 Edge Function — 실패 시 무시)
+        supabaseShared.functions.invoke('push-notifications', {
+          body: {
+            action: 'send',
+            device_id: newAlert.device_id,
+            title: '🚨 경보 발생!',
+            body: newAlert.event_data?.message || `${newAlert.event_type} 감지`,
+          },
+        }).then(({ error }) => {
+          if (error) console.warn("[Alerts] Push notification unavailable:", error.message ?? error);
+        }).catch(() => {
+          // silently ignore
+        });
 
         // Play alert sound
         try {
