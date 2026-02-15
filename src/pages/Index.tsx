@@ -495,6 +495,14 @@ const Index = () => {
     };
   }, [currentDevice?.id]);
 
+  // When smartphone goes offline, force stop monitoring
+  useEffect(() => {
+    if (!smartphoneOnline && isMonitoring) {
+      console.log("[Index] 📴 Smartphone went offline → stopping monitoring");
+      setIsMonitoring(false);
+    }
+  }, [smartphoneOnline, isMonitoring]);
+
   // Start/stop surveillance based on monitoring state from DB
   useEffect(() => {
     if (isMonitoring && !isSurveillanceActive) {
