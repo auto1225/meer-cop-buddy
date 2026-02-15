@@ -1,5 +1,7 @@
-const SUPABASE_URL = "https://sltxwkdvaapyeosikegj.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdHh3a2R2YWFweWVvc2lrZWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNjg4MjQsImV4cCI6MjA4NTg0NDgyNH0.hj6A8YDTRMQkPid9hfw6vnGC2eQLTmv2JPmQRLv4sZ4";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
+
+const SUPABASE_URL = SHARED_SUPABASE_URL;
+const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
 
 const STORAGE_KEY = "meercop_serial_auth";
 
