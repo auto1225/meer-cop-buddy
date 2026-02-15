@@ -46,7 +46,7 @@ const Index = () => {
   });
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
-  const { devices, refetch } = useDevices();
+  const { devices, refetch } = useDevices(savedAuth?.user_id);
   
   // Get the current device (this laptop) - use savedAuth.device_id to match correctly
   const currentDevice = currentDeviceId 
