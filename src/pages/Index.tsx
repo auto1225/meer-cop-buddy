@@ -513,14 +513,6 @@ const Index = () => {
         <SideMenu
           isOpen={isSideMenuOpen}
           onClose={() => setIsSideMenuOpen(false)}
-          devices={devices}
-          currentDeviceId={currentDevice?.id}
-          onDeviceSelect={handleDeviceSelect}
-          onDevicesRefresh={refetch}
-          availableSounds={availableSounds}
-          selectedSoundId={selectedSoundId}
-          onSelectSound={setSelectedSoundId}
-          onPreviewSound={previewSound}
         />
 
         {/* Header */}
