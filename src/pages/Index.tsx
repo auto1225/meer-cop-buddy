@@ -48,10 +48,24 @@ const Index = () => {
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices(savedAuth?.user_id);
   
+  // Debug: log device fetch results
+  useEffect(() => {
+    console.log("[Index] 🔍 Devices loaded:", devices.length, 
+      "userId:", savedAuth?.user_id,
+      "savedDeviceId:", savedAuth?.device_id,
+      "devices:", devices.map(d => ({ id: d.id, type: d.device_type, status: d.status, name: d.device_name }))
+    );
+  }, [devices]);
+
   // Get the current device (this laptop) - use savedAuth.device_id to match correctly
   const currentDevice = currentDeviceId 
     ? devices.find(d => d.id === currentDeviceId) 
     : undefined;
+
+  // Debug: log currentDevice resolution
+  useEffect(() => {
+    console.log("[Index] 🖥️ currentDeviceId:", currentDeviceId, "→ currentDevice:", currentDevice?.id, currentDevice?.device_name);
+  }, [currentDeviceId, currentDevice]);
 
   // Detect smartphone online status from devices list
   // device_type enum: laptop | desktop | smartphone | tablet
@@ -59,6 +73,8 @@ const Index = () => {
   const smartphoneOnline = smartphoneDevice
     ? (smartphoneDevice.status === 'online' || smartphoneDevice.is_monitoring === true)
     : false;
+  
+  console.log("[Index] 📱 smartphoneDevice:", smartphoneDevice?.id, "status:", smartphoneDevice?.status, "online:", smartphoneOnline);
   
   const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated, savedAuth?.user_id);
 
