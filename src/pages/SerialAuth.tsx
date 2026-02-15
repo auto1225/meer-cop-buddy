@@ -3,9 +3,12 @@ import { validateSerial } from "@/lib/serialAuth";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { LogOut } from "lucide-react";
 import meercopLogo from "@/assets/meercop-logo.png";
 import loginTreesBg from "@/assets/login-trees-bg.png";
+
+const REMEMBER_KEY = "meercop_remember_input";
 
 interface SerialAuthProps {
   onSuccess: (deviceId: string, userId: string) => void;
@@ -14,11 +17,22 @@ interface SerialAuthProps {
 export default function SerialAuth({ onSuccess }: SerialAuthProps) {
   const [parts, setParts] = useState(["", "", ""]);
   const [deviceName, setDeviceName] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // 저장된 입력값 복원
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_KEY);
+      if (saved) {
+        const { parts: savedParts, deviceName: savedName } = JSON.parse(saved);
+        if (savedParts) setParts(savedParts);
+        if (savedName) setDeviceName(savedName);
+        setRememberMe(true);
+      }
+    } catch {}
     inputRefs.current[0]?.focus();
   }, []);
 
@@ -57,6 +71,13 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
     setError("");
 
     try {
+      // 기억하기 처리
+      if (rememberMe) {
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ parts, deviceName: deviceName.trim() }));
+      } else {
+        localStorage.removeItem(REMEMBER_KEY);
+      }
+
       const authData = await validateSerial(serialKey, deviceName.trim());
       onSuccess(authData.device_id, authData.user_id);
     } catch (err: any) {
@@ -136,6 +157,16 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
               </div>
             ))}
           </div>
+
+          {/* Remember Me */}
+          <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+            <Checkbox
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked === true)}
+              className="border-white/50 data-[state=checked]:bg-secondary data-[state=checked]:border-secondary h-3.5 w-3.5"
+            />
+            <span className="text-white/70 text-[11px]">기억하기</span>
+          </label>
 
           {/* Error */}
           {error && (
