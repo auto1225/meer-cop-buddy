@@ -30,6 +30,8 @@ export interface DeviceCompat {
   last_seen_at: string | null;
   battery_level: number | null;
   is_charging: boolean;
+  is_network_connected: boolean | null;
+  is_monitoring: boolean;
   ip_address: string | null;
   os_info: string | null;
   app_version: string | null;
@@ -47,6 +49,8 @@ function toCompatDevice(d: Device): DeviceCompat {
     last_seen_at: d.last_seen_at,
     battery_level: d.battery_level,
     is_charging: false,
+    is_network_connected: d.is_network_connected,
+    is_monitoring: d.is_monitoring === true,
     ip_address: null,
     os_info: null,
     app_version: null,
