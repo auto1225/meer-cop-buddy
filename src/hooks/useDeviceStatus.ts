@@ -212,23 +212,22 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     }
   }, [deviceId, isAuthenticated, updateDeviceOnlineStatus]);
 
-  // Handle page unload - set offline with all statuses
+  // Handle page unload & sleep - set offline with all statuses
   useEffect(() => {
     if (!deviceId) return;
 
     const SUPABASE_URL = "https://sltxwkdvaapyeosikegj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdHh3a2R2YWFweWVvc2lrZWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNjg4MjQsImV4cCI6MjA4NTg0NDgyNH0.hj6A8YDTRMQkPid9hfw6vnGC2eQLTmv2JPmQRLv4sZ4";
 
-    const handleBeforeUnload = () => {
+    const sendStatusUpdate = (isOnline: boolean) => {
       const url = `${SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`;
       const data = JSON.stringify({
-        status: "offline",
-        is_network_connected: false,
-        is_camera_connected: false,
+        status: isOnline ? "online" : "offline",
+        is_network_connected: isOnline ? navigator.onLine : false,
+        is_camera_connected: isOnline ? status.isCameraAvailable : false,
         updated_at: new Date().toISOString(),
       });
 
-      // fetch with keepalive supports custom headers unlike sendBeacon
       fetch(url, {
         method: "PATCH",
         headers: {
@@ -242,11 +241,33 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
       }).catch(() => {});
     };
 
+    // 브라우저 종료 시
+    const handleBeforeUnload = () => {
+      sendStatusUpdate(false);
+    };
+
+    // 절전모드 진입/복귀 감지
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // 절전모드 또는 탭 비활성화 → offline
+        console.log("[DeviceStatus] 💤 Page hidden (sleep/minimize) → sending offline");
+        sendStatusUpdate(false);
+      } else {
+        // 절전모드 복귀 또는 탭 활성화 → online
+        console.log("[DeviceStatus] ☀️ Page visible (wake/focus) → sending online");
+        sendStatusUpdate(true);
+        // Presence 재동기화
+        syncPresence(navigator.onLine);
+      }
+    };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [deviceId]);
+  }, [deviceId, status.isCameraAvailable, syncPresence]);
 
   // Network connectivity detection
   useEffect(() => {
