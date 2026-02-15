@@ -74,14 +74,14 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
   if (isEditing) {
     return (
       <div className="flex justify-center py-1 mt-4">
-        <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-full shadow-sm">
+        <div className="flex items-center gap-1 backdrop-blur-xl bg-white/15 border border-white/25 px-2 py-1 rounded-full shadow-lg">
           <input
             ref={inputRef}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isSaving}
-            className="w-[100px] bg-transparent text-secondary font-bold text-[11px] outline-none text-center"
+            className="w-[100px] bg-transparent text-white font-extrabold text-[11px] outline-none text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
             maxLength={30}
           />
           <button
@@ -107,10 +107,10 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     <div className="flex justify-center py-1 mt-4">
       <button
         onClick={() => setIsEditing(true)}
-        className="flex items-center gap-1.5 bg-muted hover:bg-muted/80 transition-colors px-3 py-1 rounded-full shadow-sm"
+        className="flex items-center gap-1.5 backdrop-blur-xl bg-white/15 border border-white/25 hover:bg-white/25 transition-colors px-3 py-1.5 rounded-full shadow-lg"
       >
-        <span className="text-secondary font-bold text-[11px]">{deviceName}</span>
-        <Pencil className="h-3 w-3 text-foreground/70" />
+        <span className="text-white font-extrabold text-[11px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{deviceName}</span>
+        <Pencil className="h-3 w-3 text-white/70" />
       </button>
     </div>
   );
