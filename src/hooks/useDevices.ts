@@ -40,17 +40,19 @@ export interface DeviceCompat {
 
 // Convert device to compatible format for components
 function toCompatDevice(d: Device): DeviceCompat {
+  // is_monitoring이 true여도 status가 offline이면 실제로 꺼진 것
+  const effectiveOnline = d.status === "online" || (d.is_monitoring === true && d.status !== "offline");
   return {
     id: d.id,
     device_id: d.device_id,
     device_name: d.device_name,
     device_type: d.device_type,
-    status: d.is_monitoring ? "online" : d.status,
+    status: effectiveOnline ? "online" : "offline",
     last_seen_at: d.last_seen_at,
     battery_level: d.battery_level,
     is_charging: false,
     is_network_connected: d.is_network_connected,
-    is_monitoring: d.is_monitoring === true,
+    is_monitoring: d.is_monitoring === true && d.status !== "offline",
     ip_address: null,
     os_info: null,
     app_version: null,
