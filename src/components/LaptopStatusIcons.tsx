@@ -4,7 +4,7 @@ import wifiOff from "@/assets/wifi-off.png";
 import cameraOn from "@/assets/camera-on.png";
 import cameraOff from "@/assets/camera-off.png";
 import smartphoneOn from "@/assets/smartphone-connected.png";
-import smartphoneOff from "@/assets/smartphone-connected.png";
+import smartphoneOff from "@/assets/smartphone-off.png";
 
 interface LaptopStatusIconsProps {
   smartphoneStatus: boolean;
@@ -36,7 +36,7 @@ export function LaptopStatusIcons({
           <img 
             src={smartphoneStatus ? smartphoneOn : smartphoneOff} 
             alt="Smartphone" 
-            className={`h-10 w-10 object-contain ${!smartphoneStatus ? 'opacity-40 grayscale' : ''}`}
+            className="h-10 w-10 object-contain"
           />
         </div>
         <span className="text-[9px] font-bold text-white">
