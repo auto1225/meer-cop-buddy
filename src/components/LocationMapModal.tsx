@@ -25,6 +25,8 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const [addressLoading, setAddressLoading] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabaseShared.channel> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locationReceivedRef = useRef(false);
+  const mapInitializedRef = useRef(false);
 
   // Reverse geocode coordinates to address
   const fetchAddress = useCallback(async (lat: number, lng: number) => {
@@ -56,6 +58,8 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     setIsLoading(true);
     setError(null);
     setCoords(null);
+    locationReceivedRef.current = false;
+    mapInitializedRef.current = false;
 
     try {
       // First get device name
@@ -96,6 +100,9 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
             filter: `id=eq.${smartphoneDeviceId}`,
           },
           (payload) => {
+            // Ignore if we already got the location
+            if (locationReceivedRef.current) return;
+
             const updated = payload.new as Record<string, unknown>;
             const meta = updated.metadata as Record<string, unknown> | null;
 
@@ -103,6 +110,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
             if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
               const lat = updated.latitude as number;
               const lng = updated.longitude as number;
+              locationReceivedRef.current = true;
               setCoords({ lat, lng });
               setUpdatedAt(updated.location_updated_at as string);
               setLocationSource((meta.location_source as string) || null);
@@ -113,6 +121,12 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
               if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
+              }
+
+              // Unsubscribe — we have what we need
+              if (channelRef.current) {
+                supabaseShared.removeChannel(channelRef.current);
+                channelRef.current = null;
               }
             }
           }
@@ -160,10 +174,20 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     };
   }, [isOpen, requestSmartphoneLocation]);
 
-  // Initialize map
+  // Initialize map — only once when coords first arrive
   useEffect(() => {
     if (!isOpen || !coords || !mapRef.current) return;
 
+    // If map already initialized for this session, just update marker
+    if (mapInitializedRef.current && mapInstanceRef.current) {
+      if (markerRef.current) {
+        markerRef.current.setLatLng([coords.lat, coords.lng]);
+      }
+      mapInstanceRef.current.setView([coords.lat, coords.lng], 16);
+      return;
+    }
+
+    // First time — create the map
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
@@ -171,6 +195,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
 
     const map = L.map(mapRef.current).setView([coords.lat, coords.lng], 16);
     mapInstanceRef.current = map;
+    mapInitializedRef.current = true;
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '© OpenStreetMap',
@@ -194,14 +219,16 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     markerRef.current.bindPopup(`📱 ${deviceName} 위치`).openPopup();
 
     setTimeout(() => map.invalidateSize(), 100);
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
   }, [isOpen, coords, deviceName]);
+
+  // Cleanup map on close
+  useEffect(() => {
+    if (!isOpen && mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+      mapInitializedRef.current = false;
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
