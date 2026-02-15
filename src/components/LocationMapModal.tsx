@@ -21,8 +21,29 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState<string>("스마트폰");
   const [locationSource, setLocationSource] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
+  const [addressLoading, setAddressLoading] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabaseShared.channel> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reverse geocode coordinates to address
+  const fetchAddress = useCallback(async (lat: number, lng: number) => {
+    setAddressLoading(true);
+    setAddress(null);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ko&zoom=18`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      const data = await res.json();
+      if (data.display_name) {
+        setAddress(data.display_name);
+      }
+    } catch {
+      console.warn("[LocationMap] Reverse geocoding failed");
+    }
+    setAddressLoading(false);
+  }, []);
 
   // Send locate request to smartphone and wait for response
   const requestSmartphoneLocation = useCallback(async () => {
@@ -86,6 +107,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
               setUpdatedAt(updated.location_updated_at as string);
               setLocationSource((meta.location_source as string) || null);
               setIsLoading(false);
+              fetchAddress(lat, lng);
 
               // Clear timeout
               if (timeoutRef.current) {
@@ -106,6 +128,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           setCoords({ lat: deviceData.latitude, lng: deviceData.longitude });
           setUpdatedAt(deviceData.location_updated_at);
           setLocationSource((meta.location_source as string) || null);
+          fetchAddress(deviceData.latitude, deviceData.longitude);
           setError("스마트폰이 응답하지 않아 마지막 저장된 위치를 표시합니다.");
         } else {
           setError("스마트폰이 위치 요청에 응답하지 않습니다.\n스마트폰 앱이 실행 중인지 확인해주세요.");
@@ -253,13 +276,28 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
 
         {/* Footer */}
         {coords && (
-          <div className="px-4 py-2.5 border-t border-white/10 text-center space-y-1">
-            <p className="text-xs text-white/70 font-bold">
+          <div className="px-4 py-2.5 border-t border-white/10 space-y-1.5">
+            {/* Address */}
+            <div className="text-center">
+              {addressLoading ? (
+                <p className="text-[11px] text-white/50 font-semibold">📍 주소 확인 중...</p>
+              ) : address ? (
+                <p className="text-[11px] text-white/80 font-bold leading-tight">📍 {address}</p>
+              ) : null}
+            </div>
+
+            <p className="text-xs text-white/70 font-bold text-center">
               위도: {coords.lat.toFixed(6)} | 경도: {coords.lng.toFixed(6)}
             </p>
-            <p className="text-[10px] font-semibold">
+            <p className="text-[10px] font-semibold text-center">
               {locationSource === "wifi" ? (
-                <span className="text-orange-300">📶 Wi-Fi 기반 위치 (GPS 사용 불가)</span>
+                <span className="text-orange-300">
+                  📶 Wi-Fi 기반 추정 위치 — 실제 위치와 수백 미터~수 킬로미터 오차가 있을 수 있습니다
+                </span>
+              ) : locationSource === "ip" ? (
+                <span className="text-orange-300">
+                  🌐 IP 기반 추정 위치 — 실제 위치와 수 킬로미터 이상 차이가 날 수 있습니다
+                </span>
               ) : locationSource === "gps" ? (
                 <span className="text-accent">📡 GPS 기반 실시간 위치 정보</span>
               ) : (
