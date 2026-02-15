@@ -1,66 +1,130 @@
-// 모바일 앱과 동기화된 경보음 목록
+// 10가지 보안 경보음 정의 - 도둑 경고 및 주변 알림용
 export interface AlarmSoundConfig {
   id: string;
   name: string;
   nameKo: string;
-  frequencies: number[];
-  pattern: number[]; // duration per frequency step (seconds)
+  oscillatorType: OscillatorType;
+  baseFrequency: number;
+  altFrequency: number;
+  interval: number;
   volume: number;
+  pattern: 'police' | 'klaxon' | 'air-raid' | 'intruder' | 'panic' | 'siren';
 }
 
-// 모바일 앱(Settings.tsx)의 ALARM_SOUNDS와 동일한 목록
 export const ALARM_SOUNDS: AlarmSoundConfig[] = [
   {
-    id: 'whistle',
-    name: 'Whistle',
-    nameKo: '🎵 호루라기',
-    frequencies: [2200, 1800],
-    pattern: [0.15, 0.1],
-    volume: 0.5,
-  },
-  {
-    id: 'siren',
-    name: 'Siren',
-    nameKo: '🚨 사이렌',
-    frequencies: [660, 880],
-    pattern: [0.3, 0.3],
-    volume: 0.5,
-  },
-  {
-    id: 'bird',
-    name: 'Bird',
-    nameKo: '🐦 새소리',
-    frequencies: [1400, 1800, 2200],
-    pattern: [0.1, 0.08, 0.12],
-    volume: 0.5,
-  },
-  {
-    id: 'police',
+    id: 'police-siren',
     name: 'Police Siren',
-    nameKo: '🚔 경찰 사이렌',
-    frequencies: [600, 1200],
-    pattern: [0.5, 0.5],
+    nameKo: '🚨 경찰 사이렌',
+    oscillatorType: 'sawtooth',
+    baseFrequency: 700,
+    altFrequency: 1100,
+    interval: 600,
     volume: 0.5,
+    pattern: 'police',
   },
   {
-    id: 'radio',
-    name: 'Radio',
-    nameKo: '📻 전파음',
-    frequencies: [440, 520, 600],
-    pattern: [0.2, 0.15, 0.2],
+    id: 'security-alarm',
+    name: 'Security Alarm',
+    nameKo: '🔔 보안 경보',
+    oscillatorType: 'square',
+    baseFrequency: 880,
+    altFrequency: 0,
+    interval: 150,
     volume: 0.5,
+    pattern: 'klaxon',
   },
   {
-    id: 'quiet',
-    name: 'Quiet Siren',
-    nameKo: '🔕 조용한 사이렌',
-    frequencies: [400, 500],
-    pattern: [0.4, 0.4],
-    volume: 0.3,
+    id: 'air-raid',
+    name: 'Air Raid Siren',
+    nameKo: '⚠️ 공습 사이렌',
+    oscillatorType: 'sawtooth',
+    baseFrequency: 400,
+    altFrequency: 800,
+    interval: 3000,
+    volume: 0.45,
+    pattern: 'air-raid',
+  },
+  {
+    id: 'intruder-alert',
+    name: 'Intruder Alert',
+    nameKo: '🚷 침입자 경보',
+    oscillatorType: 'square',
+    baseFrequency: 1000,
+    altFrequency: 500,
+    interval: 250,
+    volume: 0.5,
+    pattern: 'intruder',
+  },
+  {
+    id: 'panic-alarm',
+    name: 'Panic Alarm',
+    nameKo: '🆘 비상 경보',
+    oscillatorType: 'square',
+    baseFrequency: 1200,
+    altFrequency: 800,
+    interval: 100,
+    volume: 0.5,
+    pattern: 'panic',
+  },
+  {
+    id: 'car-alarm',
+    name: 'Car Alarm',
+    nameKo: '🚗 차량 경보',
+    oscillatorType: 'square',
+    baseFrequency: 900,
+    altFrequency: 700,
+    interval: 300,
+    volume: 0.5,
+    pattern: 'siren',
+  },
+  {
+    id: 'emergency-horn',
+    name: 'Emergency Horn',
+    nameKo: '📢 긴급 경적',
+    oscillatorType: 'sawtooth',
+    baseFrequency: 500,
+    altFrequency: 0,
+    interval: 400,
+    volume: 0.55,
+    pattern: 'klaxon',
+  },
+  {
+    id: 'theft-deterrent',
+    name: 'Theft Deterrent',
+    nameKo: '🛡️ 도난 방지음',
+    oscillatorType: 'square',
+    baseFrequency: 1500,
+    altFrequency: 600,
+    interval: 200,
+    volume: 0.5,
+    pattern: 'intruder',
+  },
+  {
+    id: 'loud-klaxon',
+    name: 'Loud Klaxon',
+    nameKo: '📣 대형 클랙슨',
+    oscillatorType: 'sawtooth',
+    baseFrequency: 350,
+    altFrequency: 450,
+    interval: 500,
+    volume: 0.6,
+    pattern: 'klaxon',
+  },
+  {
+    id: 'triple-threat',
+    name: 'Triple Threat',
+    nameKo: '⚡ 트리플 경보',
+    oscillatorType: 'square',
+    baseFrequency: 1100,
+    altFrequency: 550,
+    interval: 180,
+    volume: 0.5,
+    pattern: 'panic',
   },
 ];
 
-export const DEFAULT_ALARM_SOUND_ID = 'whistle';
+export const DEFAULT_ALARM_SOUND_ID = 'police-siren';
 
 // Custom sound stored in localStorage
 const CUSTOM_SOUND_STORAGE_KEY = 'meercop-custom-alarm-sounds';
@@ -105,4 +169,9 @@ export function getSelectedSoundName(id: string): string {
   const custom = getCustomSounds().find(s => s.id === id);
   if (custom) return custom.nameKo;
   return ALARM_SOUNDS[0].nameKo;
+}
+
+// DB 동기화용: 경보음 목록을 간단한 형태로 반환
+export function getAlarmSoundsForDB(): { id: string; name: string; nameKo: string }[] {
+  return ALARM_SOUNDS.map(s => ({ id: s.id, name: s.name, nameKo: s.nameKo }));
 }

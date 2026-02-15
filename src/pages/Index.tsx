@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { getAlarmSoundsForDB } from "@/lib/alarmSounds";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
 import { LaptopMascotSection } from "@/components/LaptopMascotSection";
@@ -246,10 +247,7 @@ const Index = () => {
       console.log("[Index] ✅ camouflage_mode applied:", meta.camouflage_mode);
     }
 
-    if (meta?.alarm_sound_id) {
-      setSelectedSoundId(meta.alarm_sound_id);
-      console.log("[Index] ✅ alarm_sound_id applied:", meta.alarm_sound_id);
-    }
+    // alarm_sound_id는 컴퓨터 자체 localStorage에서 관리 (DB 동기화하지 않음)
 
     if (meta?.sensorSettings) {
       const s = meta.sensorSettings;
@@ -309,6 +307,31 @@ const Index = () => {
       setCurrentDeviceId(correctDeviceId);
     }
   }, [devices, currentDeviceId, savedAuth?.device_id]);
+
+  // Sync alarm sounds list to DB metadata (so smartphone app can display the list)
+  useEffect(() => {
+    if (!currentDevice?.id) return;
+    const syncAlarmSounds = async () => {
+      try {
+        const { data: existing } = await supabaseShared
+          .from("devices")
+          .select("metadata")
+          .eq("id", currentDevice.id)
+          .single();
+        const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+        await supabaseShared
+          .from("devices")
+          .update({
+            metadata: { ...existingMeta, available_alarm_sounds: getAlarmSoundsForDB() },
+          })
+          .eq("id", currentDevice.id);
+        console.log("[Index] ✅ Alarm sounds list synced to DB");
+      } catch (e) {
+        console.error("[Index] Failed to sync alarm sounds to DB:", e);
+      }
+    };
+    syncAlarmSounds();
+  }, [currentDevice?.id]);
 
   // Subscribe to monitoring status from smartphone via DB
   // Only start surveillance when smartphone requests it
@@ -421,10 +444,7 @@ const Index = () => {
               setRequirePcPin(meta.require_pc_pin);
               console.log("[Index] require_pc_pin updated via Realtime:", meta.require_pc_pin);
             }
-            if (meta.alarm_sound_id) {
-              console.log("[Index] Alarm sound updated from DB:", meta.alarm_sound_id);
-              setSelectedSoundId(meta.alarm_sound_id);
-            }
+            // alarm_sound_id는 컴퓨터 자체 설정 — DB에서 동기화하지 않음
             if (meta.sensorSettings) {
               const s = meta.sensorSettings;
               setSensorToggles({
