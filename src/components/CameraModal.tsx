@@ -39,6 +39,8 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
   const [isPaused, setIsPaused] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [snapshotPreview, setSnapshotPreview] = useState<string | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -129,14 +131,17 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
     if (!stream) return;
 
     if (isRecording) {
-      // Stop recording
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
       setIsRecording(false);
       setIsPaused(false);
+      setRecordingTime(0);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
     } else {
-      // Start recording
       recordedChunksRef.current = [];
       const recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp9,opus" });
       recorder.ondataavailable = (e) => {
@@ -155,8 +160,18 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       setIsPaused(false);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
     }
   }, [stream, isRecording]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
 
   const togglePause = useCallback(() => {
     if (!stream || !videoRef.current) return;
@@ -280,23 +295,23 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
                 />
               )}
 
-              {/* Audio Level Indicator - top left */}
+              {/* Audio Level Indicator - top left (half size) */}
               {stream && (
-                <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-black/50 backdrop-blur-sm px-2 py-1.5 rounded-lg border border-white/10">
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${isMuted ? "bg-red-500/60" : "bg-green-500/60"}`}>
+                <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 bg-black/50 backdrop-blur-sm px-1 py-0.5 rounded border border-white/10" style={{ transform: "scale(0.7)", transformOrigin: "top left" }}>
+                  <div className={`w-3 h-3 rounded-full flex items-center justify-center ${isMuted ? "bg-red-500/60" : "bg-green-500/60"}`}>
                     {isMuted ? (
-                      <VolumeX className="w-2.5 h-2.5 text-white" />
+                      <VolumeX className="w-2 h-2 text-white" />
                     ) : (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-white">
+                      <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-white">
                         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
                       </svg>
                     )}
                   </div>
-                  <div className="flex items-end gap-[2px] h-3.5">
+                  <div className="flex items-end gap-[1px] h-2.5">
                     {[0, 1, 2, 3, 4].map((i) => (
                       <div
                         key={i}
-                        className="w-[3px] rounded-full transition-all duration-100"
+                        className="w-[2px] rounded-full transition-all duration-100"
                         style={{
                           height: `${40 + i * 15}%`,
                           backgroundColor: i < activeBars && !isMuted
@@ -309,17 +324,25 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
                 </div>
               )}
 
-              {/* LIVE badge - top right */}
+              {/* Recording timer - top center */}
+              {isRecording && (
+                <div className="absolute top-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded border border-white/10">
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] text-white font-bold tabular-nums">{formatTime(recordingTime)}</span>
+                </div>
+              )}
+
+              {/* LIVE badge - top right (half size) */}
               {isBroadcasting && (
-                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-white/10">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-[11px] text-white font-extrabold tracking-wide">LIVE</span>
+                <div className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-black/50 backdrop-blur-sm px-1.5 py-0.5 rounded border border-white/10" style={{ transform: "scale(0.7)", transformOrigin: "top right" }}>
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-[9px] text-white font-extrabold tracking-wide">LIVE</span>
                   {viewerCount > 0 && (
                     <>
-                      <div className="w-px h-3 bg-white/30" />
+                      <div className="w-px h-2 bg-white/30" />
                       <div className="flex items-center gap-0.5">
-                        <Users className="w-2.5 h-2.5 text-white/80" />
-                        <span className="text-[10px] text-white/80 font-bold">{viewerCount}</span>
+                        <Users className="w-2 h-2 text-white/80" />
+                        <span className="text-[8px] text-white/80 font-bold">{viewerCount}</span>
                       </div>
                     </>
                   )}
