@@ -406,74 +406,66 @@ const Index = () => {
     syncAlarmSounds();
   }, [currentDevice?.id]);
 
-  // Subscribe to monitoring status from smartphone via DB
-  // Only start surveillance when smartphone requests it
+  // Subscribe to monitoring status + smartphone status with reliable polling fallback
   useEffect(() => {
     if (!currentDevice?.id) return;
 
-    let pollInterval = 2000;
-    let pollTimeoutId: NodeJS.Timeout | null = null;
-    let retryTimeoutId: NodeJS.Timeout | null = null;
-    let isPollingActive = false;
     let isMounted = true;
+    let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let pollInterval = 3000; // Start at 3s
+    let realtimeWorking = false;
 
-    // Fetch monitoring status from device (direct column, not metadata)
-    const fetchMonitoringStatus = async () => {
-      if (!isMounted) return false;
+    // Fetch monitoring status AND smartphone status from DB
+    const fetchStatus = async () => {
+      if (!isMounted) return;
       
       try {
-        const { data, error } = await supabaseShared
+        // 1. Fetch own device's is_monitoring
+        const { data: myDevice, error } = await supabaseShared
           .from("devices")
-          .select("is_monitoring")
+          .select("is_monitoring, metadata")
           .eq("id", currentDevice.id)
           .maybeSingle();
         
         if (error) {
-          console.error("[Index] Error fetching monitoring status:", error);
-          return false;
+          console.error("[Index] Polling error:", error);
+          return;
         }
         
-        // Read from is_monitoring column directly (not metadata)
-        const isMonitoringFromDB = (data as { is_monitoring?: boolean })?.is_monitoring ?? false;
-        console.log("[Index] Fetched monitoring status:", isMonitoringFromDB);
-        if (isMounted) {
-          setIsMonitoring(isMonitoringFromDB);
+        if (myDevice && isMounted) {
+          const isMonitoringFromDB = (myDevice as { is_monitoring?: boolean }).is_monitoring ?? false;
+          setIsMonitoring(prev => {
+            if (prev !== isMonitoringFromDB) {
+              console.log("[Index] 📡 Monitoring status from poll:", isMonitoringFromDB);
+            }
+            return isMonitoringFromDB;
+          });
         }
-        return isMonitoringFromDB;
       } catch (err) {
-        console.error("[Index] Fetch error:", err);
-        return false;
+        console.error("[Index] Poll fetch error:", err);
       }
     };
 
-    // Fallback polling with exponential backoff (with deduplication)
-    const startPolling = () => {
-      if (isPollingActive) return; // Prevent duplicate polling
-      isPollingActive = true;
-      
-      const poll = async () => {
-        if (!isMounted) return;
-        await fetchMonitoringStatus();
-        // Backoff up to 10 seconds
-        pollInterval = Math.min(pollInterval * 1.5, 10000);
-        if (isMounted && isPollingActive) {
-          pollTimeoutId = setTimeout(poll, pollInterval);
+    // Always-on polling with adaptive interval
+    const schedulePoll = () => {
+      if (!isMounted) return;
+      pollTimeoutId = setTimeout(async () => {
+        await fetchStatus();
+        // Backoff when Realtime is working, stay fast when it's not
+        if (realtimeWorking) {
+          pollInterval = Math.min(pollInterval * 1.5, 30000); // Up to 30s when RT works
+        } else {
+          pollInterval = Math.min(pollInterval * 1.2, 5000); // Stay at 5s max without RT
         }
-      };
-      pollTimeoutId = setTimeout(poll, pollInterval);
+        schedulePoll();
+      }, pollInterval);
     };
 
-    const stopPolling = () => {
-      isPollingActive = false;
-      if (pollTimeoutId) {
-        clearTimeout(pollTimeoutId);
-        pollTimeoutId = null;
-      }
-    };
+    // Initial fetch
+    fetchStatus();
+    schedulePoll();
 
-    fetchMonitoringStatus();
-
-    // Subscribe to realtime changes with retry logic
+    // Realtime subscription (primary, fast path)
     const channel = supabaseShared
       .channel(`laptop-monitoring-status-${currentDevice.id}`)
       .on(
@@ -485,11 +477,13 @@ const Index = () => {
           filter: `id=eq.${currentDevice.id}`,
         },
         (payload) => {
+          realtimeWorking = true;
+          pollInterval = 10000; // Slow down polling since RT is working
+          
           const newData = payload.new as { is_monitoring?: boolean; metadata?: Record<string, unknown> };
           
-          // Read monitoring status
           const isMonitoringFromDB = newData.is_monitoring ?? false;
-          console.log("[Index] Monitoring status changed from DB:", isMonitoringFromDB);
+          console.log("[Index] ⚡ Monitoring status from Realtime:", isMonitoringFromDB);
           if (isMounted) {
             setIsMonitoring(isMonitoringFromDB);
           }
@@ -506,19 +500,15 @@ const Index = () => {
               mouseSensitivity?: string;
             };
             if (meta.alarm_pin) {
-              console.log("[Index] PIN updated from DB:", meta.alarm_pin);
               setAlarmPin(meta.alarm_pin);
               localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
             }
             if (meta.camouflage_mode !== undefined) {
               setIsCamouflageMode(meta.camouflage_mode);
-              console.log("[Index] Camouflage mode updated via Realtime:", meta.camouflage_mode);
             }
             if (meta.require_pc_pin !== undefined) {
               setRequirePcPin(meta.require_pc_pin);
-              console.log("[Index] require_pc_pin updated via Realtime:", meta.require_pc_pin);
             }
-            // alarm_sound_id는 컴퓨터 자체 설정 — DB에서 동기화하지 않음
             if (meta.sensorSettings) {
               const s = meta.sensorSettings;
               setSensorToggles({
@@ -530,46 +520,32 @@ const Index = () => {
                 microphone: s.microphone ?? false,
                 usb: s.usb ?? false,
               });
-              console.log("[Index] Sensor toggles updated via Realtime:", s);
             }
             if (meta.motionSensitivity) {
               const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
               setMotionThreshold(sensitivityMap[meta.motionSensitivity] ?? 15);
-              console.log("[Index] Motion threshold updated via Realtime:", meta.motionSensitivity);
             }
             if (meta.mouseSensitivity) {
               const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
               setMouseSensitivityPx(mouseMap[meta.mouseSensitivity] ?? 30);
-              console.log("[Index] Mouse sensitivity updated via Realtime:", meta.mouseSensitivity);
             }
           }
-
-          // Reset poll interval on realtime event
-          pollInterval = 2000;
         }
       )
       .subscribe((status, err) => {
         console.log("[Index] Monitoring channel status:", status, err);
-        
         if (status === "SUBSCRIBED") {
-          // Stop polling when realtime is working
-          stopPolling();
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          // Start fallback polling and retry subscription
-          startPolling();
-          retryTimeoutId = setTimeout(() => {
-            if (isMounted) channel.subscribe();
-          }, 3000);
-        } else if (status === "CLOSED") {
-          // Only start polling if component is still mounted
-          if (isMounted) startPolling();
+          realtimeWorking = true;
+          pollInterval = 10000; // Slow polling when RT works
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          realtimeWorking = false;
+          pollInterval = 3000; // Speed up polling when RT fails
         }
       });
 
     return () => {
       isMounted = false;
-      stopPolling();
-      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      if (pollTimeoutId) clearTimeout(pollTimeoutId);
       supabaseShared.removeChannel(channel);
     };
   }, [currentDevice?.id]);
