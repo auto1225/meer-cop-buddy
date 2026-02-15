@@ -11,7 +11,6 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
   const [isAlarmEnabled, setIsAlarmEnabled] = useState(true);
   const [isAlarming, setIsAlarming] = useState(false);
   const [selectedSoundId, setSelectedSoundId] = useState<string>(() => {
-    // Load from localStorage if available
     if (typeof window !== 'undefined') {
       return localStorage.getItem('meercop-alarm-sound') || DEFAULT_ALARM_SOUND_ID;
     }
@@ -19,7 +18,10 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
   });
   
   const audioContextRef = useRef<AudioContext | null>(null);
+  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
   const alarmIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const customAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Save selected sound to localStorage
@@ -27,7 +29,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     localStorage.setItem('meercop-alarm-sound', selectedSoundId);
   }, [selectedSoundId]);
 
-  // Get audio context (always create fresh since stopSound closes it)
+  // Get audio context
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -44,55 +46,120 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
     }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (oscillatorRef.current) {
+      try { oscillatorRef.current.stop(); } catch (e) {}
+      oscillatorRef.current = null;
+    }
     if (customAudioRef.current) {
       customAudioRef.current.pause();
       customAudioRef.current.currentTime = 0;
       customAudioRef.current = null;
     }
-    // Close AudioContext to immediately stop all scheduled oscillators
-    if (audioContextRef.current) {
-      try { audioContextRef.current.close(); } catch {}
-      audioContextRef.current = null;
-    }
+    gainRef.current = null;
   }, []);
 
-  // Play alarm with specific sound config (matching mobile app's playBuiltinSound)
+  // Play alarm with specific sound config
   const playAlarmSound = useCallback((config: AlarmSoundConfig) => {
     stopSound();
     const ctx = getAudioContext();
     
     const volumeMultiplier = volumePercent / 100;
-    const vol = config.volume * volumeMultiplier;
-
-    // Play one cycle of the sound pattern
-    const playCycle = () => {
-      if (!audioContextRef.current || audioContextRef.current.state === 'closed') return;
-      const currentCtx = audioContextRef.current;
-      let t = 0;
-      for (let i = 0; i < config.frequencies.length; i++) {
-        const osc = currentCtx.createOscillator();
-        const gain = currentCtx.createGain();
-        osc.connect(gain);
-        gain.connect(currentCtx.destination);
-        osc.frequency.value = config.frequencies[i];
-        osc.type = 'square';
-        gain.gain.value = vol;
-        osc.start(currentCtx.currentTime + t);
-        osc.stop(currentCtx.currentTime + t + config.pattern[i]);
-        t += config.pattern[i] + 0.05;
+    
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    oscillator.type = config.oscillatorType;
+    oscillator.frequency.value = config.baseFrequency;
+    gain.gain.value = config.volume * volumeMultiplier;
+    
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    
+    oscillatorRef.current = oscillator;
+    gainRef.current = gain;
+    
+    oscillator.start();
+    
+    switch (config.pattern) {
+      case 'police': {
+        const policeStep = () => {
+          if (!oscillatorRef.current || !audioContextRef.current) return;
+          const time = audioContextRef.current.currentTime;
+          const freq = config.baseFrequency + 
+            Math.sin(time * Math.PI * 2 / (config.interval / 1000)) * 
+            (config.altFrequency - config.baseFrequency) / 2;
+          oscillatorRef.current.frequency.value = freq;
+          animationFrameRef.current = requestAnimationFrame(policeStep);
+        };
+        policeStep();
+        break;
       }
-    };
 
-    // Play immediately then repeat
-    playCycle();
-    
-    // Calculate cycle duration
-    const cycleDuration = config.pattern.reduce((sum, p) => sum + p + 0.05, 0);
-    const intervalMs = Math.max(cycleDuration * 1000, 200);
-    
-    alarmIntervalRef.current = setInterval(() => {
-      playCycle();
-    }, intervalMs);
+      case 'klaxon': {
+        let klaxonOn = true;
+        alarmIntervalRef.current = setInterval(() => {
+          if (gainRef.current) {
+            gainRef.current.gain.value = klaxonOn ? config.volume * volumeMultiplier : 0;
+            klaxonOn = !klaxonOn;
+          }
+        }, config.interval);
+        break;
+      }
+
+      case 'air-raid': {
+        const airRaidStep = () => {
+          if (!oscillatorRef.current || !audioContextRef.current) return;
+          const time = audioContextRef.current.currentTime;
+          const cycle = (time * 1000 % config.interval) / config.interval;
+          const freq = cycle < 0.5 
+            ? config.baseFrequency + (config.altFrequency - config.baseFrequency) * (cycle * 2)
+            : config.altFrequency - (config.altFrequency - config.baseFrequency) * ((cycle - 0.5) * 2);
+          oscillatorRef.current.frequency.value = freq;
+          animationFrameRef.current = requestAnimationFrame(airRaidStep);
+        };
+        airRaidStep();
+        break;
+      }
+
+      case 'intruder': {
+        let intruderHigh = true;
+        alarmIntervalRef.current = setInterval(() => {
+          if (oscillatorRef.current) {
+            oscillatorRef.current.frequency.value = intruderHigh ? config.baseFrequency : config.altFrequency;
+            intruderHigh = !intruderHigh;
+          }
+        }, config.interval);
+        break;
+      }
+
+      case 'panic': {
+        let panicState = 0;
+        alarmIntervalRef.current = setInterval(() => {
+          if (oscillatorRef.current && gainRef.current) {
+            panicState = (panicState + 1) % 4;
+            oscillatorRef.current.frequency.value = panicState < 2 ? config.baseFrequency : config.altFrequency;
+            gainRef.current.gain.value = (panicState % 2 === 0) ? config.volume * volumeMultiplier : config.volume * 0.7 * volumeMultiplier;
+          }
+        }, config.interval);
+        break;
+      }
+
+      case 'siren':
+      default: {
+        let sirenHigh = true;
+        alarmIntervalRef.current = setInterval(() => {
+          if (oscillatorRef.current) {
+            oscillatorRef.current.frequency.value = sirenHigh ? config.baseFrequency : config.altFrequency;
+            sirenHigh = !sirenHigh;
+          }
+        }, config.interval);
+        break;
+      }
+    }
   }, [getAudioContext, stopSound, volumePercent]);
 
   // Play custom audio file
@@ -127,7 +194,6 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     }
     
     const soundConfig = getAlarmSoundById(selectedSoundId);
-    // Fallback to default if selected sound not found
     const configToPlay = soundConfig || getAlarmSoundById(DEFAULT_ALARM_SOUND_ID);
     if (configToPlay) playAlarmSound(configToPlay);
   }, [isAlarmEnabled, isAlarming, selectedSoundId, playAlarmSound, playCustomAudio, onAlarmStart]);
