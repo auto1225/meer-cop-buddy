@@ -212,22 +212,34 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean) {
     }
   }, [deviceId, isAuthenticated, updateDeviceOnlineStatus]);
 
-  // Handle page unload - set offline
+  // Handle page unload - set offline with all statuses
   useEffect(() => {
     if (!deviceId) return;
 
+    const SUPABASE_URL = "https://sltxwkdvaapyeosikegj.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdHh3a2R2YWFweWVvc2lrZWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNjg4MjQsImV4cCI6MjA4NTg0NDgyNH0.hj6A8YDTRMQkPid9hfw6vnGC2eQLTmv2JPmQRLv4sZ4";
+
     const handleBeforeUnload = () => {
-      // Use sendBeacon for reliable unload requests
-      const url = `https://sltxwkdvaapyeosikegj.supabase.co/rest/v1/devices?id=eq.${deviceId}`;
+      const url = `${SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`;
       const data = JSON.stringify({
         status: "offline",
+        is_network_connected: false,
+        is_camera_connected: false,
         updated_at: new Date().toISOString(),
       });
 
-      navigator.sendBeacon(
-        url,
-        new Blob([data], { type: "application/json" })
-      );
+      // fetch with keepalive supports custom headers unlike sendBeacon
+      fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Prefer": "return=minimal",
+        },
+        body: data,
+        keepalive: true,
+      }).catch(() => {});
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
