@@ -110,7 +110,12 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
     setDeviceName("");
     setRememberMe(false);
     setShowExitDialog(false);
+    // 프로그램 종료 시도
     window.close();
+    // 브라우저가 close를 허용하지 않는 경우 빈 페이지로 이동
+    setTimeout(() => {
+      window.location.href = "about:blank";
+    }, 300);
   };
 
   return (
@@ -199,7 +204,7 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
           <Button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full max-w-[240px] h-9 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold rounded-full text-sm"
+            className="w-full max-w-[240px] h-9 backdrop-blur-xl bg-white/20 border border-white/30 hover:bg-white/30 text-white font-extrabold rounded-full text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
           >
             {loading ? "확인 중..." : "연결하기"}
           </Button>
