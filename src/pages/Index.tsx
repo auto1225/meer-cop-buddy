@@ -46,10 +46,14 @@ const Index = () => {
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const { devices, refetch } = useDevices();
   
-  // Get the current device
+  // Get the current device (this laptop)
   const currentDevice = currentDeviceId 
     ? devices.find(d => d.id === currentDeviceId) 
     : devices[0];
+
+  // Detect smartphone online status from devices list
+  const smartphoneDevice = devices.find(d => d.device_type === 'smartphone');
+  const smartphoneOnline = smartphoneDevice?.status === 'online';
   
   const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated);
 
@@ -531,11 +535,11 @@ const Index = () => {
 
         {/* Status Icons - Real device status */}
         <LaptopStatusIcons
-          meercopStatus={isAuthenticated}
+          smartphoneStatus={smartphoneOnline}
           networkStatus={isNetworkConnected}
           cameraStatus={isCameraAvailable}
           onCameraClick={() => setIsCameraModalOpen(true)}
-          onMeercopClick={() => setIsLocationModalOpen(true)}
+          onSmartphoneClick={() => setIsLocationModalOpen(true)}
           onNetworkClick={() => setIsNetworkModalOpen(true)}
           onSettingsClick={() => setIsSettingsPanelOpen(true)}
         />
