@@ -84,6 +84,16 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     }
 
     console.log(`[WebRTC Broadcaster] Creating peer connection for ${sessionId}`);
+
+    // Clean up any stale broadcaster signals for this device before creating new offer
+    // This prevents the viewer from picking up an old offer with a different session_id
+    await supabaseShared
+      .from("webrtc_signaling")
+      .delete()
+      .eq("device_id", currentDeviceId)
+      .eq("sender_type", "broadcaster");
+    console.log(`[WebRTC Broadcaster] 🗑️ Cleared stale broadcaster signals for device ${currentDeviceId}`);
+
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     // Add local stream tracks with logging
