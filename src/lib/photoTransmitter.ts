@@ -157,18 +157,20 @@ async function sendViaChannel(
 export class PhotoTransmitter {
   private channel: RealtimeChannel | null = null;
   private deviceId: string;
+  private userId: string;
   private isConnected = false;
   private onlineHandler: (() => void) | null = null;
 
-  constructor(deviceId: string) {
+  constructor(deviceId: string, userId?: string) {
     this.deviceId = deviceId;
+    this.userId = userId || deviceId;
     this.setupChannel();
     this.setupOnlineListener();
   }
 
   private setupChannel(): void {
     // 기존 채널 확인 (싱글톤)
-    const channelName = `device-photos-${this.deviceId}`;
+    const channelName = `user-photos-${this.userId}`;
     const existing = supabaseShared.getChannels().find(
       ch => ch.topic === `realtime:${channelName}`
     );
