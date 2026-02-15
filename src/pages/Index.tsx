@@ -53,10 +53,9 @@ const Index = () => {
     : undefined;
 
   // Detect smartphone online status from devices list
+  // Only check 'status' column - is_network_connected can remain true even after app closes
   const smartphoneDevice = devices.find(d => d.device_type === 'smartphone');
-  const smartphoneOnline = smartphoneDevice
-    ? (smartphoneDevice.status === 'online' || smartphoneDevice.is_monitoring === true || smartphoneDevice.is_network_connected === true)
-    : false;
+  const smartphoneOnline = smartphoneDevice?.status === 'online';
   
   const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated);
 
