@@ -222,18 +222,18 @@ export default function SerialAuth({ onSuccess }: SerialAuthProps) {
 
         {/* Exit Confirmation Dialog */}
         <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-          <AlertDialogContent className="backdrop-blur-xl bg-white/15 border border-white/25 shadow-2xl max-w-[280px] rounded-2xl">
+          <AlertDialogContent className="backdrop-blur-2xl bg-black/40 border border-white/15 shadow-2xl max-w-[280px] rounded-2xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-white font-extrabold text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
                 종료하시겠습니까?
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-white/80 text-center text-xs">
+              <AlertDialogDescription className="text-white/70 text-center text-xs">
                 종료하면 저장된 <span className="font-bold text-white">컴퓨터 이름</span>과{" "}
                 <span className="font-bold text-white">시리얼 넘버</span>가 모두 삭제됩니다.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-row gap-2 sm:justify-center">
-              <AlertDialogCancel className="flex-1 bg-white/20 border-white/30 text-white hover:bg-white/30 hover:text-white rounded-full text-xs">
+              <AlertDialogCancel className="flex-1 backdrop-blur-xl bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white rounded-full text-xs">
                 취소
               </AlertDialogCancel>
               <AlertDialogAction
