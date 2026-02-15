@@ -236,28 +236,21 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       .delete()
       .eq("device_id", currentDeviceId);
 
+    // Clear all tracking refs for fresh session
+    processedViewerJoinsRef.current.clear();
+    processedAnswersRef.current.clear();
+    iceCandidateQueueRef.current.clear();
+
     const channelName = `webrtc-${currentDeviceId}`;
     
-    // Reuse existing channel if available
+    // Always remove existing channel to ensure fresh event handlers
     const existingChannel = supabaseShared.getChannels().find(
       ch => ch.topic === `realtime:${channelName}`
     );
     
     if (existingChannel) {
-      console.log("[WebRTC Broadcaster] ♻️ Reusing existing signaling channel");
-      channelRef.current = existingChannel;
-      setIsBroadcasting(true);
-      
-      // Also update camera status when reusing channel
-      await supabaseShared
-        .from("devices")
-        .update({ 
-          is_camera_connected: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", currentDeviceId);
-      
-      return;
+      console.log("[WebRTC Broadcaster] 🗑️ Removing stale signaling channel");
+      await supabaseShared.removeChannel(existingChannel);
     }
 
     // Subscribe to signaling channel
