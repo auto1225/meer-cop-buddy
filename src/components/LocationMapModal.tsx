@@ -20,8 +20,11 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState<string>("스마트폰");
+  const channelRef = useRef<ReturnType<typeof supabaseShared.channel> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchSmartphoneLocation = useCallback(async () => {
+  // Send locate request to smartphone and wait for response
+  const requestSmartphoneLocation = useCallback(async () => {
     if (!smartphoneDeviceId) {
       setError("연결된 스마트폰이 없습니다.");
       setIsLoading(false);
@@ -30,38 +33,107 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
 
     setIsLoading(true);
     setError(null);
+    setCoords(null);
 
     try {
-      const { data, error: fetchError } = await supabaseShared
+      // First get device name
+      const { data: deviceData } = await supabaseShared
         .from("devices")
-        .select("latitude, longitude, location_updated_at, device_name")
+        .select("device_name, latitude, longitude, location_updated_at, metadata")
         .eq("id", smartphoneDeviceId)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (deviceData?.device_name) setDeviceName(deviceData.device_name);
 
-      if (data?.device_name) setDeviceName(data.device_name);
+      // Write locate_requested timestamp to smartphone's metadata
+      const existingMeta = (deviceData?.metadata as Record<string, unknown>) || {};
+      const requestTimestamp = new Date().toISOString();
 
-      if (data?.latitude && data?.longitude) {
-        setCoords({ lat: data.latitude, lng: data.longitude });
-        setUpdatedAt(data.location_updated_at);
-      } else {
-        setError("스마트폰의 위치 정보가 아직 등록되지 않았습니다.\n스마트폰 앱에서 위치 업데이트를 실행해주세요.");
+      await supabaseShared
+        .from("devices")
+        .update({
+          metadata: { ...existingMeta, locate_requested: requestTimestamp },
+        } as Record<string, unknown>)
+        .eq("id", smartphoneDeviceId);
+
+      console.log("[LocationMap] Sent locate request to smartphone:", requestTimestamp);
+
+      // Subscribe to smartphone's location updates
+      if (channelRef.current) {
+        supabaseShared.removeChannel(channelRef.current);
       }
+
+      const channel = supabaseShared
+        .channel(`smartphone-locate-${smartphoneDeviceId}-${Date.now()}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "devices",
+            filter: `id=eq.${smartphoneDeviceId}`,
+          },
+          (payload) => {
+            const updated = payload.new as Record<string, unknown>;
+            const meta = updated.metadata as Record<string, unknown> | null;
+
+            // Check if locate_requested was cleared (smartphone responded)
+            if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
+              const lat = updated.latitude as number;
+              const lng = updated.longitude as number;
+              setCoords({ lat, lng });
+              setUpdatedAt(updated.location_updated_at as string);
+              setIsLoading(false);
+
+              // Clear timeout
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+              }
+            }
+          }
+        )
+        .subscribe();
+
+      channelRef.current = channel;
+
+      // Timeout: if no response in 20 seconds, show last known location or error
+      timeoutRef.current = setTimeout(() => {
+        if (deviceData?.latitude && deviceData?.longitude) {
+          setCoords({ lat: deviceData.latitude, lng: deviceData.longitude });
+          setUpdatedAt(deviceData.location_updated_at);
+          setError("스마트폰이 응답하지 않아 마지막 저장된 위치를 표시합니다.");
+        } else {
+          setError("스마트폰이 위치 요청에 응답하지 않습니다.\n스마트폰 앱이 실행 중인지 확인해주세요.");
+        }
+        setIsLoading(false);
+      }, 20000);
+
     } catch (err) {
-      console.error("[Location] Failed to fetch smartphone location:", err);
-      setError("스마트폰 위치 정보를 가져오는데 실패했습니다.");
-    } finally {
+      console.error("[LocationMap] Error:", err);
+      setError("위치 요청 중 오류가 발생했습니다.");
       setIsLoading(false);
     }
   }, [smartphoneDeviceId]);
 
+  // Trigger on open
   useEffect(() => {
     if (!isOpen) return;
-    fetchSmartphoneLocation();
-  }, [isOpen, fetchSmartphoneLocation]);
+    requestSmartphoneLocation();
 
-  // Initialize map when coords are ready
+    return () => {
+      if (channelRef.current) {
+        supabaseShared.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [isOpen, requestSmartphoneLocation]);
+
+  // Initialize map
   useEffect(() => {
     if (!isOpen || !coords || !mapRef.current) return;
 
@@ -110,8 +182,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     if (!iso) return "";
     const d = new Date(iso);
     const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMin = Math.floor(diffMs / 60000);
+    const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
     if (diffMin < 1) return "방금 전";
     if (diffMin < 60) return `${diffMin}분 전`;
     const diffHr = Math.floor(diffMin / 60);
@@ -122,7 +193,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-[90%] max-w-md overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl">
-        {/* Header - Glassmorphism */}
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/15">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-accent/20 flex items-center justify-center">
@@ -140,9 +211,10 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-white/70 hover:bg-white/15 rounded-lg"
-              onClick={fetchSmartphoneLocation}
+              onClick={requestSmartphoneLocation}
+              disabled={isLoading}
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
             <Button
               variant="ghost"
@@ -155,15 +227,16 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           </div>
         </div>
 
-        {/* Map Container */}
+        {/* Map */}
         <div className="relative w-full h-64">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/5 backdrop-blur-sm z-10">
               <Loader2 className="h-8 w-8 animate-spin text-accent mb-2" />
-              <span className="text-sm text-white/80 font-bold">스마트폰 위치를 가져오는 중...</span>
+              <span className="text-sm text-white/80 font-bold">스마트폰에 위치 요청 중...</span>
+              <span className="text-[10px] text-white/50 mt-1">스마트폰이 응답할 때까지 대기합니다</span>
             </div>
           )}
-          {error && (
+          {error && !isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/5 backdrop-blur-sm z-10 px-6">
               <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-3">
                 <MapPin className="h-6 w-6 text-white/60" />
@@ -174,14 +247,14 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           <div ref={mapRef} className="w-full h-full" />
         </div>
 
-        {/* Footer - Glassmorphism */}
+        {/* Footer */}
         {coords && (
           <div className="px-4 py-2.5 border-t border-white/10 text-center space-y-1">
             <p className="text-xs text-white/70 font-bold">
               위도: {coords.lat.toFixed(6)} | 경도: {coords.lng.toFixed(6)}
             </p>
             <p className="text-[10px] text-white/40 font-semibold">
-              📡 스마트폰 GPS 기반 위치 정보입니다.
+              📡 스마트폰 GPS 기반 실시간 위치 정보
             </p>
           </div>
         )}
