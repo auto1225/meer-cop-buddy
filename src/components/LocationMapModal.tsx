@@ -4,6 +4,8 @@ import "leaflet/dist/leaflet.css";
 import { X, MapPin, Loader2, Smartphone, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabaseShared } from "@/lib/supabase";
+import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
+import { getSavedAuth } from "@/lib/serialAuth";
 
 interface LocationMapModalProps {
   isOpen: boolean;
@@ -62,12 +64,11 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     mapInitializedRef.current = false;
 
     try {
-      // First get device name
-      const { data: deviceData } = await supabaseShared
-        .from("devices")
-        .select("device_name, latitude, longitude, location_updated_at, metadata")
-        .eq("id", smartphoneDeviceId)
-        .single();
+      const savedAuth = getSavedAuth();
+      const userId = savedAuth?.user_id;
+      
+      // Get device info via Edge Function
+      const deviceData = userId ? await fetchDeviceViaEdge(smartphoneDeviceId, userId) : null;
 
       if (deviceData?.device_name) setDeviceName(deviceData.device_name);
 
@@ -75,72 +76,55 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
       const existingMeta = (deviceData?.metadata as Record<string, unknown>) || {};
       const requestTimestamp = new Date().toISOString();
 
-      await supabaseShared
-        .from("devices")
-        .update({
-          metadata: { ...existingMeta, locate_requested: requestTimestamp },
-        } as Record<string, unknown>)
-        .eq("id", smartphoneDeviceId);
+      await updateDeviceViaEdge(smartphoneDeviceId, {
+        metadata: { ...existingMeta, locate_requested: requestTimestamp },
+      });
 
       console.log("[LocationMap] Sent locate request to smartphone:", requestTimestamp);
 
-      // Subscribe to smartphone's location updates
-      if (channelRef.current) {
-        supabaseShared.removeChannel(channelRef.current);
-      }
-
-      const channel = supabaseShared
-        .channel(`smartphone-locate-${smartphoneDeviceId}-${Date.now()}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "devices",
-            filter: `id=eq.${smartphoneDeviceId}`,
-          },
-          (payload) => {
-            // Ignore if we already got the location
-            if (locationReceivedRef.current) return;
-
-            const updated = payload.new as Record<string, unknown>;
+      // Poll for location updates via Edge Function (Realtime blocked by RLS)
+      const pollForLocation = async () => {
+        if (locationReceivedRef.current || !userId) return;
+        
+        const pollId = setInterval(async () => {
+          if (locationReceivedRef.current) {
+            clearInterval(pollId);
+            return;
+          }
+          try {
+            const updated = await fetchDeviceViaEdge(smartphoneDeviceId, userId);
+            if (!updated) return;
             const meta = updated.metadata as Record<string, unknown> | null;
-
-            // Check if locate_requested was cleared (smartphone responded)
+            
             if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
-              const lat = updated.latitude as number;
-              const lng = updated.longitude as number;
               locationReceivedRef.current = true;
-              setCoords({ lat, lng });
-              setUpdatedAt(updated.location_updated_at as string);
+              setCoords({ lat: updated.latitude, lng: updated.longitude });
+              setUpdatedAt(updated.location_updated_at || null);
               setLocationSource((meta.location_source as string) || null);
               setIsLoading(false);
-              fetchAddress(lat, lng);
-
-              // Clear timeout
+              fetchAddress(updated.latitude, updated.longitude);
+              clearInterval(pollId);
               if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
               }
-
-              // Unsubscribe — we have what we need
-              if (channelRef.current) {
-                supabaseShared.removeChannel(channelRef.current);
-                channelRef.current = null;
-              }
             }
+          } catch {
+            // silent
           }
-        )
-        .subscribe();
-
-      channelRef.current = channel;
+        }, 2000);
+        
+        // Store interval for cleanup
+        channelRef.current = { unsubscribe: () => clearInterval(pollId) } as any;
+      };
+      pollForLocation();
 
       // Timeout: if no response in 20 seconds, show last known location or error
       timeoutRef.current = setTimeout(() => {
         if (deviceData?.latitude && deviceData?.longitude) {
           const meta = (deviceData?.metadata as Record<string, unknown>) || {};
           setCoords({ lat: deviceData.latitude, lng: deviceData.longitude });
-          setUpdatedAt(deviceData.location_updated_at);
+          setUpdatedAt(deviceData.location_updated_at || null);
           setLocationSource((meta.location_source as string) || null);
           fetchAddress(deviceData.latitude, deviceData.longitude);
           setError("스마트폰이 응답하지 않아 마지막 저장된 위치를 표시합니다.");
@@ -164,7 +148,8 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
 
     return () => {
       if (channelRef.current) {
-        supabaseShared.removeChannel(channelRef.current);
+        // Could be a poll interval cleanup or a channel
+        try { (channelRef.current as any).unsubscribe?.(); } catch {}
         channelRef.current = null;
       }
       if (timeoutRef.current) {

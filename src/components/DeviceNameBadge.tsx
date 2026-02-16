@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { getSavedAuth } from "@/lib/serialAuth";
-import { supabaseShared } from "@/lib/supabase";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { useToast } from "@/hooks/use-toast";
 
 interface DeviceNameBadgeProps {
@@ -40,10 +40,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     try {
       // Update DB
       if (deviceId) {
-        await supabaseShared
-          .from("devices")
-          .update({ device_name: trimmed } as any)
-          .eq("id", deviceId);
+        await updateDeviceViaEdge(deviceId, { device_name: trimmed });
       }
 
       // Update localStorage
