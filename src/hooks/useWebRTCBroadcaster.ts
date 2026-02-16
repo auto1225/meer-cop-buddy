@@ -211,25 +211,15 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Connection recovered from disconnected`);
         }
 
-        // 🆕 키프레임 강제 생성: frameRate를 살짝 변경하여 인코더 리셋
+        // 🆕 키프레임 강제 생성: 트랙 토글로 인코더 리셋 → I-Frame 발생
         if (streamRef.current) {
           const videoTrack = streamRef.current.getVideoTracks()[0];
           if (videoTrack && videoTrack.readyState === "live") {
-            const currentConstraints = videoTrack.getConstraints();
-            // 방법 1: frameRate를 29↔30 토글하여 인코더가 새 I-Frame 생성하도록 강제
-            const currentFR = (currentConstraints.frameRate as any)?.ideal || 30;
-            const newFR = currentFR === 30 ? 29 : 30;
-            videoTrack.applyConstraints({
-              ...currentConstraints,
-              frameRate: { ideal: newFR, max: 30 },
-            })
-              .then(() => console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🎬 Keyframe forced (frameRate ${currentFR}→${newFR})`))
-              .catch((e) => {
-                console.warn(`[Broadcaster] [${sessionId.slice(-8)}] applyConstraints failed, using track toggle fallback`);
-                // 방법 2: 트랙 enabled 토글 (폴백)
-                videoTrack.enabled = false;
-                setTimeout(() => { videoTrack.enabled = true; }, 50);
-              });
+            videoTrack.enabled = false;
+            setTimeout(() => {
+              videoTrack.enabled = true;
+              console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🎬 I-Frame forced via track toggle`);
+            }, 50);
           }
         }
       } else if (pc.connectionState === "disconnected") {
