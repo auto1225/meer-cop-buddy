@@ -106,6 +106,9 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     throw lastError || new Error("Failed to access camera");
   };
 
+  const retryCountRef = useRef(0);
+  const MAX_AUTO_RETRIES = 2;
+
   const startCamera = useCallback(async () => {
     // Prevent multiple simultaneous attempts
     if (isLoading) return;
@@ -133,9 +136,22 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
       
       setStream(mediaStream);
       setIsStarted(true);
+      retryCountRef.current = 0;
       onStatusChange?.(true);
     } catch (err: any) {
       console.error("[Camera] ❌ Error:", err.name, err.message);
+      
+      // Auto-retry for NotFoundError (device may not be ready yet)
+      if (err.name === "NotFoundError" && retryCountRef.current < MAX_AUTO_RETRIES) {
+        retryCountRef.current++;
+        console.log(`[Camera] 🔄 Auto-retry ${retryCountRef.current}/${MAX_AUTO_RETRIES} in 1s...`);
+        setIsLoading(false);
+        setTimeout(() => {
+          startCamera();
+        }, 1000);
+        return;
+      }
+      
       setIsStarted(true);
       onStatusChange?.(false);
       
