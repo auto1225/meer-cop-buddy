@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 // Using shared Supabase client (same as MeerCOP mobile app)
 
@@ -66,10 +66,12 @@ export function useDevices(userId?: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isFirstLoad = useRef(true);
+
   const fetchDevices = useCallback(async () => {
     if (!userId) return;
     try {
-      setIsLoading(true);
+      if (isFirstLoad.current) setIsLoading(true);
       
       // Edge Function을 통해 기기 목록 조회 (RLS 우회, service_role 사용)
       const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
@@ -106,6 +108,7 @@ export function useDevices(userId?: string) {
       console.error("[useDevices] Error fetching devices:", err);
       setError("디바이스 목록을 불러오는데 실패했습니다.");
     } finally {
+      isFirstLoad.current = false;
       setIsLoading(false);
     }
   }, [userId]);

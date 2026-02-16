@@ -413,70 +413,49 @@ const Index = () => {
     syncAlarmSounds();
   }, [currentDevice?.id, savedAuth?.user_id]);
 
-  // Subscribe to monitoring_toggle via Broadcast channel + polling fallback
+  // Sync isMonitoring from devices data (useDevices already polls)
+  useEffect(() => {
+    if (!currentDevice) return;
+    const mon = (currentDevice as unknown as Record<string, unknown>).is_monitoring;
+    if (mon !== undefined) {
+      setIsMonitoring(prev => {
+        const val = mon === true;
+        if (prev !== val) console.log("[Index] 📡 Monitoring from devices:", val);
+        return val;
+      });
+    }
+  }, [currentDevice]);
+
+  // Subscribe to broadcast commands from smartphone (instant, no polling)
   useEffect(() => {
     if (!currentDevice?.id) return;
 
-    let isMounted = true;
-    let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    const pollInterval = 3000;
-
     const channelName = `device-commands-${currentDevice.id}`;
     console.log("[Index] 🔌 Subscribing to broadcast channel:", channelName);
-
-    // Fetch monitoring status via Edge Function (RLS-safe)
-    const fetchStatus = async () => {
-      if (!isMounted || !savedAuth?.user_id) return;
-      try {
-        const myDevice = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
-        if (myDevice && isMounted) {
-          const isMonitoringFromDB = (myDevice as unknown as Record<string, unknown>).is_monitoring ?? false;
-          setIsMonitoring(prev => {
-            if (prev !== isMonitoringFromDB) {
-              console.log("[Index] 📡 Monitoring status from poll:", isMonitoringFromDB);
-            }
-            return isMonitoringFromDB as boolean;
-          });
-        }
-      } catch (err) {
-        console.error("[Index] Poll fetch error:", err);
-      }
-    };
-
-    // Polling fallback
-    const schedulePoll = () => {
-      if (!isMounted) return;
-      pollTimeoutId = setTimeout(async () => {
-        await fetchStatus();
-        await refetch();
-        schedulePoll();
-      }, pollInterval);
-    };
 
     // Remove any existing channel with same name to avoid duplicates
     const existingChannels = supabaseShared.getChannels();
     const existing = existingChannels.find(ch => ch.topic === `realtime:${channelName}`);
     if (existing) {
-      console.log("[Index] ♻️ Removing existing channel:", channelName);
       supabaseShared.removeChannel(existing);
     }
 
-    // Broadcast listener for instant monitoring_toggle from smartphone
     const channel = supabaseShared.channel(channelName);
     
     channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
       const isOn = payload.payload?.is_monitoring ?? false;
-      console.log("[Index] 📲 Broadcast monitoring_toggle received:", isOn, "payload:", JSON.stringify(payload));
+      console.log("[Index] 📲 Broadcast monitoring_toggle received:", isOn);
       setIsMonitoring(isOn);
+      refetch();
     });
     
-    channel.on('broadcast', { event: 'settings_update' }, (payload) => {
-      console.log("[Index] 📲 Broadcast settings_update received:", payload.payload);
+    channel.on('broadcast', { event: 'settings_update' }, () => {
+      console.log("[Index] 📲 Broadcast settings_update received");
       refetch();
     });
 
-    channel.on('broadcast', { event: 'remote_alarm_off' }, (payload) => {
-      console.log("[Index] 📲 Broadcast remote_alarm_off received:", payload.payload);
+    channel.on('broadcast', { event: 'remote_alarm_off' }, () => {
+      console.log("[Index] 📲 Broadcast remote_alarm_off received");
       stopAlarm();
       setCurrentEventType(undefined);
       setShowPinKeypad(false);
@@ -484,22 +463,13 @@ const Index = () => {
     });
 
     channel.subscribe((status) => {
-      console.log("[Index] 📡 device-commands channel:", channelName, "status:", status);
-      if (status === 'SUBSCRIBED') {
-        console.log("[Index] ✅ Successfully subscribed to device commands");
-      }
+      console.log("[Index] 📡 device-commands channel status:", status);
     });
 
-    // Initial fetch + polling
-    fetchStatus();
-    schedulePoll();
-
     return () => {
-      isMounted = false;
-      if (pollTimeoutId) clearTimeout(pollTimeoutId);
       supabaseShared.removeChannel(channel);
     };
-  }, [currentDevice?.id, savedAuth?.user_id, refetch, stopAlarm]);
+  }, [currentDevice?.id, refetch, stopAlarm]);
 
   // When smartphone goes offline, force stop monitoring
   useEffect(() => {

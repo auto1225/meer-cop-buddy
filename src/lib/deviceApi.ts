@@ -1,5 +1,9 @@
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
 
+// Local Supabase URL for proxy Edge Functions (this project)
+const LOCAL_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const LOCAL_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 /**
  * Edge Function을 통한 디바이스 API (RLS 우회)
  * 공유 Supabase의 get-devices / update-device Edge Function을 호출
@@ -57,11 +61,11 @@ export async function updateDeviceViaEdge(
   deviceId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
-  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+  const res = await fetch(`${LOCAL_SUPABASE_URL}/functions/v1/proxy-update-device`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "apikey": SHARED_SUPABASE_ANON_KEY,
+      "apikey": LOCAL_SUPABASE_KEY,
     },
     body: JSON.stringify({ device_id: deviceId, updates }),
   });
