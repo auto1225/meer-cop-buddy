@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Camera, Video, Loader2, Radio, Users, Volume2, VolumeX, Circle, Pause, Play } from "lucide-react";
+import { X, Camera, Video, VideoOff, Loader2, Radio, Users, Volume2, VolumeX, Circle, Pause, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCamera } from "@/hooks/useCamera";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
@@ -47,6 +47,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
   const animFrameRef = useRef<number>(0);
   const pauseCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const broadcastStartedRef = useRef(false);
+  const [isCameraLost, setIsCameraLost] = useState(false);
 
   // Auto-start camera when modal opens
   useEffect(() => {
@@ -59,6 +60,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
   useEffect(() => {
     if (stream && deviceId && !isBroadcasting && !broadcastStartedRef.current) {
       broadcastStartedRef.current = true;
+      setIsCameraLost(false);
       startBroadcasting(stream);
     }
   }, [stream, deviceId, isBroadcasting, startBroadcasting]);
@@ -71,6 +73,44 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
       }
     }
   }, [isOpen, stream, stopBroadcasting]);
+
+  // Detect camera disconnect during streaming via track state
+  useEffect(() => {
+    if (!stream || !isOpen) return;
+    
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    const handleTrackEnded = () => {
+      console.log("[CameraModal] ⚠️ Video track ended — camera lost");
+      setIsCameraLost(true);
+    };
+
+    videoTrack.addEventListener("ended", handleTrackEnded);
+    return () => videoTrack.removeEventListener("ended", handleTrackEnded);
+  }, [stream, isOpen]);
+
+  // Listen for camera reconnection via camera-status-changed event
+  useEffect(() => {
+    if (!isCameraLost || !isOpen) return;
+
+    const handleCameraReconnect = async (e: Event) => {
+      const { isConnected } = (e as CustomEvent).detail;
+      if (isConnected) {
+        console.log("[CameraModal] 🔄 Camera reconnected — restarting...");
+        setIsCameraLost(false);
+        broadcastStartedRef.current = false;
+        // Stop old broadcast, then restart camera
+        await stopBroadcasting();
+        reset();
+        // Small delay for hardware readiness
+        setTimeout(() => startCamera(), 500);
+      }
+    };
+
+    window.addEventListener("camera-status-changed", handleCameraReconnect);
+    return () => window.removeEventListener("camera-status-changed", handleCameraReconnect);
+  }, [isCameraLost, isOpen, stopBroadcasting, reset, startCamera]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -290,6 +330,28 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
                 muted
                 className="w-full rounded-xl bg-black aspect-video object-cover"
               />
+
+              {/* Camera disconnected overlay */}
+              {isCameraLost && (
+                <div className="absolute inset-0 rounded-xl bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10">
+                  <VideoOff className="w-10 h-10 text-white/60" />
+                  <p className="text-white/80 text-sm font-bold">카메라가 인식되지 않습니다</p>
+                  <p className="text-white/50 text-xs">카메라를 다시 연결하면 자동으로 재생됩니다</p>
+                  <Button
+                    onClick={() => {
+                      setIsCameraLost(false);
+                      broadcastStartedRef.current = false;
+                      stopBroadcasting();
+                      reset();
+                      setTimeout(() => startCamera(), 300);
+                    }}
+                    className="mt-1 bg-white/15 border border-white/20 text-white hover:bg-white/25 font-bold text-xs backdrop-blur-sm"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    다시 시도
+                  </Button>
+                </div>
+              )}
 
               {/* Frozen frame overlay when paused */}
               {isPaused && pauseCanvasRef.current && (
