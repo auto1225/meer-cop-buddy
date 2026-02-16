@@ -319,25 +319,34 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     }
   }, [deviceId, generateSessionId, handleRemoteDescription, handleIceCandidate, updateStream]);
 
+  // ⚠️ 동기적으로 PeerConnection을 즉시 닫고 모든 상태를 초기화
   const disconnect = useCallback(async () => {
+    // 1. PeerConnection 즉시 close (동기)
     if (pcRef.current) {
+      pcRef.current.ontrack = null;
+      pcRef.current.onicecandidate = null;
+      pcRef.current.onconnectionstatechange = null;
       pcRef.current.close();
       pcRef.current = null;
     }
     iceCandidateQueueRef.current = [];
 
+    // 2. Realtime 채널 해제
     if (channelRef.current) {
       await supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
+    // 3. 시그널링 데이터 정리
     if (sessionIdRef.current) {
       await supabase
         .from("webrtc_signaling")
         .delete()
         .eq("session_id", sessionIdRef.current);
+      sessionIdRef.current = "";
     }
 
+    // 4. 모든 상태 플래그 리셋
     setRemoteStream(null);
     setIsConnected(false);
     isConnectedRef.current = false;
@@ -345,11 +354,37 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     isConnectingRef.current = false;
     remoteDescriptionSetRef.current = false;
     answerSentRef.current = false;
-    console.log("[WebRTC Viewer] 연결 해제됨");
+    console.log("[WebRTC Viewer] 연결 해제됨 (full cleanup)");
   }, []);
+
+  // 🔄 재연결 함수 — disconnect → 디바운스 → connect 순서 보장
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const reconnect = useCallback(async () => {
+    console.log("[WebRTC Viewer] 🔄 재연결 시작 — 기존 연결 정리 중...");
+
+    // 이전 재연결 타이머 취소
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+
+    // 1. 기존 연결 완전 정리
+    await disconnect();
+
+    // 2. 디바운스: 1초 대기 (좀비 시그널이 지나가도록)
+    reconnectTimerRef.current = setTimeout(() => {
+      reconnectTimerRef.current = null;
+      console.log("[WebRTC Viewer] 🔄 디바운스 완료, 새 연결 시도");
+      connect();
+    }, 1000);
+  }, [disconnect, connect]);
 
   useEffect(() => {
     return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
       disconnect();
     };
   }, [disconnect]);
@@ -361,6 +396,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     remoteStream,
     connect,
     disconnect,
+    reconnect, // 🆕 재연결 함수 노출
   };
 }
 ```
@@ -389,7 +425,7 @@ interface CameraViewerProps {
 }
 
 export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
-  const { isConnecting, isConnected, error, remoteStream, connect, disconnect } =
+  const { isConnecting, isConnected, error, remoteStream, connect, disconnect, reconnect } =
     useWebRTCViewer({ deviceId });
 
   // 컴포넌트 마운트 시 자동 연결
@@ -400,19 +436,28 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
     };
   }, []);
 
+  // 🔄 카메라 재연결 감지 시 자동 재연결
+  // broadcaster-ready 시그널 또는 is_camera_connected 변경 감지 시 호출
+  const handleCameraReconnected = useCallback(() => {
+    console.log("[CameraViewer] 📷 카메라 재연결 감지 → reconnect 호출");
+    reconnect(); // disconnect → 1초 디바운스 → connect
+  }, [reconnect]);
+
+  // 예: broadcaster-ready 시그널 수신 시
+  useEffect(() => {
+    // Supabase Realtime으로 broadcaster-ready 감지하는 로직에서
+    // handleCameraReconnected()를 호출하세요
+  }, [handleCameraReconnected]);
+
   const handleClose = useCallback(() => {
     disconnect();
     onClose();
   }, [disconnect, onClose]);
 
-  // RTCView의 streamURL — remoteStream이 변경될 때마다 자동 갱신됨
-  // react-native-webrtc의 RTCView는 streamURL 변경 시 자동으로 영상을 재생하므로
-  // 별도의 play() 호출이나 srcObject 재할당이 불필요합니다.
   const streamURL = remoteStream?.toURL?.() || "";
 
   return (
     <View style={styles.container}>
-      {/* 헤더 */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>실시간 카메라</Text>
@@ -428,7 +473,6 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
         </TouchableOpacity>
       </View>
 
-      {/* 비디오 영역 */}
       <View style={styles.videoContainer}>
         {isConnecting && (
           <View style={styles.loadingContainer}>
@@ -440,18 +484,12 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={connect} style={styles.retryButton}>
+            <TouchableOpacity onPress={reconnect} style={styles.retryButton}>
               <Text style={styles.retryButtonText}>다시 시도</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* 
-          RTCView 핵심 설정:
-          - streamURL: remoteStream.toURL()로 직접 전달
-          - objectFit: "contain"으로 영상 비율 유지 (cover는 찌그러짐 유발)
-          - RTCView는 streamURL이 변경되면 자동으로 재생을 시작함
-        */}
         {remoteStream && (
           <RTCView
             streamURL={streamURL}
@@ -474,7 +512,6 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
         )}
       </View>
 
-      {/* 컨트롤 영역 */}
       {isConnected && (
         <View style={styles.controls}>
           <TouchableOpacity style={styles.snapshotButton}>
@@ -548,10 +585,30 @@ CREATE TABLE public.webrtc_signaling (
 3. 네트워크 연결 상태 확인
 4. STUN 서버 접근 가능 여부 확인
 
+### 재연결 시 readyState: 0 (영상 안 나옴) 해결
+
+**원인**: 카메라 재연결 시 이전 세션의 좀비 시그널(Offer, ICE)이 새 연결과 충돌하여 `setRemoteDescription`이 중복 실행되고 PeerConnection 트랙 상태가 손상됩니다.
+
+**해결 3단계** (반드시 이 순서로):
+
+1. **즉시 정리 (동기적)**: 카메라 끊김 감지 시 `RTCPeerConnection.close()` + `srcObject = null` + `video.load()` 즉시 실행
+2. **디바운스 대기**: 1초간 대기하여 좀비 시그널이 지나가도록 함
+3. **새 세션으로 연결**: 새 `sessionId` 발급 후 `connect()` 호출
+
+```javascript
+// ❌ 잘못된 방법 (즉시 재연결)
+onCameraReconnected → connect()
+
+// ✅ 올바른 방법 (정리 → 대기 → 연결)
+onCameraReconnected → disconnect() → setTimeout(1000) → connect()
+```
+
+**`reconnect()` 함수를 사용하세요** — 위 3단계가 모두 내장되어 있습니다.
+
 ### 영상이 끊길 때
 
 1. 네트워크 대역폭 확인
-2. WiFi vs LTE 전환 시 재연결 필요
+2. WiFi vs LTE 전환 시 `reconnect()` 호출 필요
 3. 배터리 절전 모드 해제
 
 ### iOS에서 작동하지 않을 때
