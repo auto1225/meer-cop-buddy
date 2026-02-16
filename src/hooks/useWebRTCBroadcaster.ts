@@ -340,18 +340,12 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         !creatingPeerRef.current.has(join.session_id)
       );
 
-      // If there are new viewers but NO active connected peers, 
-      // the stream might be stale — trigger full restart
-      if (newJoins.length > 0) {
-        const hasActivePeer = Array.from(peersRef.current.values()).some(
-          p => p.pc.connectionState === "connected" || p.pc.connectionState === "connecting"
-        );
-        
-        if (!hasActivePeer || isVideoStale) {
-          console.log(`[Broadcaster] 🔄 New viewer detected with ${hasActivePeer ? 'stale video' : 'no active peers'} — requesting full restart`);
-          window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
-          return;
-        }
+      // Only restart if video track is actually stale (muted/disabled),
+      // NOT just because there are no active peers (that's normal for first viewer)
+      if (newJoins.length > 0 && isVideoStale) {
+        console.log(`[Broadcaster] 🔄 New viewer detected with stale video track — requesting full restart`);
+        window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
+        return;
       }
 
       for (const join of newJoins) {
@@ -441,16 +435,6 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
               !peersRef.current.has(sid) &&
               !creatingPeerRef.current.has(sid)
             ) {
-              // Check if we need a restart (no active peers = stale stream likely)
-              const hasActivePeer = Array.from(peersRef.current.values()).some(
-                p => p.pc.connectionState === "connected" || p.pc.connectionState === "connecting"
-              );
-              if (!hasActivePeer && peersRef.current.size === 0) {
-                console.log(`[Broadcaster] 🔄 Realtime: New viewer with no active peers — requesting restart`);
-                window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
-                return;
-              }
-              
               processedViewerJoinsRef.current.add(sid);
               console.log(`[Broadcaster] 👋 Realtime viewer: ${sid}`);
               await createPeerConnectionAndOffer(sid);
