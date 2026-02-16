@@ -211,17 +211,22 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Connection recovered from disconnected`);
         }
 
-        // 🆕 키프레임 강제 생성: 새 뷰어가 즉시 영상을 볼 수 있도록
+        // 🆕 키프레임 강제 생성: frameRate를 살짝 변경하여 인코더 리셋
         if (streamRef.current) {
           const videoTrack = streamRef.current.getVideoTracks()[0];
           if (videoTrack && videoTrack.readyState === "live") {
-            // 방법 1: applyConstraints로 인코더 리셋 → 키프레임 발생
             const currentConstraints = videoTrack.getConstraints();
-            videoTrack.applyConstraints(currentConstraints)
-              .then(() => console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🎬 Keyframe forced via applyConstraints`))
+            // 방법 1: frameRate를 29↔30 토글하여 인코더가 새 I-Frame 생성하도록 강제
+            const currentFR = (currentConstraints.frameRate as any)?.ideal || 30;
+            const newFR = currentFR === 30 ? 29 : 30;
+            videoTrack.applyConstraints({
+              ...currentConstraints,
+              frameRate: { ideal: newFR, max: 30 },
+            })
+              .then(() => console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🎬 Keyframe forced (frameRate ${currentFR}→${newFR})`))
               .catch((e) => {
                 console.warn(`[Broadcaster] [${sessionId.slice(-8)}] applyConstraints failed, using track toggle fallback`);
-                // 방법 2: 트랙 enabled 토글 (applyConstraints 실패 시 폴백)
+                // 방법 2: 트랙 enabled 토글 (폴백)
                 videoTrack.enabled = false;
                 setTimeout(() => { videoTrack.enabled = true; }, 50);
               });
