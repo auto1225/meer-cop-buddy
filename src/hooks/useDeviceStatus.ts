@@ -217,20 +217,20 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
 
     const sendOfflineBeacon = () => {
-      // sendBeacon은 브라우저 종료 시에도 안정적으로 전송됨
-      const url = `${SHARED_SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`;
+      // Edge Function으로 오프라인 상태 전송 (sendBeacon은 POST만 지원)
+      const url = `${SHARED_SUPABASE_URL}/functions/v1/update-device`;
       const body = JSON.stringify({
-        status: "offline",
-        is_network_connected: false,
-        is_camera_connected: false,
-        updated_at: new Date().toISOString(),
+        device_id: deviceId,
+        updates: {
+          status: "offline",
+          is_network_connected: false,
+          is_camera_connected: false,
+          updated_at: new Date().toISOString(),
+        },
       });
-      const headers = {
-        type: "application/json",
-      };
-      const blob = new Blob([body], headers);
+      const blob = new Blob([body], { type: "application/json" });
       
-      const sent = navigator.sendBeacon(url + `&apikey=${SHARED_SUPABASE_ANON_KEY}`, blob);
+      const sent = navigator.sendBeacon(url, blob);
       console.log(`[DeviceStatus] 🚪 sendBeacon offline: ${sent}`);
     };
 
