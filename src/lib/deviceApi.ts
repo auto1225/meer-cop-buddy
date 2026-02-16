@@ -54,17 +54,27 @@ export async function fetchDeviceViaEdge(deviceId: string, userId: string): Prom
   return devices.find(d => d.id === deviceId) || null;
 }
 
-/** 기기 정보 업데이트 (직접 supabaseShared 사용 - RLS open for update) */
+/** 기기 정보 업데이트 (REST API 직접 호출 - 스키마 캐시 우회) */
 export async function updateDeviceViaEdge(
   deviceId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
-  const { error } = await supabaseShared
-    .from("devices")
-    .update(updates)
-    .eq("id", deviceId);
+  const res = await fetch(
+    `${SHARED_SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SHARED_SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SHARED_SUPABASE_ANON_KEY}`,
+        "Prefer": "return=minimal",
+      },
+      body: JSON.stringify(updates),
+    }
+  );
 
-  if (error) {
-    throw new Error(`update-device failed: ${error.message}`);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`update-device failed: ${err}`);
   }
 }
