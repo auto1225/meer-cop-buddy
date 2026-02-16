@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { getSavedAuth } from "@/lib/serialAuth";
-import { updateDeviceViaEdge } from "@/lib/deviceApi";
+import { updateDeviceViaEdge, fetchDevicesViaEdge } from "@/lib/deviceApi";
 import { useToast } from "@/hooks/use-toast";
 
 interface DeviceNameBadgeProps {
@@ -38,13 +38,27 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
     setIsSaving(true);
     try {
-      // Update DB
+      const saved = getSavedAuth();
+
+      // 중복 이름 검사
+      if (saved?.user_id) {
+        const allDevices = await fetchDevicesViaEdge(saved.user_id);
+        const duplicate = allDevices.find(
+          d => d.id !== deviceId && (d.device_name === trimmed || d.name === trimmed)
+        );
+        if (duplicate) {
+          toast({ title: "중복된 이름", description: `"${trimmed}" 이름은 이미 다른 기기에서 사용 중입니다.`, variant: "destructive" });
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Update DB via Edge Function
       if (deviceId) {
-        await updateDeviceViaEdge(deviceId, { device_name: trimmed });
+        await updateDeviceViaEdge(deviceId, { name: trimmed });
       }
 
       // Update localStorage
-      const saved = getSavedAuth();
       if (saved) {
         saved.device_name = trimmed;
         localStorage.setItem("meercop_serial_auth", JSON.stringify(saved));
