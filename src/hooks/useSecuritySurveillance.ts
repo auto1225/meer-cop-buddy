@@ -159,6 +159,8 @@ export function useSecuritySurveillance({
   const startSurveillance = useCallback(async () => {
     if (isMonitoringRef.current) return true;
 
+    // 카메라 접근 시도 (실패해도 다른 센서는 작동)
+    let cameraAvailable = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 } },
@@ -171,6 +173,8 @@ export function useSecuritySurveillance({
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+
+      cameraAvailable = true;
 
       // 모션 감지기 초기화
       motionDetectorRef.current = new MotionDetector(
@@ -208,111 +212,109 @@ export function useSecuritySurveillance({
           }
         }
       }, captureInterval);
-
-      // Keyboard listener
-      const handleKeyboard = (e: KeyboardEvent) => {
-        if (isMonitoringRef.current && sensorTogglesRef.current.keyboard) {
-          console.log("[Surveillance] Keyboard detected:", e.key);
-          triggerEvent("keyboard");
-        }
-      };
-
-      // Mouse listener — accumulate distance within 200ms window
-      const MOUSE_TIME_WINDOW = 200; // ms
-      const handleMouse = (e: MouseEvent) => {
-        if (!isMonitoringRef.current || !sensorTogglesRef.current.mouse) return;
-        const currentPos = { x: e.clientX, y: e.clientY };
-        const now = Date.now();
-
-        if (lastMousePosition.current) {
-          const dx = currentPos.x - lastMousePosition.current.x;
-          const dy = currentPos.y - lastMousePosition.current.y;
-          const segmentDist = Math.sqrt(dx * dx + dy * dy);
-
-          const accum = mouseMovementAccum.current;
-          if (now - accum.startTime > MOUSE_TIME_WINDOW) {
-            // Start new window
-            accum.distance = segmentDist;
-            accum.startTime = now;
-          } else {
-            accum.distance += segmentDist;
-          }
-
-          // Check threshold within the time window
-          if (accum.distance >= mouseSensitivity) {
-            console.log(
-              "[Surveillance] Mouse movement detected:",
-              accum.distance.toFixed(0),
-              "px in 200ms (threshold:", mouseSensitivity, "px)"
-            );
-            triggerEvent("mouse");
-            // Reset accumulator after triggering
-            accum.distance = 0;
-            accum.startTime = now;
-          }
-        }
-
-        lastMousePosition.current = currentPos;
-      };
-
-      // Power detection
-      let lastChargingState: boolean | null = null;
-      const handleChargingChange = (charging: boolean) => {
-        if (!isMonitoringRef.current || !sensorTogglesRef.current.power) return;
-        if (lastChargingState === true && charging === false) {
-          console.log("[Surveillance] Power unplugged detected!");
-          triggerEvent("power");
-        }
-        lastChargingState = charging;
-      };
-
-      const setupBatteryMonitoring = async () => {
-        try {
-          // @ts-ignore
-          if ("getBattery" in navigator) {
-            // @ts-ignore
-            const battery = await navigator.getBattery();
-            lastChargingState = battery.charging;
-            battery.addEventListener("chargingchange", () => {
-              handleChargingChange(battery.charging);
-            });
-            (window as any).__meercop_battery = battery;
-          }
-        } catch (err) {
-          console.log("[Surveillance] Battery API error:", err);
-        }
-      };
-
-      setupBatteryMonitoring();
-
-      // Lid close detection
-      const handleVisibilityChange = () => {
-        if (!isMonitoringRef.current || !sensorTogglesRef.current.lid) return;
-        if (document.hidden) {
-          console.log("[Surveillance] Lid closed / screen hidden detected!");
-          triggerEvent("lid");
-        }
-      };
-
-      window.addEventListener("keydown", handleKeyboard);
-      window.addEventListener("mousemove", handleMouse);
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-
-      (window as any).__meercop_keyboard_handler = handleKeyboard;
-      (window as any).__meercop_mouse_handler = handleMouse;
-      (window as any).__meercop_visibility_handler = handleVisibilityChange;
-
-      console.log(
-        "[Surveillance] Started - monitoring keyboard, mouse, power, lid, camera motion"
-      );
-      isMonitoringRef.current = true;
-      setIsActive(true);
-
-      return true;
     } catch (error) {
-      console.error("Failed to start surveillance:", error);
-      return false;
+      console.warn("[Surveillance] Camera unavailable — non-camera sensors will still work:", error);
     }
+
+    // === 카메라 성공 여부와 무관하게 항상 센서 리스너 등록 ===
+
+    // Keyboard listener
+    const handleKeyboard = (e: KeyboardEvent) => {
+      if (isMonitoringRef.current && sensorTogglesRef.current.keyboard) {
+        console.log("[Surveillance] Keyboard detected:", e.key);
+        triggerEvent("keyboard");
+      }
+    };
+
+    // Mouse listener — accumulate distance within 200ms window
+    const MOUSE_TIME_WINDOW = 200; // ms
+    const handleMouse = (e: MouseEvent) => {
+      if (!isMonitoringRef.current || !sensorTogglesRef.current.mouse) return;
+      const currentPos = { x: e.clientX, y: e.clientY };
+      const now = Date.now();
+
+      if (lastMousePosition.current) {
+        const dx = currentPos.x - lastMousePosition.current.x;
+        const dy = currentPos.y - lastMousePosition.current.y;
+        const segmentDist = Math.sqrt(dx * dx + dy * dy);
+
+        const accum = mouseMovementAccum.current;
+        if (now - accum.startTime > MOUSE_TIME_WINDOW) {
+          accum.distance = segmentDist;
+          accum.startTime = now;
+        } else {
+          accum.distance += segmentDist;
+        }
+
+        if (accum.distance >= mouseSensitivity) {
+          console.log(
+            "[Surveillance] Mouse movement detected:",
+            accum.distance.toFixed(0),
+            "px in 200ms (threshold:", mouseSensitivity, "px)"
+          );
+          triggerEvent("mouse");
+          accum.distance = 0;
+          accum.startTime = now;
+        }
+      }
+
+      lastMousePosition.current = currentPos;
+    };
+
+    // Power detection
+    let lastChargingState: boolean | null = null;
+    const handleChargingChange = (charging: boolean) => {
+      if (!isMonitoringRef.current || !sensorTogglesRef.current.power) return;
+      if (lastChargingState === true && charging === false) {
+        console.log("[Surveillance] Power unplugged detected!");
+        triggerEvent("power");
+      }
+      lastChargingState = charging;
+    };
+
+    const setupBatteryMonitoring = async () => {
+      try {
+        // @ts-ignore
+        if ("getBattery" in navigator) {
+          // @ts-ignore
+          const battery = await navigator.getBattery();
+          lastChargingState = battery.charging;
+          battery.addEventListener("chargingchange", () => {
+            handleChargingChange(battery.charging);
+          });
+          (window as any).__meercop_battery = battery;
+        }
+      } catch (err) {
+        console.log("[Surveillance] Battery API error:", err);
+      }
+    };
+
+    setupBatteryMonitoring();
+
+    // Lid close detection
+    const handleVisibilityChange = () => {
+      if (!isMonitoringRef.current || !sensorTogglesRef.current.lid) return;
+      if (document.hidden) {
+        console.log("[Surveillance] Lid closed / screen hidden detected!");
+        triggerEvent("lid");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyboard);
+    window.addEventListener("mousemove", handleMouse);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    (window as any).__meercop_keyboard_handler = handleKeyboard;
+    (window as any).__meercop_mouse_handler = handleMouse;
+    (window as any).__meercop_visibility_handler = handleVisibilityChange;
+
+    console.log(
+      `[Surveillance] Started - camera: ${cameraAvailable ? "ON" : "OFF"}, monitoring keyboard, mouse, power, lid`
+    );
+    isMonitoringRef.current = true;
+    setIsActive(true);
+
+    return true;
   }, [
     captureInterval,
     capturePhoto,
