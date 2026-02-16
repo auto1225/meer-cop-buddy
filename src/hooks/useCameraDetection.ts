@@ -7,16 +7,15 @@ interface CameraDetectionOptions {
 
 /**
  * Camera detection hook - DB only (no Presence)
- * Uses "sticky true" pattern: transitioning from true→false requires
- * multiple consecutive confirmations to prevent transient false readings.
+ * 
+ * Key design: devicechange events can ONLY upgrade status (false→true).
+ * Downgrade (true→false) is NEVER done via enumerateDevices() because
+ * browsers return inconsistent results during stream acquisition/release.
+ * The offline/unload handler in useDeviceStatus handles the true→false case.
  */
 export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const lastStatusRef = useRef<boolean | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const consecutiveFalseRef = useRef(0);
-  const REQUIRED_FALSE_COUNT = 3; // Need 3 consecutive false readings to flip to false
-  const DEBOUNCE_MS = 1500;
-  const RECHECK_INTERVAL = 500;
 
   const checkCameraAvailability = useCallback(async (): Promise<boolean> => {
     try {
@@ -48,67 +47,33 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     }
   }, [deviceId]);
 
-  // Stable check: for true→false, require multiple consecutive false readings
-  const stableCheck = useCallback(async () => {
-    const result = await checkCameraAvailability();
-
-    if (result) {
-      // Camera detected → immediately trust it, reset false counter
-      consecutiveFalseRef.current = 0;
-      console.log("[CameraDetection] ✅ Camera detected (immediate trust)");
+  // Only upgrades (false→true). Never downgrades via enumerateDevices.
+  const checkAndUpgrade = useCallback(async () => {
+    const hasCamera = await checkCameraAvailability();
+    if (hasCamera) {
       await updateCameraStatus(true);
-    } else {
-      // Camera NOT detected
-      if (lastStatusRef.current === true || lastStatusRef.current === null) {
-        // Was true (or unknown) → need multiple confirmations before flipping
-        consecutiveFalseRef.current++;
-        console.log(`[CameraDetection] ⚠️ False reading ${consecutiveFalseRef.current}/${REQUIRED_FALSE_COUNT}`);
-        
-        if (consecutiveFalseRef.current >= REQUIRED_FALSE_COUNT) {
-          console.log("[CameraDetection] ❌ Confirmed camera disconnected");
-          consecutiveFalseRef.current = 0;
-          await updateCameraStatus(false);
-        }
-      } else {
-        // Already false → no change needed
-        consecutiveFalseRef.current = 0;
-      }
+    } else if (lastStatusRef.current === null) {
+      // First check ever: trust the result
+      await updateCameraStatus(false);
     }
+    // If already true and enumerateDevices says false → IGNORE (transient)
   }, [checkCameraAvailability, updateCameraStatus]);
-
-  const debouncedCheckAndUpdate = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    consecutiveFalseRef.current = 0; // Reset on new event burst
-
-    debounceTimerRef.current = setTimeout(async () => {
-      // Do multiple checks with intervals for stability
-      for (let i = 0; i < REQUIRED_FALSE_COUNT; i++) {
-        await stableCheck();
-        if (i < REQUIRED_FALSE_COUNT - 1) {
-          await new Promise(r => setTimeout(r, RECHECK_INTERVAL));
-        }
-      }
-    }, DEBOUNCE_MS);
-  }, [stableCheck]);
-
-  const checkAndUpdate = useCallback(async () => {
-    // Initial check also uses stable pattern
-    await stableCheck();
-  }, [stableCheck]);
 
   useEffect(() => {
     if (!deviceId) return;
 
     console.log("[CameraDetection] 🚀 Initializing for device:", deviceId);
 
-    // Initial check
-    checkAndUpdate();
+    // Initial check (can set true or false on first run)
+    checkAndUpgrade();
 
+    // devicechange: only used to detect NEW cameras (upgrade to true)
     const handleDeviceChange = () => {
-      console.log("[CameraDetection] 🔄 Device change event");
-      debouncedCheckAndUpdate();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        console.log("[CameraDetection] 🔄 Device change → checking for upgrade");
+        checkAndUpgrade();
+      }, 1000);
     };
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
@@ -117,7 +82,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [deviceId, checkAndUpdate, debouncedCheckAndUpdate]);
+  }, [deviceId, checkAndUpgrade]);
 
-  return { checkAndUpdate };
+  return { checkAndUpdate: checkAndUpgrade };
 };
