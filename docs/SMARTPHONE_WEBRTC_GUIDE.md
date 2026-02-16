@@ -571,21 +571,23 @@ useEffect(() => {
   video.pause();
   video.srcObject = stream;
 
-  // 2. 데이터가 로드된 것을 확인하고 재생 (즉시 play() 금지!)
-  const onLoadedMetadata = () => {
-    video.play().catch(e => {
-      if (e.name === 'NotAllowedError') {
-        // 사용자 상호작용 필요 → "터치하여 재생" 버튼 표시
-        setShowPlayButton(true);
-      }
-    });
+  // 2. 데이터가 충분히 로드된 후 0.5초 딜레이 재생 (GPU 과부하 방지)
+  const onLoadedData = () => {
+    setTimeout(() => {
+      video.play().catch(e => {
+        if (e.name === 'NotAllowedError') {
+          // 사용자 상호작용 필요 → "터치하여 재생" 버튼 표시
+          setShowPlayButton(true);
+        }
+      });
+    }, 500); // 모바일 GPU 안정화를 위한 딜레이
   };
 
-  video.addEventListener("loadedmetadata", onLoadedMetadata);
+  video.addEventListener("loadeddata", onLoadedData); // loadedmetadata 대신 loadeddata 사용
   video.load(); // 미디어 파이프라인 강제 리셋
 
   return () => {
-    video.removeEventListener("loadedmetadata", onLoadedMetadata);
+    video.removeEventListener("loadeddata", onLoadedData);
   };
 }, [stream]);
 
