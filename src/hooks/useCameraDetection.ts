@@ -16,6 +16,8 @@ interface CameraDetectionOptions {
 export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const lastStatusRef = useRef<boolean | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const consecutiveFalseRef = useRef(0);
+  const DOWNGRADE_THRESHOLD = 3; // 3회 연속 false 확인 후 다운그레이드
 
   const checkCameraAvailability = useCallback(async (): Promise<boolean> => {
     try {
@@ -37,6 +39,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       });
       
       lastStatusRef.current = isConnected;
+      consecutiveFalseRef.current = 0;
       console.log("[CameraDetection] ✅ Updated is_camera_connected:", isConnected);
       
       window.dispatchEvent(new CustomEvent("camera-status-changed", { 
@@ -47,16 +50,25 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     }
   }, [deviceId]);
 
-  // Only upgrades (false→true). Never downgrades via enumerateDevices.
-  const checkAndUpgrade = useCallback(async () => {
+  const checkAndUpdate = useCallback(async () => {
     const hasCamera = await checkCameraAvailability();
+    
     if (hasCamera) {
+      // Upgrade: 즉시 반영
+      consecutiveFalseRef.current = 0;
       await updateCameraStatus(true);
     } else if (lastStatusRef.current === null) {
-      // First check ever: trust the result
+      // 최초 체크: 결과 신뢰
       await updateCameraStatus(false);
+    } else if (lastStatusRef.current === true) {
+      // Downgrade: 연속 N회 false 확인 후 반영 (오탐 방지)
+      consecutiveFalseRef.current++;
+      console.log(`[CameraDetection] ⚠️ Camera not found (${consecutiveFalseRef.current}/${DOWNGRADE_THRESHOLD})`);
+      if (consecutiveFalseRef.current >= DOWNGRADE_THRESHOLD) {
+        console.log("[CameraDetection] 🔻 Confirmed camera removed — downgrading");
+        await updateCameraStatus(false);
+      }
     }
-    // If already true and enumerateDevices says false → IGNORE (transient)
   }, [checkCameraAvailability, updateCameraStatus]);
 
   useEffect(() => {
@@ -65,14 +77,14 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     console.log("[CameraDetection] 🚀 Initializing for device:", deviceId);
 
     // Initial check (can set true or false on first run)
-    checkAndUpgrade();
+    checkAndUpdate();
 
-    // devicechange: only used to detect NEW cameras (upgrade to true)
+    // devicechange: detect both connection and removal
     const handleDeviceChange = () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(() => {
-        console.log("[CameraDetection] 🔄 Device change → checking for upgrade");
-        checkAndUpgrade();
+        console.log("[CameraDetection] 🔄 Device change → checking status");
+        checkAndUpdate();
       }, 1000);
     };
     
@@ -82,7 +94,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [deviceId, checkAndUpgrade]);
+  }, [deviceId, checkAndUpdate]);
 
-  return { checkAndUpdate: checkAndUpgrade };
+  return { checkAndUpdate };
 };
