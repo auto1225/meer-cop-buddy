@@ -57,10 +57,9 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     }
   }, []);
 
-  // DB 업데이트 (모바일 앱 호환성을 위해 최소한으로 유지, 쓰로틀링 적용)
-  const updateDeviceStatusInDB = useCallback(async (
-    networkConnected: boolean,
-    cameraConnected: boolean
+  // DB 업데이트 (네트워크 상태만 - 카메라는 useCameraDetection이 단독 관리)
+  const updateNetworkStatusInDB = useCallback(async (
+    networkConnected: boolean
   ) => {
     const currentDeviceId = deviceIdRef.current;
     if (!currentDeviceId) return;
@@ -75,11 +74,10 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     try {
       await updateDeviceViaEdge(currentDeviceId, {
         is_network_connected: networkConnected,
-        is_camera_connected: cameraConnected,
         updated_at: new Date().toISOString(),
       });
     } catch (error) {
-      console.error("Failed to update device status in DB:", error);
+      console.error("Failed to update network status in DB:", error);
     }
   }, []);
 
@@ -280,19 +278,17 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   useEffect(() => {
     const handleOnline = () => {
       setStatus((prev) => {
-        const newStatus = { ...prev, isNetworkConnected: true };
         syncPresence(true);
-        updateDeviceStatusInDB(true, prev.isCameraAvailable);
-        return newStatus;
+        updateNetworkStatusInDB(true);
+        return { ...prev, isNetworkConnected: true };
       });
     };
 
     const handleOffline = () => {
       setStatus((prev) => {
-        const newStatus = { ...prev, isNetworkConnected: false };
         syncPresence(false);
-        updateDeviceStatusInDB(false, prev.isCameraAvailable);
-        return newStatus;
+        updateNetworkStatusInDB(false);
+        return { ...prev, isNetworkConnected: false };
       });
     };
 
@@ -303,52 +299,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [syncPresence, updateDeviceStatusInDB]);
-
-  // Auto-detect camera availability
-  useEffect(() => {
-    let isMounted = true;
-
-    const checkCameraAvailability = async () => {
-      try {
-        if (!navigator.mediaDevices?.enumerateDevices) {
-          return;
-        }
-
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const hasCamera = devices.some((device) => device.kind === "videoinput");
-
-        if (isMounted) {
-          setStatus((prev) => {
-            if (prev.isCameraAvailable !== hasCamera) {
-              // 카메라 상태는 DB만 업데이트, Presence에서는 제외
-              updateDeviceStatusInDB(prev.isNetworkConnected, hasCamera);
-            }
-            return { ...prev, isCameraAvailable: hasCamera };
-          });
-        }
-      } catch (error) {
-        console.log("Camera detection failed:", error);
-      }
-    };
-
-    checkCameraAvailability();
-
-    const handleDeviceChange = () => {
-      checkCameraAvailability();
-    };
-
-    if (navigator.mediaDevices?.addEventListener) {
-      navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
-    }
-
-    return () => {
-      isMounted = false;
-      if (navigator.mediaDevices?.removeEventListener) {
-        navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
-      }
-    };
-  }, [syncPresence, updateDeviceStatusInDB]);
+  }, [syncPresence, updateNetworkStatusInDB]);
 
   // Listen for camera status changes from useCameraDetection
   useEffect(() => {
@@ -370,7 +321,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   useEffect(() => {
     if (deviceId) {
       syncPresence(status.isNetworkConnected);
-      updateDeviceStatusInDB(status.isNetworkConnected, status.isCameraAvailable);
+      updateNetworkStatusInDB(status.isNetworkConnected);
     }
   }, [deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -399,12 +350,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   }, [deviceId]);
 
   const setCameraAvailable = useCallback((available: boolean) => {
-    setStatus((prev) => {
-      // 카메라 상태는 DB만 업데이트, Presence에서는 제외
-      updateDeviceStatusInDB(prev.isNetworkConnected, available);
-      return { ...prev, isCameraAvailable: available };
-    });
-  }, [updateDeviceStatusInDB]);
+    setStatus((prev) => ({ ...prev, isCameraAvailable: available }));
+  }, []);
 
   return {
     isNetworkConnected: status.isNetworkConnected,
