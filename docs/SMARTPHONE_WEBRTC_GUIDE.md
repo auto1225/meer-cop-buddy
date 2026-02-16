@@ -557,59 +557,67 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
 
 5. **불필요한 `attemptPlay` 제거**: RTCView는 `streamURL`이 유효하면 자동으로 재생하므로 수동 play 로직이 불필요합니다.
 
-### ⚠️ 웹뷰(브라우저) 기반 앱인 경우 — 비디오 재생 타이밍
+### ⚠️ 웹뷰(브라우저) 기반 앱인 경우 — 비디오 재생 (videoKey 교체 방식)
 
-React Native의 `RTCView`가 아닌 웹 `<video>` 태그를 사용하는 경우, `loadedmetadata` 이벤트를 기다린 후 재생해야 합니다:
+React Native의 `RTCView`가 아닌 웹 `<video>` 태그를 사용하는 경우,
+**remoteStream 도착 시 `videoKey`를 증가시켜 `<video>` DOM을 완전히 새로 생성**해야 합니다.
+기존 태그를 재활용하면 모바일 브라우저가 `paused: true` / `readyState: 0` 상태에 빠집니다.
 
 ```typescript
-// stream이 변경될 때마다 실행
+// [상태 선언]
+const [videoKey, setVideoKey] = useState(0);
+const videoRef = useRef<HTMLVideoElement>(null);
+const pendingStreamRef = useRef<MediaStream | null>(null);
+
+// [ontrack 또는 스트림 도착 시]
+const onNewStream = (newStream: MediaStream) => {
+  // 1. videoKey를 증가시켜 React가 <video> DOM을 파괴 → 재생성
+  pendingStreamRef.current = newStream;
+  setVideoKey(prev => prev + 1);
+};
+
+// [videoKey 변경 후 새 태그가 마운트되면 스트림 주입]
 useEffect(() => {
-  const video = videoRef.current;
-  if (!video || !stream) return;
+  const stream = pendingStreamRef.current;
+  if (!stream) return;
 
-  // 1. 기존 재생 중단 및 스트림 할당
-  video.pause();
-  video.srcObject = stream;
+  // 150ms 딜레이: 새 <video> 태그가 DOM에 마운트될 시간 확보
+  const timer = setTimeout(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
-  // 2. [핵심] 모바일 필수 속성 강제 재할당 (재연결 시 브라우저가 잊어버릴 수 있음)
-  video.setAttribute("playsinline", "true");
-  video.setAttribute("webkit-playsinline", "true"); // 구형 iOS 호환
-  video.muted = true; // 프로퍼티로도 설정
+    // 모바일 필수 속성 강제 주입 (재연결 시 브라우저가 잊어버릴 수 있음)
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+    video.muted = true;
 
-  // 3. 데이터가 충분히 로드된 후 0.5초 딜레이 재생 (GPU 과부하 방지)
-  const onLoadedData = () => {
-    setTimeout(() => {
-      video.play().catch(e => {
-        if (e.name === 'NotAllowedError') {
-          // 사용자 상호작용 필요 → "터치하여 재생" 버튼 표시
-          setShowPlayButton(true);
-        }
-      });
-    }, 500); // 모바일 GPU 안정화를 위한 딜레이
-  };
+    // 스트림 연결 후 재생
+    video.srcObject = stream;
+    video.play().catch(e => {
+      console.warn("Auto-play blocked:", e);
+      if (e.name === 'NotAllowedError') {
+        setShowPlayButton(true); // "터치하여 재생" 버튼 표시
+      }
+    });
+  }, 150);
 
-  video.addEventListener("loadeddata", onLoadedData);
-  video.load(); // 미디어 파이프라인 강제 리셋
+  return () => clearTimeout(timer);
+}, [videoKey]);
 
-  return () => {
-    video.removeEventListener("loadeddata", onLoadedData);
-  };
-}, [stream]);
-
-// JSX — key 속성으로 비디오 태그 강제 재생성 + 모바일 필수 속성
+// [JSX] — key가 바뀌면 태그가 완전히 새로 태어남
 <video
-  key={streamKey}
+  key={videoKey}
   ref={videoRef}
   autoPlay
-  playsInline  // iOS 필수 (태그에 직접 명시)
-  muted        // 자동재생 정책 우회 (태그에 직접 명시)
+  playsInline
+  webkit-playsinline="true"
+  muted={true}
+  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
 />
 ```
 
-> **⚠️ 중요**: `playsInline`과 `muted`는 반드시 JSX 태그에 직접 명시하고,
-> `srcObject` 할당 후에도 `video.setAttribute("playsinline", "true")`와
-> `video.muted = true`로 한번 더 강제 설정하세요.
-> 재연결 시 모바일 브라우저(특히 iOS)가 이 속성을 잃어버리는 경우가 있습니다.
+> **⚠️ 핵심**: `srcObject`만 교체하지 마세요. 반드시 `videoKey`를 증가시켜
+> `<video>` DOM 자체를 새로 생성해야 모바일의 자동재생 차단이 풀립니다.
 
 ### 2. 동작 흐름
 
