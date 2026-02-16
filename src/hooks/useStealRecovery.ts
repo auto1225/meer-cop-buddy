@@ -253,16 +253,8 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
         ? `위도: ${coords.latitude.toFixed(6)}, 경도: ${coords.longitude.toFixed(6)}` 
         : "위치 확인 불가";
 
-      supabaseShared.functions.invoke("push-notifications", {
-        body: {
-          action: "send",
-          device_id: devId,
-          title: "🔄 도난 기기 네트워크 복구!",
-          body: `기기가 다시 연결되었습니다. ${locationText}`,
-        },
-      }).catch(() => {});
-
-      console.log("[StealRecovery] ✅ Push notification sent");
+      // 푸시 알림은 Presence 채널을 통해 전달되므로 별도 Edge Function 호출 불필요
+      console.log("[StealRecovery] ✅ Recovery alert sent via Presence");
 
       // 5. 주기적 위치 추적 시작
       startPeriodicTracking(devId);

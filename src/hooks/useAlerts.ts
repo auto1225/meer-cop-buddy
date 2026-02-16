@@ -82,19 +82,7 @@ export function useAlerts(deviceId?: string, userId?: string) {
       // Presence 채널로 스마트폰에 알림 전송
       broadcastAlert(newAlert);
 
-      // 푸시 알림 전송 (공유 프로젝트의 Edge Function — 실패 시 무시)
-      supabaseShared.functions.invoke('push-notifications', {
-        body: {
-          action: 'send',
-          device_id: deviceId,
-          title: '🚨 경보 발생!',
-          body: eventData?.message || `${eventType} 감지`,
-        },
-      }).then(({ error }) => {
-        if (error) console.warn("[Alerts] Push notification unavailable (shared project):", error.message ?? error);
-      }).catch(() => {
-        // Edge function not deployed on shared project — silently ignore
-      });
+      // 푸시 알림은 Presence 채널을 통해 전달되므로 별도 Edge Function 호출 불필요
 
       // Play alert sound
       try {
@@ -280,19 +268,7 @@ export function useAlerts(deviceId?: string, userId?: string) {
         // Presence 채널로 스마트폰에 알림 전송
         broadcastAlert(newAlert);
 
-        // 푸시 알림 전송 (공유 프로젝트의 Edge Function — 실패 시 무시)
-        supabaseShared.functions.invoke('push-notifications', {
-          body: {
-            action: 'send',
-            device_id: newAlert.device_id,
-            title: '🚨 경보 발생!',
-            body: newAlert.event_data?.message || `${newAlert.event_type} 감지`,
-          },
-        }).then(({ error }) => {
-          if (error) console.warn("[Alerts] Push notification unavailable:", error.message ?? error);
-        }).catch(() => {
-          // silently ignore
-        });
+        // 푸시 알림은 Presence 채널을 통해 전달되므로 별도 Edge Function 호출 불필요
 
         // Play alert sound
         try {
