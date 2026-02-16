@@ -67,7 +67,7 @@ export async function updateDeviceViaEdge(
         "Content-Type": "application/json",
         "apikey": SHARED_SUPABASE_ANON_KEY,
         "Authorization": `Bearer ${SHARED_SUPABASE_ANON_KEY}`,
-        "Prefer": "return=minimal",
+        "Prefer": "return=representation",
       },
       body: JSON.stringify(updates),
     }
@@ -76,5 +76,15 @@ export async function updateDeviceViaEdge(
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`update-device failed: ${err}`);
+  }
+
+  // return=representation 으로 실제 업데이트된 행 확인
+  const data = await res.json();
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    console.warn(`[deviceApi] ⚠️ PATCH returned 0 rows for device ${deviceId}. RLS may be blocking updates.`);
+  } else {
+    console.log(`[deviceApi] ✅ PATCH updated device ${deviceId}:`, 
+      Array.isArray(data) ? `${data.length} row(s), last_seen_at=${data[0]?.last_seen_at}` : data
+    );
   }
 }
