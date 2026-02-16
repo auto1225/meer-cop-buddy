@@ -54,19 +54,19 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     const hasCamera = await checkCameraAvailability();
     
     if (hasCamera) {
-      // Upgrade: 즉시 반영
       consecutiveFalseRef.current = 0;
       await updateCameraStatus(true);
     } else if (lastStatusRef.current === null) {
-      // 최초 체크: 결과 신뢰
       await updateCameraStatus(false);
     } else if (lastStatusRef.current === true) {
-      // Downgrade: 연속 N회 false 확인 후 반영 (오탐 방지)
       consecutiveFalseRef.current++;
       console.log(`[CameraDetection] ⚠️ Camera not found (${consecutiveFalseRef.current}/${DOWNGRADE_THRESHOLD})`);
       if (consecutiveFalseRef.current >= DOWNGRADE_THRESHOLD) {
         console.log("[CameraDetection] 🔻 Confirmed camera removed — downgrading");
         await updateCameraStatus(false);
+      } else {
+        // 아직 threshold 미달 → 500ms 후 재확인 (자동 연속 체크)
+        setTimeout(() => checkAndUpdate(), 500);
       }
     }
   }, [checkCameraAvailability, updateCameraStatus]);
