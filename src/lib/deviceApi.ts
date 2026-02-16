@@ -1,10 +1,13 @@
-import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
 
 /**
  * Edge Function을 통한 디바이스 API (RLS 우회)
- * 공유 Supabase의 get-devices Edge Function을 호출
- * update는 직접 supabaseShared 클라이언트 사용 (RLS open)
+ * 조회: 공유 Supabase의 get-devices Edge Function 직접 호출
+ * 업데이트: 로컬 proxy-update-device Edge Function 경유 (CORS 우회)
  */
+
+const LOCAL_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const LOCAL_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 interface DeviceRow {
   id: string;
@@ -28,7 +31,7 @@ interface DeviceRow {
   updated_at: string;
 }
 
-/** 사용자의 모든 기기 목록 조회 */
+/** 사용자의 모든 기기 목록 조회 (공유 Supabase 직접) */
 export async function fetchDevicesViaEdge(userId: string): Promise<DeviceRow[]> {
   const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
     method: "POST",
@@ -54,16 +57,16 @@ export async function fetchDeviceViaEdge(deviceId: string, userId: string): Prom
   return devices.find(d => d.id === deviceId) || null;
 }
 
-/** 기기 정보 업데이트 (공유 Supabase의 update-device Edge Function 호출) */
+/** 기기 정보 업데이트 (로컬 프록시 Edge Function 경유 → CORS 우회) */
 export async function updateDeviceViaEdge(
   deviceId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
-  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+  const res = await fetch(`${LOCAL_SUPABASE_URL}/functions/v1/proxy-update-device`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "apikey": SHARED_SUPABASE_ANON_KEY,
+      "apikey": LOCAL_SUPABASE_KEY,
     },
     body: JSON.stringify({ device_id: deviceId, updates }),
   });

@@ -81,10 +81,11 @@ const Index = () => {
 
   // Camera detection - auto-sync to DB
   useCameraDetection({ deviceId: currentDevice?.id });
-  // Location responder - listens for locate commands from smartphone
-  useLocationResponder(currentDevice?.id);
-  // Network info responder - listens for network_info commands from smartphone
-  useNetworkInfoResponder(currentDevice?.id);
+  // Location responder - reacts to metadata.locate_requested (no independent polling)
+  const currentMeta = currentDevice?.metadata as Record<string, unknown> | null;
+  useLocationResponder(currentDevice?.id, currentMeta);
+  // Network info responder - reacts to metadata.network_info_requested (no independent polling)
+  useNetworkInfoResponder(currentDevice?.id, currentMeta);
   // Alerts system - broadcasts alerts to smartphone via Presence
   const { triggerAlert, dismissedBySmartphone } = useAlerts(currentDevice?.id, savedAuth?.user_id);
   const triggerAlertRef = useRef(triggerAlert);
