@@ -82,6 +82,51 @@ export async function fetchSignalingViaEdge(
   return data.signals || [];
 }
 
+/** WebRTC 시그널링 데이터 삽입 (공유 Supabase manage-signaling Edge Function) */
+export async function insertSignalingViaEdge(
+  record: {
+    device_id: string;
+    session_id: string;
+    type: string;
+    sender_type: string;
+    data: Record<string, unknown>;
+  }
+): Promise<void> {
+  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/manage-signaling`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SHARED_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ action: "insert", record }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`[deviceApi] insert-signaling failed: ${res.status} ${err}`);
+  }
+}
+
+/** WebRTC 시그널링 데이터 삭제 (공유 Supabase manage-signaling Edge Function) */
+export async function deleteSignalingViaEdge(
+  deviceId: string,
+  senderType?: string
+): Promise<void> {
+  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/manage-signaling`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SHARED_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ action: "delete", device_id: deviceId, sender_type: senderType }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`[deviceApi] delete-signaling failed: ${res.status} ${err}`);
+  }
+}
+
 /** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
 export async function updateDeviceViaEdge(
   deviceId: string,

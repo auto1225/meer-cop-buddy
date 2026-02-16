@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabaseShared } from "@/lib/supabase";
-import { updateDeviceViaEdge, fetchSignalingViaEdge } from "@/lib/deviceApi";
+import { updateDeviceViaEdge, fetchSignalingViaEdge, insertSignalingViaEdge, deleteSignalingViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface UseWebRTCBroadcasterOptions {
@@ -87,12 +87,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     console.log(`[WebRTC Broadcaster] Creating peer connection for ${sessionId}`);
 
     // Clean up any stale broadcaster signals for this device before creating new offer
-    // This prevents the viewer from picking up an old offer with a different session_id
-    await supabaseShared
-      .from("webrtc_signaling")
-      .delete()
-      .eq("device_id", currentDeviceId)
-      .eq("sender_type", "broadcaster");
+    await deleteSignalingViaEdge(currentDeviceId, "broadcaster");
     console.log(`[WebRTC Broadcaster] 🗑️ Cleared stale broadcaster signals for device ${currentDeviceId}`);
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -110,7 +105,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       if (event.candidate) {
         const candidateJson = event.candidate.toJSON();
         console.log("[WebRTC Broadcaster] Sending ICE candidate:", candidateJson.candidate?.substring(0, 50));
-        await supabaseShared.from("webrtc_signaling").insert({
+        await insertSignalingViaEdge({
           device_id: currentDeviceId,
           session_id: sessionId,
           type: "ice-candidate",
@@ -136,7 +131,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       await pc.setLocalDescription(offer);
 
       // Send SDP as plain object with type and sdp string
-      await supabaseShared.from("webrtc_signaling").insert({
+      await insertSignalingViaEdge({
         device_id: currentDeviceId,
         session_id: sessionId,
         type: "offer",
@@ -243,10 +238,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     setError(null);
 
     // Clear old signaling data for this device
-    await supabaseShared
-      .from("webrtc_signaling")
-      .delete()
-      .eq("device_id", currentDeviceId);
+    await deleteSignalingViaEdge(currentDeviceId);
 
     // Clear all tracking refs for fresh session
     processedViewerJoinsRef.current.clear();
@@ -401,10 +393,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
     // Only delete signaling data if we were actually broadcasting
     if (wasActive) {
-      await supabaseShared
-        .from("webrtc_signaling")
-        .delete()
-        .eq("device_id", currentDeviceId);
+      await deleteSignalingViaEdge(currentDeviceId);
     }
 
     streamRef.current = null;

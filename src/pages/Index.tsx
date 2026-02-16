@@ -560,7 +560,7 @@ const Index = () => {
         <CamouflageOverlay isActive={isCamouflageMode} />
 
         {/* Auto Broadcaster - listens for streaming requests from smartphone */}
-        <AutoBroadcaster deviceId={currentDevice?.id} />
+        <AutoBroadcaster deviceId={currentDevice?.id} userId={savedAuth?.user_id} />
 
         {/* Alert Overlay - shows when alarm is triggered */}
         <AlertOverlay
