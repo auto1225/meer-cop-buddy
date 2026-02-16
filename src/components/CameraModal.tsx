@@ -46,6 +46,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const animFrameRef = useRef<number>(0);
   const pauseCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const broadcastStartedRef = useRef(false);
 
   // Auto-start camera when modal opens
   useEffect(() => {
@@ -56,19 +57,24 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
 
   // Start WebRTC broadcasting when camera is active
   useEffect(() => {
-    if (stream && deviceId && !isBroadcasting) {
+    if (stream && deviceId && !isBroadcasting && !broadcastStartedRef.current) {
+      broadcastStartedRef.current = true;
       startBroadcasting(stream);
     }
   }, [stream, deviceId, isBroadcasting, startBroadcasting]);
 
   useEffect(() => {
-    if ((!isOpen || !stream) && isBroadcasting) {
-      stopBroadcasting();
+    if (!isOpen || !stream) {
+      if (broadcastStartedRef.current) {
+        broadcastStartedRef.current = false;
+        stopBroadcasting();
+      }
     }
-  }, [isOpen, stream, isBroadcasting, stopBroadcasting]);
+  }, [isOpen, stream, stopBroadcasting]);
 
   useEffect(() => {
     if (!isOpen) {
+      broadcastStartedRef.current = false;
       reset();
       setIsRecording(false);
       setIsPaused(false);
