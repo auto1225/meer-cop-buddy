@@ -44,6 +44,8 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
   const sessionIdRef = useRef<string>("");
   const streamRef = useRef<MediaStream | null>(null);
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
+  const isConnectedRef = useRef(false);
+  const isConnectingRef = useRef(false);
 
   // Generate unique session ID
   const generateSessionId = useCallback(() => {
@@ -96,9 +98,10 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
   // Connect to broadcaster
   const connect = useCallback(async () => {
-    if (isConnecting || isConnected) return;
+    if (isConnectingRef.current || isConnectedRef.current) return;
 
     setIsConnecting(true);
+    isConnectingRef.current = true;
     setError(null);
 
     const sessionId = generateSessionId();
@@ -141,9 +144,12 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       console.log(`[WebRTC Viewer] Connection state: ${pc.connectionState}`);
       if (pc.connectionState === "connected") {
         setIsConnected(true);
+        isConnectedRef.current = true;
         setIsConnecting(false);
+        isConnectingRef.current = false;
       } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
         setIsConnected(false);
+        isConnectedRef.current = false;
         setError("연결이 끊어졌습니다");
       }
     };
@@ -198,18 +204,27 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
       // Timeout for connection
       setTimeout(() => {
-        if (!isConnected && isConnecting) {
+        if (!isConnectedRef.current && isConnectingRef.current) {
           setError("노트북 카메라가 켜져 있지 않습니다");
           setIsConnecting(false);
-          disconnect();
+          isConnectingRef.current = false;
+          // Inline cleanup instead of calling disconnect to avoid circular dep
+          if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
+          iceCandidateQueueRef.current = [];
+          if (channelRef.current) { supabaseShared.removeChannel(channelRef.current); channelRef.current = null; }
+          if (sessionIdRef.current) {
+            supabaseShared.from("webrtc_signaling").delete().eq("session_id", sessionIdRef.current);
+          }
+          streamRef.current = null;
         }
       }, 15000);
     } catch (err) {
       console.error("[WebRTC Viewer] Error creating offer:", err);
       setError("연결에 실패했습니다");
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
-  }, [deviceId, isConnecting, isConnected, generateSessionId, handleAnswer, handleIceCandidate, onStream]);
+  }, [deviceId, generateSessionId, handleAnswer, handleIceCandidate, onStream]);
 
   // Disconnect from broadcaster
   const disconnect = useCallback(async () => {
@@ -234,7 +249,9 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
     streamRef.current = null;
     setIsConnected(false);
+    isConnectedRef.current = false;
     setIsConnecting(false);
+    isConnectingRef.current = false;
     console.log("[WebRTC Viewer] Disconnected");
   }, []);
 

@@ -45,6 +45,7 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     globalBroadcastingDevice = null;
     clearRetryTimer();
     retryCountRef.current = 0;
+    isStartingRef.current = false; // Reset starting flag to allow future starts
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
@@ -66,7 +67,7 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       return;
     }
     
-    if (!deviceId || isStartingRef.current) {
+    if (!deviceId || isStartingRef.current || isStoppingRef.current) {
       return;
     }
 
@@ -81,6 +82,12 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Cleaning dead stream`);
       streamRef.current.getTracks().forEach(t => { t.onended = null; t.stop(); });
       streamRef.current = null;
+      await stopBroadcasting();
+    }
+    
+    // Ensure previous broadcast is fully stopped before starting new one
+    if (isBroadcasting) {
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Stopping previous broadcast before restart`);
       await stopBroadcasting();
     }
     
