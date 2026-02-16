@@ -33,7 +33,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     }
   }, [stream]);
 
-  // Handle stream track ended (camera disconnected)
+  // Handle stream track ended (camera physically disconnected)
   useEffect(() => {
     if (!stream) return;
 
@@ -41,7 +41,13 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     if (!videoTrack) return;
 
     const handleEnded = () => {
-      if (intentionalStopRef.current) return; // Ignore if we stopped it ourselves
+      if (intentionalStopRef.current) return;
+      // Double-check: if the stream is still active, this is a spurious event
+      if (stream.active) {
+        console.warn("[Camera] ⚠️ Track ended but stream still active — ignoring");
+        return;
+      }
+      console.log("[Camera] 🔌 Track ended, stream inactive — camera disconnected");
       setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
       setStream(null);
       onStatusChange?.(false);
