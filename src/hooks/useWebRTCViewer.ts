@@ -128,7 +128,23 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
 
-    // Handle incoming stream
+    // Handle incoming stream — debounce onStream to avoid rapid play() calls
+    const pendingTracksRef = { audio: false, video: false };
+    let streamDeliverTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const deliverStream = () => {
+      if (streamDeliverTimer) clearTimeout(streamDeliverTimer);
+      streamDeliverTimer = setTimeout(() => {
+        if (streamRef.current) {
+          // Wrap to force React re-render
+          const wrapped = new MediaStream(streamRef.current.getTracks());
+          streamRef.current = wrapped;
+          console.log("[WebRTC Viewer] 📤 Delivering stream to consumer");
+          onStream?.(wrapped);
+        }
+      }, 100);
+    };
+
     pc.ontrack = (event) => {
       console.log("[WebRTC Viewer] Received track:", event.track.kind);
       
@@ -136,7 +152,6 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       if (event.streams && event.streams[0]) {
         stream = event.streams[0];
       } else {
-        // event.streams가 비어있으면 수동으로 MediaStream 생성
         console.log("[WebRTC Viewer] ⚠️ event.streams empty, creating manual MediaStream");
         if (!streamRef.current) {
           stream = new MediaStream();
@@ -146,27 +161,19 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
         stream.addTrack(event.track);
       }
 
-      // 같은 stream ID면 래퍼로 감싸서 React 리렌더링 보장
-      if (streamRef.current && streamRef.current.id === stream.id) {
-        console.log("[WebRTC Viewer] 🔄 Same stream ID detected, wrapping for re-render");
-        const wrapper = new MediaStream(stream.getTracks());
-        streamRef.current = wrapper;
-        onStream?.(wrapper);
-      } else {
-        streamRef.current = stream;
-        onStream?.(stream);
-      }
+      streamRef.current = stream;
 
-      // 새 트랙에 unmute 리스너 등록 (늦게 도착하는 트랙 재생 보장)
-      event.track.addEventListener("unmute", () => {
-        console.log(`[WebRTC Viewer] ✅ Track unmuted via ontrack listener: ${event.track.kind}`);
-        if (streamRef.current) {
-          // 래퍼로 감싸서 onStream 재호출 → 재생 트리거
-          const refreshed = new MediaStream(streamRef.current.getTracks());
-          streamRef.current = refreshed;
-          onStream?.(refreshed);
-        }
-      }, { once: true });
+      // Wait for unmute before delivering to avoid AbortError from premature play()
+      if (event.track.muted) {
+        event.track.addEventListener("unmute", () => {
+          console.log(`[WebRTC Viewer] ✅ Track unmuted: ${event.track.kind}`);
+          pendingTracksRef[event.track.kind as "audio" | "video"] = true;
+          deliverStream();
+        }, { once: true });
+      } else {
+        pendingTracksRef[event.track.kind as "audio" | "video"] = true;
+        deliverStream();
+      }
     };
 
     // Handle ICE candidates
