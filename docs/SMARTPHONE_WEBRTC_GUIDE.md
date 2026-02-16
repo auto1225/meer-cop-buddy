@@ -46,7 +46,7 @@ import {
   RTCIceCandidate,
   MediaStream,
 } from "react-native-webrtc";
-import { supabase } from "../lib/supabase"; // 기존 Supabase 클라이언트 사용
+import { supabase } from "../lib/supabase";
 
 interface UseWebRTCViewerOptions {
   deviceId: string;
@@ -58,7 +58,24 @@ const ICE_SERVERS = {
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    // TURN 서버 (모바일 NAT 통과)
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) {
@@ -70,72 +87,142 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<any>(null);
   const sessionIdRef = useRef<string>("");
+  const iceCandidateQueueRef = useRef<any[]>([]);
+  const isConnectedRef = useRef(false);
+  const isConnectingRef = useRef(false);
+  const remoteDescriptionSetRef = useRef(false);
+  const answerSentRef = useRef(false);
+  // 스트림 변경 카운터 (React 리렌더링 강제)
+  const streamVersionRef = useRef(0);
 
-  // 고유 세션 ID 생성
   const generateSessionId = useCallback(() => {
     return `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // 브로드캐스터로부터 Answer 처리
-  const handleAnswer = useCallback(async (answer: any) => {
+  // Answer/Offer의 remote description 처리 (중복 방지)
+  const handleRemoteDescription = useCallback(async (sdp: any) => {
     if (!pcRef.current) return;
 
+    if (remoteDescriptionSetRef.current) {
+      console.log("[WebRTC Viewer] ⏭️ Remote description already set, skipping");
+      return;
+    }
+    remoteDescriptionSetRef.current = true;
+
     try {
-      const remoteDesc = new RTCSessionDescription(answer);
+      // Robust SDP parsing: 문자열 또는 중첩 객체 모두 지원
+      let sdpObj = sdp;
+      if (typeof sdp === "string") {
+        sdpObj = JSON.parse(sdp);
+      }
+      if (sdpObj.sdp && typeof sdpObj.sdp === "object") {
+        sdpObj = sdpObj.sdp; // 중첩된 { sdp: { type, sdp } } 형태 처리
+      }
+
+      const remoteDesc = new RTCSessionDescription(sdpObj);
       await pcRef.current.setRemoteDescription(remoteDesc);
-      console.log("[WebRTC Viewer] Remote description 설정 완료");
+      console.log("[WebRTC Viewer] ✅ Remote description 설정 완료");
+
+      // 큐에 쌓인 ICE candidates 일괄 적용
+      if (iceCandidateQueueRef.current.length > 0) {
+        console.log(`[WebRTC Viewer] 🧊 Flushing ${iceCandidateQueueRef.current.length} queued ICE candidates`);
+        for (const candidate of iceCandidateQueueRef.current) {
+          try {
+            await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.warn("[WebRTC Viewer] ICE candidate flush 실패:", e);
+          }
+        }
+        iceCandidateQueueRef.current = [];
+      }
     } catch (err) {
       console.error("[WebRTC Viewer] Remote description 설정 오류:", err);
+      remoteDescriptionSetRef.current = false; // 재시도 가능하도록 리셋
       setError("연결에 실패했습니다");
     }
   }, []);
 
-  // 브로드캐스터로부터 ICE Candidate 처리
+  // ICE Candidate 처리 (큐잉 지원)
   const handleIceCandidate = useCallback(async (candidate: any) => {
-    if (!pcRef.current || !pcRef.current.remoteDescription) return;
+    if (!pcRef.current) return;
 
-    try {
-      const iceCandidate = new RTCIceCandidate(candidate);
-      await pcRef.current.addIceCandidate(iceCandidate);
-      console.log("[WebRTC Viewer] ICE candidate 추가됨");
-    } catch (err) {
-      console.error("[WebRTC Viewer] ICE candidate 추가 오류:", err);
+    if (pcRef.current.remoteDescription) {
+      try {
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.error("[WebRTC Viewer] ICE candidate 추가 오류:", err);
+      }
+    } else {
+      // remoteDescription 설정 전 → 큐에 저장
+      iceCandidateQueueRef.current.push(candidate);
+      console.log(`[WebRTC Viewer] 🧊 ICE candidate 큐잉 (${iceCandidateQueueRef.current.length}개)`);
     }
   }, []);
 
-  // 브로드캐스터에 연결
+  // 스트림 업데이트 헬퍼 (React 리렌더링 보장)
+  const updateStream = useCallback((stream: MediaStream) => {
+    streamVersionRef.current++;
+    setRemoteStream(stream);
+    onStream?.(stream);
+    console.log(`[WebRTC Viewer] 📹 Stream updated (v${streamVersionRef.current}), tracks: ${stream.getTracks().length}`);
+  }, [onStream]);
+
   const connect = useCallback(async () => {
-    if (isConnecting || isConnected) return;
+    if (isConnectingRef.current || isConnectedRef.current) return;
 
     setIsConnecting(true);
+    isConnectingRef.current = true;
     setError(null);
+    remoteDescriptionSetRef.current = false;
+    answerSentRef.current = false;
+    iceCandidateQueueRef.current = [];
 
     const sessionId = generateSessionId();
     sessionIdRef.current = sessionId;
 
     console.log(`[WebRTC Viewer] 세션 ${sessionId}로 연결 시도`);
 
-    // Peer Connection 생성
     const pc = new RTCPeerConnection(ICE_SERVERS);
     pcRef.current = pc;
 
-    // 수신 전용 트랜시버 추가
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
 
-    // 원격 스트림 수신 처리
+    // 트랙 수신 처리 — 빈 streams 대비 + 래핑
     pc.ontrack = (event: any) => {
       console.log("[WebRTC Viewer] 트랙 수신:", event.track.kind);
+
+      let stream: MediaStream;
       if (event.streams && event.streams[0]) {
-        setRemoteStream(event.streams[0]);
-        onStream?.(event.streams[0]);
+        stream = event.streams[0];
+      } else {
+        // event.streams가 비어있으면 수동 MediaStream 생성
+        console.log("[WebRTC Viewer] ⚠️ event.streams 비어있음, 수동 MediaStream 생성");
+        stream = new MediaStream();
+        stream.addTrack(event.track);
       }
+
+      updateStream(stream);
+
+      // 늦게 도착하는 트랙의 unmute 감지 → 재생 재시도
+      event.track.addEventListener("unmute", () => {
+        console.log(`[WebRTC Viewer] ✅ Track unmuted: ${event.track.kind}`);
+        // 새 MediaStream 래퍼로 감싸서 RTCView 강제 갱신
+        if (pcRef.current) {
+          const currentStream = event.streams?.[0];
+          if (currentStream) {
+            const wrapper = new MediaStream(currentStream.getTracks());
+            updateStream(wrapper);
+          }
+        }
+      }, { once: true });
     };
 
-    // ICE Candidate 전송
+    // 스트림에 새 트랙 추가 감지
+    pc.addEventListener?.("track", () => {}); // RN에서는 ontrack으로 충분
+
     pc.onicecandidate = async (event: any) => {
       if (event.candidate) {
-        console.log("[WebRTC Viewer] ICE candidate 전송");
         await supabase.from("webrtc_signaling").insert({
           device_id: deviceId,
           session_id: sessionId,
@@ -146,22 +233,20 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       }
     };
 
-    // 연결 상태 변경 처리
     pc.onconnectionstatechange = () => {
       console.log(`[WebRTC Viewer] 연결 상태: ${pc.connectionState}`);
       if (pc.connectionState === "connected") {
         setIsConnected(true);
+        isConnectedRef.current = true;
         setIsConnecting(false);
-      } else if (
-        pc.connectionState === "disconnected" ||
-        pc.connectionState === "failed"
-      ) {
+        isConnectingRef.current = false;
+      } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
         setIsConnected(false);
+        isConnectedRef.current = false;
         setError("연결이 끊어졌습니다");
       }
     };
 
-    // 시그널링 채널 구독
     const channel = supabase
       .channel(`webrtc-viewer-${sessionId}`)
       .on(
@@ -174,12 +259,10 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
         },
         async (payload: any) => {
           const record = payload.new;
-
-          // 브로드캐스터의 메시지만 처리
           if (record.sender_type !== "broadcaster") return;
 
-          if (record.type === "answer") {
-            await handleAnswer(record.data.sdp);
+          if (record.type === "answer" || record.type === "offer") {
+            await handleRemoteDescription(record.data.sdp || record.data);
           } else if (record.type === "ice-candidate") {
             await handleIceCandidate(record.data.candidate);
           }
@@ -189,7 +272,6 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
     channelRef.current = channel;
 
-    // Offer 생성 및 전송
     try {
       const offer = await pc.createOffer({});
       await pc.setLocalDescription(offer);
@@ -199,47 +281,41 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
         session_id: sessionId,
         type: "offer",
         sender_type: "viewer",
-        data: { sdp: offer },
+        data: { sdp: { type: offer.type, sdp: offer.sdp } },
       });
 
       console.log("[WebRTC Viewer] Offer 전송 완료");
 
-      // 연결 타임아웃 (15초)
       setTimeout(() => {
-        if (!isConnected && isConnecting) {
+        if (!isConnectedRef.current && isConnectingRef.current) {
           setError("노트북 카메라가 켜져 있지 않습니다");
           setIsConnecting(false);
-          disconnect();
+          isConnectingRef.current = false;
+          if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
+          iceCandidateQueueRef.current = [];
+          if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
         }
       }, 15000);
     } catch (err) {
       console.error("[WebRTC Viewer] Offer 생성 오류:", err);
       setError("연결에 실패했습니다");
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
-  }, [
-    deviceId,
-    isConnecting,
-    isConnected,
-    generateSessionId,
-    handleAnswer,
-    handleIceCandidate,
-    onStream,
-  ]);
+  }, [deviceId, generateSessionId, handleRemoteDescription, handleIceCandidate, updateStream]);
 
-  // 연결 해제
   const disconnect = useCallback(async () => {
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
     }
+    iceCandidateQueueRef.current = [];
 
     if (channelRef.current) {
       await supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    // 시그널링 데이터 정리
     if (sessionIdRef.current) {
       await supabase
         .from("webrtc_signaling")
@@ -249,11 +325,14 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
     setRemoteStream(null);
     setIsConnected(false);
+    isConnectedRef.current = false;
     setIsConnecting(false);
+    isConnectingRef.current = false;
+    remoteDescriptionSetRef.current = false;
+    answerSentRef.current = false;
     console.log("[WebRTC Viewer] 연결 해제됨");
   }, []);
 
-  // 언마운트 시 정리
   useEffect(() => {
     return () => {
       disconnect();
@@ -278,16 +357,15 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 아래 코드를 `src/components/CameraViewer.tsx`로 저장하세요:
 
 ```tsx
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useEffect, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from "react-native";
-import { RTCView, MediaStream as RNMediaStream } from "react-native-webrtc";
+import { RTCView } from "react-native-webrtc";
 import { useWebRTCViewer } from "../hooks/useWebRTCViewer";
 
 interface CameraViewerProps {
@@ -296,112 +374,26 @@ interface CameraViewerProps {
 }
 
 export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
-  const videoRef = useRef<any>(null);
-  const attemptCountRef = useRef(0);
-  const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [playFailed, setPlayFailed] = useState(false);
-
-  const handleStream = useCallback((stream: MediaStream) => {
-    console.log("[CameraViewer] 📹 Stream received, tracks:", stream.getTracks().length);
-    attemptCountRef.current = 0;
-    setPlayFailed(false);
-    attemptPlay(stream);
-
-    // 새로 추가된 트랙에도 unmute 리스너 등록하여 늦게 도착하는 트랙의 재생 보장
-    stream.addEventListener("addtrack", (event) => {
-      console.log(`[CameraViewer] ➕ New track added: ${(event as any).track?.kind}`);
-      const track = (event as any).track;
-      if (track) {
-        track.addEventListener("unmute", () => {
-          console.log(`[CameraViewer] ✅ Late track unmuted: ${track.kind}`);
-          attemptCountRef.current = 0;
-          attemptPlay(stream);
-        }, { once: true });
-      }
-    });
-  }, []);
-
-  const { isConnecting, isConnected, error, connect, disconnect } =
-    useWebRTCViewer({ deviceId, onStream: handleStream });
-
-  // attemptPlay: 5회마다 srcObject 재할당, 최대 20회, 후반 retry 간격 1초
-  const attemptPlay = useCallback((stream: MediaStream) => {
-    if (playTimerRef.current) {
-      clearTimeout(playTimerRef.current);
-      playTimerRef.current = null;
-    }
-
-    attemptCountRef.current++;
-    const attempt = attemptCountRef.current;
-    const MAX_ATTEMPTS = 20;
-
-    if (attempt > MAX_ATTEMPTS) {
-      console.log(`[CameraViewer] ❌ Max play attempts (${MAX_ATTEMPTS}) reached`);
-      setPlayFailed(true);
-      return;
-    }
-
-    // 5회마다 srcObject 재할당 시도
-    if (videoRef.current && attempt % 5 === 0) {
-      console.log(`[CameraViewer] 🔄 Re-assigning srcObject (attempt ${attempt})`);
-      videoRef.current.srcObject = null;
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
-    }
-
-    // 후반(11회 이상) retry 간격 1초, 전반 500ms
-    const delay = attempt > 10 ? 1000 : 500;
-
-    console.log(`[CameraViewer] ▶️ Play attempt ${attempt}/${MAX_ATTEMPTS} (delay: ${delay}ms)`);
-
-    playTimerRef.current = setTimeout(() => {
-      if (!stream.active) {
-        console.log("[CameraViewer] ⚠️ Stream no longer active, stopping attempts");
-        return;
-      }
-
-      const hasLiveTrack = stream.getTracks().some(t => t.readyState === "live" && !t.muted);
-      if (!hasLiveTrack && attempt < MAX_ATTEMPTS) {
-        console.log(`[CameraViewer] ⏳ No live unmuted track yet, retrying...`);
-        attemptPlay(stream);
-        return;
-      }
-
-      // RTCView는 자동 재생하므로 웹에서만 수동 play 필요
-      if (Platform.OS === "web" && videoRef.current) {
-        videoRef.current.play?.()
-          .then(() => console.log(`[CameraViewer] ✅ Play succeeded on attempt ${attempt}`))
-          .catch((err: any) => {
-            console.warn(`[CameraViewer] ⚠️ Play failed on attempt ${attempt}:`, err);
-            if (attempt < MAX_ATTEMPTS) {
-              attemptPlay(stream);
-            } else {
-              setPlayFailed(true);
-            }
-          });
-      } else {
-        console.log(`[CameraViewer] ✅ Stream assigned (attempt ${attempt})`);
-      }
-    }, delay);
-  }, []);
+  const { isConnecting, isConnected, error, remoteStream, connect, disconnect } =
+    useWebRTCViewer({ deviceId });
 
   // 컴포넌트 마운트 시 자동 연결
   useEffect(() => {
     connect();
     return () => {
-      if (playTimerRef.current) clearTimeout(playTimerRef.current);
       disconnect();
     };
   }, []);
 
-  const handleClose = () => {
-    if (playTimerRef.current) clearTimeout(playTimerRef.current);
+  const handleClose = useCallback(() => {
     disconnect();
     onClose();
-  };
+  }, [disconnect, onClose]);
+
+  // RTCView의 streamURL — remoteStream이 변경될 때마다 자동 갱신됨
+  // react-native-webrtc의 RTCView는 streamURL 변경 시 자동으로 영상을 재생하므로
+  // 별도의 play() 호출이나 srcObject 재할당이 불필요합니다.
+  const streamURL = remoteStream?.toURL?.() || "";
 
   return (
     <View style={styles.container}>
@@ -439,25 +431,23 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
           </View>
         )}
 
-        {isConnected && (
+        {/* 
+          RTCView 핵심 설정:
+          - streamURL: remoteStream.toURL()로 직접 전달
+          - objectFit: "contain"으로 영상 비율 유지 (cover는 찌그러짐 유발)
+          - RTCView는 streamURL이 변경되면 자동으로 재생을 시작함
+        */}
+        {remoteStream && (
           <RTCView
-            streamURL={(videoRef.current as any)?.toURL?.() || ""}
+            streamURL={streamURL}
             style={styles.video}
-            objectFit="cover"
+            objectFit="contain"
             mirror={false}
+            zOrder={0}
           />
         )}
 
-        {playFailed && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>영상 재생에 실패했습니다</Text>
-            <TouchableOpacity onPress={() => { attemptCountRef.current = 0; connect(); }} style={styles.retryButton}>
-              <Text style={styles.retryButtonText}>다시 시도</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {!isConnecting && !isConnected && !error && !playFailed && (
+        {!isConnecting && !isConnected && !error && (
           <View style={styles.placeholderContainer}>
             <Text style={styles.placeholderText}>
               노트북 카메라를 켜면 여기에 표시됩니다
@@ -480,167 +470,17 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1a1a2e",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.2)",
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  liveBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(239, 68, 68, 0.2)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  liveIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#ef4444",
-  },
-  liveText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#ef4444",
-  },
-  closeButton: {
-    padding: 8,
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: "#fff",
-  },
-  videoContainer: {
-    flex: 1,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  video: {
-    width: "100%",
-    height: "100%",
-  },
-  loadingContainer: {
-    alignItems: "center",
-    gap: 16,
-  },
-  loadingText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 14,
-  },
-  errorContainer: {
-    alignItems: "center",
-    padding: 24,
-    gap: 16,
-  },
-  errorText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 14,
-    textAlign: "center",
-  },
-  retryButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  retryButtonText: {
-    color: "#fff",
-    fontSize: 14,
-  },
-  placeholderContainer: {
-    alignItems: "center",
-    padding: 24,
-    gap: 16,
-  },
-  placeholderText: {
-    color: "rgba(255, 255, 255, 0.5)",
-    fontSize: 14,
-    textAlign: "center",
-  },
-  connectButton: {
-    backgroundColor: "#FFD700",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  connectButtonText: {
-    color: "#1a1a2e",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  controls: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.2)",
-  },
-  snapshotButton: {
-    backgroundColor: "#FFD700",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  snapshotButtonText: {
-    color: "#1a1a2e",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-});
 ```
 
----
+### CameraViewer 핵심 변경사항
 
-## 사용 방법
+1. **`remoteStream`을 직접 사용**: `videoRef`를 통한 간접 참조 대신, `useWebRTCViewer`가 반환하는 `remoteStream` 상태를 `RTCView`의 `streamURL`에 직접 전달합니다. 이렇게 하면 stream이 변경될 때 React가 자동으로 컴포넌트를 리렌더링하여 RTCView가 새 streamURL을 인식합니다.
 
-### 1. 스마트폰 앱에서 카메라 뷰어 열기
+2. **`objectFit: "contain"`**: `cover` 대신 `contain`을 사용하여 영상 비율을 유지합니다. `cover`는 컨테이너에 맞추기 위해 영상을 잘라내거나 찌그러뜨릴 수 있습니다.
 
-```tsx
-import { CameraViewer } from "./components/CameraViewer";
+3. **`remoteStream` 기반 조건부 렌더링**: `isConnected` 대신 `remoteStream`의 존재 여부로 RTCView를 렌더링합니다. 이렇게 하면 연결 상태와 스트림 수신이 동기화되지 않는 경우에도 안정적으로 동작합니다.
 
-function DeviceScreen({ device }) {
-  const [showCamera, setShowCamera] = useState(false);
-
-  return (
-    <View>
-      {/* 카메라 보기 버튼 */}
-      <TouchableOpacity onPress={() => setShowCamera(true)}>
-        <Text>📹 노트북 카메라 보기</Text>
-      </TouchableOpacity>
-
-      {/* 카메라 뷰어 모달 */}
-      <Modal visible={showCamera} animationType="slide">
-        <CameraViewer
-          deviceId={device.id}
-          onClose={() => setShowCamera(false)}
-        />
-      </Modal>
-    </View>
-  );
-}
-```
+4. **불필요한 `attemptPlay` 제거**: RTCView는 `streamURL`이 유효하면 자동으로 재생하므로 수동 play 로직이 불필요합니다.
 
 ### 2. 동작 흐름
 
