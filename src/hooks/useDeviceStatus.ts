@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
-import { updateDeviceViaEdge } from "@/lib/deviceApi";
+import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
+import { getSavedAuth } from "@/lib/serialAuth";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 // Global tracking to prevent duplicate Presence channel subscriptions
@@ -324,17 +325,66 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     }
   }, [deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Periodic heartbeat: update last_seen_at every 60s
+  // Periodic heartbeat: update last_seen_at + location + network every 60s
   useEffect(() => {
     if (!deviceId) return;
 
     const sendHeartbeat = async () => {
+      const now = new Date().toISOString();
+      const updates: Record<string, unknown> = {
+        last_seen_at: now,
+        updated_at: now,
+        is_network_connected: navigator.onLine,
+      };
+
+      // Gather network info
+      const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+      const networkInfo: Record<string, unknown> = {
+        type: connection?.type || "unknown",
+        downlink: connection?.downlink ?? null,
+        rtt: connection?.rtt ?? null,
+        effective_type: connection?.effectiveType || "unknown",
+        updated_at: now,
+      };
+
+      // Fetch IP (non-blocking, skip on failure)
       try {
-        await updateDeviceViaEdge(deviceId, {
-          last_seen_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+        const res = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(3000) });
+        const data = await res.json();
+        if (data.ip) updates.ip_address = data.ip;
+      } catch { /* skip */ }
+
+      // Merge network_info into metadata
+      try {
+        const savedAuth = getSavedAuth();
+        const uid = savedAuth?.user_id;
+        const device = uid ? await fetchDeviceViaEdge(deviceId, uid) : null;
+        const existingMeta = (device?.metadata as Record<string, unknown>) || {};
+        updates.metadata = { ...existingMeta, network_info: networkInfo };
+      } catch {
+        // If metadata fetch fails, just send network_info standalone
+        updates.metadata = { network_info: networkInfo };
+      }
+
+      // Gather location (non-blocking)
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 30000,
+          });
         });
-        console.log("[DeviceStatus] 💓 Heartbeat sent");
+        updates.latitude = position.coords.latitude;
+        updates.longitude = position.coords.longitude;
+        updates.location_updated_at = now;
+      } catch {
+        // Location unavailable — skip
+      }
+
+      try {
+        await updateDeviceViaEdge(deviceId, updates);
+        console.log("[DeviceStatus] 💓 Heartbeat sent (with location + network)");
       } catch (error) {
         console.error("[DeviceStatus] Heartbeat failed:", error);
       }
