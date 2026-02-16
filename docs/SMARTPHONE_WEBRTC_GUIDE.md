@@ -428,6 +428,11 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
   const { isConnecting, isConnected, error, remoteStream, connect, disconnect, reconnect } =
     useWebRTCViewer({ deviceId });
 
+  // 🆕 RTCView를 강제로 재생성하기 위한 key
+  // reconnect 시 이 값을 증가시켜 기존 비디오 태그를 DOM에서 완전히 제거하고
+  // 새로 생성합니다. 이렇게 하면 브라우저의 미디어 파이프라인이 완전히 리셋됩니다.
+  const [streamKey, setStreamKey] = useState(0);
+
   // 컴포넌트 마운트 시 자동 연결
   useEffect(() => {
     connect();
@@ -436,18 +441,26 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
     };
   }, []);
 
-  // 🔄 카메라 재연결 감지 시 자동 재연결
-  // broadcaster-ready 시그널 또는 is_camera_connected 변경 감지 시 호출
+  // 🔄 카메라 재연결 감지 시: key 갱신 + reconnect
   const handleCameraReconnected = useCallback(() => {
-    console.log("[CameraViewer] 📷 카메라 재연결 감지 → reconnect 호출");
+    console.log("[CameraViewer] 📷 카메라 재연결 감지 → 비디오 태그 리셋 + reconnect");
+    setStreamKey(prev => prev + 1); // 비디오 태그 강제 재생성
     reconnect(); // disconnect → 1초 디바운스 → connect
   }, [reconnect]);
 
-  // 예: broadcaster-ready 시그널 수신 시
+  // broadcaster-ready 시그널 수신 시 handleCameraReconnected 호출
   useEffect(() => {
     // Supabase Realtime으로 broadcaster-ready 감지하는 로직에서
     // handleCameraReconnected()를 호출하세요
   }, [handleCameraReconnected]);
+
+  // remoteStream이 변경될 때도 key 갱신 (재연결 후 새 스트림 수신 시)
+  useEffect(() => {
+    if (remoteStream) {
+      setStreamKey(prev => prev + 1);
+      console.log("[CameraViewer] 📹 새 스트림 수신 → 비디오 태그 재생성");
+    }
+  }, [remoteStream]);
 
   const handleClose = useCallback(() => {
     disconnect();
@@ -484,14 +497,22 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
         {error && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={reconnect} style={styles.retryButton}>
+            <TouchableOpacity onPress={handleCameraReconnected} style={styles.retryButton}>
               <Text style={styles.retryButtonText}>다시 시도</Text>
             </TouchableOpacity>
           </View>
         )}
 
+        {/* 
+          🆕 key={streamKey}: 재연결 시 RTCView를 완전히 파괴하고 새로 생성합니다.
+          이렇게 하면 readyState: 0 상태에서 고착되는 문제가 해결됩니다.
+          
+          ⚠️ 웹뷰(브라우저) 기반이라면 <video> 태그에도 동일하게 적용:
+          <video key={streamKey} autoPlay playsInline muted ref={videoRef} />
+        */}
         {remoteStream && (
           <RTCView
+            key={streamKey}
             streamURL={streamURL}
             style={styles.video}
             objectFit="contain"
