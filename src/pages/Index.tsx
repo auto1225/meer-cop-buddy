@@ -421,18 +421,21 @@ const Index = () => {
     let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const pollInterval = 3000;
 
+    const channelName = `device-commands-${currentDevice.id}`;
+    console.log("[Index] 🔌 Subscribing to broadcast channel:", channelName);
+
     // Fetch monitoring status via Edge Function (RLS-safe)
     const fetchStatus = async () => {
       if (!isMounted || !savedAuth?.user_id) return;
       try {
         const myDevice = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
         if (myDevice && isMounted) {
-          const isMonitoringFromDB = myDevice.is_monitoring ?? false;
+          const isMonitoringFromDB = (myDevice as unknown as Record<string, unknown>).is_monitoring ?? false;
           setIsMonitoring(prev => {
             if (prev !== isMonitoringFromDB) {
               console.log("[Index] 📡 Monitoring status from poll:", isMonitoringFromDB);
             }
-            return isMonitoringFromDB;
+            return isMonitoringFromDB as boolean;
           });
         }
       } catch (err) {
@@ -450,20 +453,41 @@ const Index = () => {
       }, pollInterval);
     };
 
+    // Remove any existing channel with same name to avoid duplicates
+    const existingChannels = supabaseShared.getChannels();
+    const existing = existingChannels.find(ch => ch.topic === `realtime:${channelName}`);
+    if (existing) {
+      console.log("[Index] ♻️ Removing existing channel:", channelName);
+      supabaseShared.removeChannel(existing);
+    }
+
     // Broadcast listener for instant monitoring_toggle from smartphone
-    const channel = supabaseShared.channel(`device-commands-${currentDevice.id}`);
+    const channel = supabaseShared.channel(channelName);
+    
     channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
       const isOn = payload.payload?.is_monitoring ?? false;
-      console.log("[Index] 📲 Broadcast monitoring_toggle received:", isOn);
+      console.log("[Index] 📲 Broadcast monitoring_toggle received:", isOn, "payload:", JSON.stringify(payload));
       setIsMonitoring(isOn);
     });
+    
     channel.on('broadcast', { event: 'settings_update' }, (payload) => {
       console.log("[Index] 📲 Broadcast settings_update received:", payload.payload);
-      // Trigger refetch to pick up metadata changes
       refetch();
     });
+
+    channel.on('broadcast', { event: 'remote_alarm_off' }, (payload) => {
+      console.log("[Index] 📲 Broadcast remote_alarm_off received:", payload.payload);
+      stopAlarm();
+      setCurrentEventType(undefined);
+      setShowPinKeypad(false);
+      markAlertCleared();
+    });
+
     channel.subscribe((status) => {
-      console.log("[Index] 📡 device-commands channel status:", status);
+      console.log("[Index] 📡 device-commands channel:", channelName, "status:", status);
+      if (status === 'SUBSCRIBED') {
+        console.log("[Index] ✅ Successfully subscribed to device commands");
+      }
     });
 
     // Initial fetch + polling
@@ -475,7 +499,7 @@ const Index = () => {
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
       supabaseShared.removeChannel(channel);
     };
-  }, [currentDevice?.id, savedAuth?.user_id, refetch]);
+  }, [currentDevice?.id, savedAuth?.user_id, refetch, stopAlarm]);
 
   // When smartphone goes offline, force stop monitoring
   useEffect(() => {
