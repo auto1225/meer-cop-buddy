@@ -413,22 +413,19 @@ const Index = () => {
     syncAlarmSounds();
   }, [currentDevice?.id, savedAuth?.user_id]);
 
-  // Subscribe to monitoring status + smartphone status with reliable polling fallback
+  // Subscribe to monitoring_toggle via Broadcast channel + polling fallback
   useEffect(() => {
     if (!currentDevice?.id) return;
 
     let isMounted = true;
     let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    let pollInterval = 3000; // Start at 3s
-    let realtimeWorking = false;
+    const pollInterval = 3000;
 
     // Fetch monitoring status via Edge Function (RLS-safe)
     const fetchStatus = async () => {
       if (!isMounted || !savedAuth?.user_id) return;
-      
       try {
         const myDevice = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
-        
         if (myDevice && isMounted) {
           const isMonitoringFromDB = myDevice.is_monitoring ?? false;
           setIsMonitoring(prev => {
@@ -443,24 +440,40 @@ const Index = () => {
       }
     };
 
-    // Polling only (Realtime is blocked by RLS for anon users)
+    // Polling fallback
     const schedulePoll = () => {
       if (!isMounted) return;
       pollTimeoutId = setTimeout(async () => {
         await fetchStatus();
-        // Also refetch device list to get metadata updates
         await refetch();
         schedulePoll();
       }, pollInterval);
     };
 
-    // Initial fetch
+    // Broadcast listener for instant monitoring_toggle from smartphone
+    const channel = supabaseShared.channel(`device-commands-${currentDevice.id}`);
+    channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
+      const isOn = payload.payload?.is_monitoring ?? false;
+      console.log("[Index] 📲 Broadcast monitoring_toggle received:", isOn);
+      setIsMonitoring(isOn);
+    });
+    channel.on('broadcast', { event: 'settings_update' }, (payload) => {
+      console.log("[Index] 📲 Broadcast settings_update received:", payload.payload);
+      // Trigger refetch to pick up metadata changes
+      refetch();
+    });
+    channel.subscribe((status) => {
+      console.log("[Index] 📡 device-commands channel status:", status);
+    });
+
+    // Initial fetch + polling
     fetchStatus();
     schedulePoll();
 
     return () => {
       isMounted = false;
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
+      supabaseShared.removeChannel(channel);
     };
   }, [currentDevice?.id, savedAuth?.user_id, refetch]);
 
