@@ -46,6 +46,8 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
   const isConnectedRef = useRef(false);
   const isConnectingRef = useRef(false);
+  const remoteDescriptionSetRef = useRef(false);
+  const answerSentRef = useRef(false);
 
   // Generate unique session ID
   const generateSessionId = useCallback(() => {
@@ -55,6 +57,13 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
   // Handle incoming answer from broadcaster
   const handleAnswer = useCallback(async (answer: RTCSessionDescriptionInit) => {
     if (!pcRef.current) return;
+    
+    // 중복 setRemoteDescription 방지
+    if (remoteDescriptionSetRef.current) {
+      console.log("[WebRTC Viewer] ⏭️ Remote description already set, skipping duplicate");
+      return;
+    }
+    remoteDescriptionSetRef.current = true;
 
     try {
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
@@ -103,6 +112,8 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     setIsConnecting(true);
     isConnectingRef.current = true;
     setError(null);
+    remoteDescriptionSetRef.current = false;
+    answerSentRef.current = false;
 
     const sessionId = generateSessionId();
     sessionIdRef.current = sessionId;
@@ -284,6 +295,8 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     isConnectedRef.current = false;
     setIsConnecting(false);
     isConnectingRef.current = false;
+    remoteDescriptionSetRef.current = false;
+    answerSentRef.current = false;
     console.log("[WebRTC Viewer] Disconnected");
   }, []);
 
