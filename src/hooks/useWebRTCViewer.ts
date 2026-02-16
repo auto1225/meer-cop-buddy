@@ -120,10 +120,42 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     // Handle incoming stream
     pc.ontrack = (event) => {
       console.log("[WebRTC Viewer] Received track:", event.track.kind);
-      if (event.streams[0]) {
-        streamRef.current = event.streams[0];
-        onStream?.(event.streams[0]);
+      
+      let stream: MediaStream;
+      if (event.streams && event.streams[0]) {
+        stream = event.streams[0];
+      } else {
+        // event.streams가 비어있으면 수동으로 MediaStream 생성
+        console.log("[WebRTC Viewer] ⚠️ event.streams empty, creating manual MediaStream");
+        if (!streamRef.current) {
+          stream = new MediaStream();
+        } else {
+          stream = streamRef.current;
+        }
+        stream.addTrack(event.track);
       }
+
+      // 같은 stream ID면 래퍼로 감싸서 React 리렌더링 보장
+      if (streamRef.current && streamRef.current.id === stream.id) {
+        console.log("[WebRTC Viewer] 🔄 Same stream ID detected, wrapping for re-render");
+        const wrapper = new MediaStream(stream.getTracks());
+        streamRef.current = wrapper;
+        onStream?.(wrapper);
+      } else {
+        streamRef.current = stream;
+        onStream?.(stream);
+      }
+
+      // 새 트랙에 unmute 리스너 등록 (늦게 도착하는 트랙 재생 보장)
+      event.track.addEventListener("unmute", () => {
+        console.log(`[WebRTC Viewer] ✅ Track unmuted via ontrack listener: ${event.track.kind}`);
+        if (streamRef.current) {
+          // 래퍼로 감싸서 onStream 재호출 → 재생 트리거
+          const refreshed = new MediaStream(streamRef.current.getTracks());
+          streamRef.current = refreshed;
+          onStream?.(refreshed);
+        }
+      }, { once: true });
     };
 
     // Handle ICE candidates
