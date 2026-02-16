@@ -141,7 +141,7 @@ export function useDevices(userId?: string) {
       ? `devices-changes-${userId}` 
       : "devices-changes";
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates (postgres_changes)
     const channel = supabaseShared
       .channel(channelName)
       .on(
@@ -182,10 +182,36 @@ export function useDevices(userId?: string) {
         }
       });
 
+    // Presence channel: detect smartphone online/offline instantly
+    let presenceChannel: ReturnType<typeof supabaseShared.channel> | null = null;
+    if (userId) {
+      presenceChannel = supabaseShared.channel(`user-presence-${userId}-devices`, {
+        config: { presence: { key: "device-watcher" } },
+      });
+
+      presenceChannel
+        .on("presence", { event: "sync" }, () => {
+          const state = presenceChannel!.presenceState();
+          console.log("[useDevices] 📡 Presence sync — triggering refetch", Object.keys(state));
+          // Presence 상태 변경 감지 → 즉시 refetch
+          fetchDevices();
+        })
+        .on("presence", { event: "join" }, ({ key, newPresences }) => {
+          console.log("[useDevices] 📱 Presence JOIN:", key, newPresences);
+          fetchDevices();
+        })
+        .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+          console.log("[useDevices] 📴 Presence LEAVE:", key, leftPresences);
+          fetchDevices();
+        })
+        .subscribe();
+    }
+
     return () => {
       isMounted = false;
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
       supabaseShared.removeChannel(channel);
+      if (presenceChannel) supabaseShared.removeChannel(presenceChannel);
     };
   }, [fetchDevices, userId]);
 
