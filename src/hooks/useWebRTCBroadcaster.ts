@@ -212,14 +212,19 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         }
 
         // 🆕 키프레임 강제 생성: 새 뷰어가 즉시 영상을 볼 수 있도록
-        // 비디오 트랙의 constraints를 살짝 건드려 인코더가 키프레임(I-Frame)을 발생시킵니다.
         if (streamRef.current) {
           const videoTrack = streamRef.current.getVideoTracks()[0];
           if (videoTrack && videoTrack.readyState === "live") {
+            // 방법 1: applyConstraints로 인코더 리셋 → 키프레임 발생
             const currentConstraints = videoTrack.getConstraints();
             videoTrack.applyConstraints(currentConstraints)
               .then(() => console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🎬 Keyframe forced via applyConstraints`))
-              .catch((e) => console.warn(`[Broadcaster] [${sessionId.slice(-8)}] Keyframe force failed:`, e));
+              .catch((e) => {
+                console.warn(`[Broadcaster] [${sessionId.slice(-8)}] applyConstraints failed, using track toggle fallback`);
+                // 방법 2: 트랙 enabled 토글 (applyConstraints 실패 시 폴백)
+                videoTrack.enabled = false;
+                setTimeout(() => { videoTrack.enabled = true; }, 50);
+              });
           }
         }
       } else if (pc.connectionState === "disconnected") {

@@ -567,11 +567,16 @@ useEffect(() => {
   const video = videoRef.current;
   if (!video || !stream) return;
 
-  // 1. 기존 재생 중단
+  // 1. 기존 재생 중단 및 스트림 할당
   video.pause();
   video.srcObject = stream;
 
-  // 2. 데이터가 충분히 로드된 후 0.5초 딜레이 재생 (GPU 과부하 방지)
+  // 2. [핵심] 모바일 필수 속성 강제 재할당 (재연결 시 브라우저가 잊어버릴 수 있음)
+  video.setAttribute("playsinline", "true");
+  video.setAttribute("webkit-playsinline", "true"); // 구형 iOS 호환
+  video.muted = true; // 프로퍼티로도 설정
+
+  // 3. 데이터가 충분히 로드된 후 0.5초 딜레이 재생 (GPU 과부하 방지)
   const onLoadedData = () => {
     setTimeout(() => {
       video.play().catch(e => {
@@ -583,7 +588,7 @@ useEffect(() => {
     }, 500); // 모바일 GPU 안정화를 위한 딜레이
   };
 
-  video.addEventListener("loadeddata", onLoadedData); // loadedmetadata 대신 loadeddata 사용
+  video.addEventListener("loadeddata", onLoadedData);
   video.load(); // 미디어 파이프라인 강제 리셋
 
   return () => {
@@ -591,15 +596,20 @@ useEffect(() => {
   };
 }, [stream]);
 
-// JSX — key 속성으로 비디오 태그 강제 재생성
+// JSX — key 속성으로 비디오 태그 강제 재생성 + 모바일 필수 속성
 <video
   key={streamKey}
   ref={videoRef}
   autoPlay
-  playsInline  // iOS 필수
-  muted        // 자동재생 정책 우회
+  playsInline  // iOS 필수 (태그에 직접 명시)
+  muted        // 자동재생 정책 우회 (태그에 직접 명시)
 />
 ```
+
+> **⚠️ 중요**: `playsInline`과 `muted`는 반드시 JSX 태그에 직접 명시하고,
+> `srcObject` 할당 후에도 `video.setAttribute("playsinline", "true")`와
+> `video.muted = true`로 한번 더 강제 설정하세요.
+> 재연결 시 모바일 브라우저(특히 iOS)가 이 속성을 잃어버리는 경우가 있습니다.
 
 ### 2. 동작 흐름
 
