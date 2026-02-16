@@ -115,10 +115,38 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       peer.pc.close();
       peersRef.current.delete(sessionId);
       creatingPeerRef.current.delete(sessionId);
+      // Also remove from processed sets so session can be retried if needed
+      processedViewerJoinsRef.current.delete(sessionId);
+      processedAnswersRef.current.delete(sessionId);
+      iceCandidateQueueRef.current.delete(sessionId);
       setViewerCount(peersRef.current.size);
       console.log(`[Broadcaster] ❌ Peer ${sessionId} cleaned up`);
+      
+      // Clean up signaling records for this session asynchronously
+      supabaseShared.from("webrtc_signaling").delete()
+        .eq("session_id", sessionId)
+        .then(({ error }) => {
+          if (error) console.warn("[Broadcaster] Failed to clean signaling for", sessionId);
+          else console.log(`[Broadcaster] 🧹 Signaling cleaned for ${sessionId}`);
+        });
     }
   }, []);
+
+  // Proactively clean up all dead/failed peers
+  const cleanupDeadPeers = useCallback(() => {
+    let cleaned = 0;
+    const deadStates = ["failed", "closed"];
+    peersRef.current.forEach((peer, sessionId) => {
+      if (deadStates.includes(peer.pc.connectionState)) {
+        cleanupPeer(sessionId);
+        cleaned++;
+      }
+    });
+    if (cleaned > 0) {
+      console.log(`[Broadcaster] 🧹 Cleaned ${cleaned} dead peers`);
+    }
+    return cleaned;
+  }, [cleanupPeer]);
 
   const createPeerConnectionAndOffer = useCallback(async (sessionId: string) => {
     const currentDeviceId = deviceIdRef.current;
@@ -286,6 +314,16 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     const currentDeviceId = deviceIdRef.current;
     if (!streamRef.current) return;
 
+    // Proactively clean up dead peers before processing new signals
+    cleanupDeadPeers();
+
+    // Also check if stream tracks are still alive
+    const activeTracks = streamRef.current.getTracks().filter(t => t.readyState === "live");
+    if (activeTracks.length === 0) {
+      console.warn("[Broadcaster] ⚠️ All stream tracks ended — stream is stale");
+      return;
+    }
+
     try {
       // 1. Check for new viewer-joins (with mutex guard)
       const joins = await fetchSignaling(currentDeviceId, "viewer-join", "viewer");
@@ -318,7 +356,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     } catch (e) {
       console.warn("[Broadcaster] Poll error:", e);
     }
-  }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate]);
+  }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate, cleanupDeadPeers]);
 
   const startBroadcasting = useCallback(async (stream: MediaStream) => {
     const currentDeviceId = deviceIdRef.current;
