@@ -489,6 +489,16 @@ const Index = () => {
       markAlertCleared();
     });
 
+    channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
+      const camouflageOn = payload.payload?.camouflage_mode ?? false;
+      console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageOn);
+      broadcastMonitoringAt.current = Date.now();
+      setIsCamouflageMode(camouflageOn);
+      if (camouflageOn) {
+        setIsMonitoring(true);
+      }
+    });
+
     channel.subscribe((status) => {
       console.log("[Index] 📡 device-commands channel status:", status);
     });
