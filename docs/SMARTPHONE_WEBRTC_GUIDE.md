@@ -188,34 +188,37 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
 
-    // 트랙 수신 처리 — 빈 streams 대비 + 래핑
+    // 트랙 수신 처리 — unmute 후 디바운스로 1회만 스트림 전달
+    let streamDeliverTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const deliverStream = () => {
+      if (streamDeliverTimer) clearTimeout(streamDeliverTimer);
+      streamDeliverTimer = setTimeout(() => {
+        const currentPC = pcRef.current;
+        if (!currentPC) return;
+        // 현재 수신 중인 모든 트랙으로 새 MediaStream 생성
+        const receivers = currentPC.getReceivers?.() || [];
+        const tracks = receivers.map((r: any) => r.track).filter(Boolean);
+        if (tracks.length > 0) {
+          const wrapped = new MediaStream(tracks);
+          updateStream(wrapped);
+          console.log("[WebRTC Viewer] 📤 디바운스 스트림 전달 완료");
+        }
+      }, 150);
+    };
+
     pc.ontrack = (event: any) => {
       console.log("[WebRTC Viewer] 트랙 수신:", event.track.kind);
 
-      let stream: MediaStream;
-      if (event.streams && event.streams[0]) {
-        stream = event.streams[0];
+      // muted 트랙은 unmute 대기, unmuted 트랙은 즉시 전달 예약
+      if (event.track.muted) {
+        event.track.addEventListener("unmute", () => {
+          console.log(`[WebRTC Viewer] ✅ Track unmuted: ${event.track.kind}`);
+          deliverStream();
+        }, { once: true });
       } else {
-        // event.streams가 비어있으면 수동 MediaStream 생성
-        console.log("[WebRTC Viewer] ⚠️ event.streams 비어있음, 수동 MediaStream 생성");
-        stream = new MediaStream();
-        stream.addTrack(event.track);
+        deliverStream();
       }
-
-      updateStream(stream);
-
-      // 늦게 도착하는 트랙의 unmute 감지 → 재생 재시도
-      event.track.addEventListener("unmute", () => {
-        console.log(`[WebRTC Viewer] ✅ Track unmuted: ${event.track.kind}`);
-        // 새 MediaStream 래퍼로 감싸서 RTCView 강제 갱신
-        if (pcRef.current) {
-          const currentStream = event.streams?.[0];
-          if (currentStream) {
-            const wrapper = new MediaStream(currentStream.getTracks());
-            updateStream(wrapper);
-          }
-        }
-      }, { once: true });
     };
 
     // 스트림에 새 트랙 추가 감지
