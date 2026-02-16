@@ -278,15 +278,16 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 아래 코드를 `src/components/CameraViewer.tsx`로 저장하세요:
 
 ```tsx
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from "react-native";
-import { RTCView } from "react-native-webrtc";
+import { RTCView, MediaStream as RNMediaStream } from "react-native-webrtc";
 import { useWebRTCViewer } from "../hooks/useWebRTCViewer";
 
 interface CameraViewerProps {
@@ -295,18 +296,109 @@ interface CameraViewerProps {
 }
 
 export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
-  const { isConnecting, isConnected, error, remoteStream, connect, disconnect } =
-    useWebRTCViewer({ deviceId });
+  const videoRef = useRef<any>(null);
+  const attemptCountRef = useRef(0);
+  const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [playFailed, setPlayFailed] = useState(false);
+
+  const handleStream = useCallback((stream: MediaStream) => {
+    console.log("[CameraViewer] 📹 Stream received, tracks:", stream.getTracks().length);
+    attemptCountRef.current = 0;
+    setPlayFailed(false);
+    attemptPlay(stream);
+
+    // 새로 추가된 트랙에도 unmute 리스너 등록하여 늦게 도착하는 트랙의 재생 보장
+    stream.addEventListener("addtrack", (event) => {
+      console.log(`[CameraViewer] ➕ New track added: ${(event as any).track?.kind}`);
+      const track = (event as any).track;
+      if (track) {
+        track.addEventListener("unmute", () => {
+          console.log(`[CameraViewer] ✅ Late track unmuted: ${track.kind}`);
+          attemptCountRef.current = 0;
+          attemptPlay(stream);
+        }, { once: true });
+      }
+    });
+  }, []);
+
+  const { isConnecting, isConnected, error, connect, disconnect } =
+    useWebRTCViewer({ deviceId, onStream: handleStream });
+
+  // attemptPlay: 5회마다 srcObject 재할당, 최대 20회, 후반 retry 간격 1초
+  const attemptPlay = useCallback((stream: MediaStream) => {
+    if (playTimerRef.current) {
+      clearTimeout(playTimerRef.current);
+      playTimerRef.current = null;
+    }
+
+    attemptCountRef.current++;
+    const attempt = attemptCountRef.current;
+    const MAX_ATTEMPTS = 20;
+
+    if (attempt > MAX_ATTEMPTS) {
+      console.log(`[CameraViewer] ❌ Max play attempts (${MAX_ATTEMPTS}) reached`);
+      setPlayFailed(true);
+      return;
+    }
+
+    // 5회마다 srcObject 재할당 시도
+    if (videoRef.current && attempt % 5 === 0) {
+      console.log(`[CameraViewer] 🔄 Re-assigning srcObject (attempt ${attempt})`);
+      videoRef.current.srcObject = null;
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    }
+
+    // 후반(11회 이상) retry 간격 1초, 전반 500ms
+    const delay = attempt > 10 ? 1000 : 500;
+
+    console.log(`[CameraViewer] ▶️ Play attempt ${attempt}/${MAX_ATTEMPTS} (delay: ${delay}ms)`);
+
+    playTimerRef.current = setTimeout(() => {
+      if (!stream.active) {
+        console.log("[CameraViewer] ⚠️ Stream no longer active, stopping attempts");
+        return;
+      }
+
+      const hasLiveTrack = stream.getTracks().some(t => t.readyState === "live" && !t.muted);
+      if (!hasLiveTrack && attempt < MAX_ATTEMPTS) {
+        console.log(`[CameraViewer] ⏳ No live unmuted track yet, retrying...`);
+        attemptPlay(stream);
+        return;
+      }
+
+      // RTCView는 자동 재생하므로 웹에서만 수동 play 필요
+      if (Platform.OS === "web" && videoRef.current) {
+        videoRef.current.play?.()
+          .then(() => console.log(`[CameraViewer] ✅ Play succeeded on attempt ${attempt}`))
+          .catch((err: any) => {
+            console.warn(`[CameraViewer] ⚠️ Play failed on attempt ${attempt}:`, err);
+            if (attempt < MAX_ATTEMPTS) {
+              attemptPlay(stream);
+            } else {
+              setPlayFailed(true);
+            }
+          });
+      } else {
+        console.log(`[CameraViewer] ✅ Stream assigned (attempt ${attempt})`);
+      }
+    }, delay);
+  }, []);
 
   // 컴포넌트 마운트 시 자동 연결
   useEffect(() => {
     connect();
     return () => {
+      if (playTimerRef.current) clearTimeout(playTimerRef.current);
       disconnect();
     };
   }, []);
 
   const handleClose = () => {
+    if (playTimerRef.current) clearTimeout(playTimerRef.current);
     disconnect();
     onClose();
   };
@@ -347,16 +439,25 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
           </View>
         )}
 
-        {isConnected && remoteStream && (
+        {isConnected && (
           <RTCView
-            streamURL={remoteStream.toURL()}
+            streamURL={(videoRef.current as any)?.toURL?.() || ""}
             style={styles.video}
             objectFit="cover"
             mirror={false}
           />
         )}
 
-        {!isConnecting && !isConnected && !error && (
+        {playFailed && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>영상 재생에 실패했습니다</Text>
+            <TouchableOpacity onPress={() => { attemptCountRef.current = 0; connect(); }} style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!isConnecting && !isConnected && !error && !playFailed && (
           <View style={styles.placeholderContainer}>
             <Text style={styles.placeholderText}>
               노트북 카메라를 켜면 여기에 표시됩니다
