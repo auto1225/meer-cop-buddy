@@ -210,6 +210,18 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           disconnectTimersRef.current.delete(sessionId);
           console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Connection recovered from disconnected`);
         }
+
+        // 🆕 키프레임 강제 생성: 새 뷰어가 즉시 영상을 볼 수 있도록
+        // 비디오 트랙의 constraints를 살짝 건드려 인코더가 키프레임(I-Frame)을 발생시킵니다.
+        if (streamRef.current) {
+          const videoTrack = streamRef.current.getVideoTracks()[0];
+          if (videoTrack && videoTrack.readyState === "live") {
+            const currentConstraints = videoTrack.getConstraints();
+            videoTrack.applyConstraints(currentConstraints)
+              .then(() => console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🎬 Keyframe forced via applyConstraints`))
+              .catch((e) => console.warn(`[Broadcaster] [${sessionId.slice(-8)}] Keyframe force failed:`, e));
+          }
+        }
       } else if (pc.connectionState === "disconnected") {
         // "disconnected" is NOT terminal — WebRTC can auto-recover
         // Give it 10 seconds grace period before cleanup
