@@ -24,6 +24,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [isStarted, setIsStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const intentionalStopRef = useRef(false);
 
   // Attach stream to video element
   useEffect(() => {
@@ -40,6 +41,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     if (!videoTrack) return;
 
     const handleEnded = () => {
+      if (intentionalStopRef.current) return; // Ignore if we stopped it ourselves
       setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
       setStream(null);
       onStatusChange?.(false);
@@ -51,6 +53,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
 
   const stopCamera = useCallback(() => {
     if (stream) {
+      intentionalStopRef.current = true;
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
@@ -62,6 +65,8 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     setSnapshot(null);
     setError(null);
     setIsLoading(false);
+    // Reset intentional stop flag after a tick so ended events are fully ignored
+    setTimeout(() => { intentionalStopRef.current = false; }, 100);
   }, [stopCamera]);
 
   // Try each constraint set until one works (with timeout)
