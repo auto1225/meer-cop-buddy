@@ -83,6 +83,17 @@ export function useDevices(userId?: string) {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
+        console.warn("[useDevices] Edge Function error:", res.status, errData);
+        // Fallback: 직접 쿼리 시도 (RLS 허용 시)
+        const { data: fallbackData } = await supabaseShared
+          .from("devices")
+          .select("*");
+        if (fallbackData && fallbackData.length > 0) {
+          console.log("[useDevices] Fallback fetched:", fallbackData.length, "devices");
+          setDevices(fallbackData as Device[]);
+          setError(null);
+          return;
+        }
         throw new Error(errData.error || `get-devices failed: ${res.status}`);
       }
 
