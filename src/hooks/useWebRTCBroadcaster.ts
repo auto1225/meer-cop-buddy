@@ -199,6 +199,43 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       }
     };
 
+    // 🆕 ICE 연결 상태 변경 시 키프레임 강제 생성 (getSenders 기반)
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[Broadcaster] [${sessionId.slice(-8)}] ICE state: ${pc.iceConnectionState}`);
+      
+      if (pc.iceConnectionState === "connected") {
+        console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔥 뷰어 ICE 연결! 키프레임 강제 생성`);
+        
+        // getSenders()를 통해 실제 전송 중인 비디오 트랙을 직접 찾기
+        const senders = pc.getSenders();
+        const videoSender = senders.find(s => s.track && s.track.kind === "video");
+        
+        if (videoSender && videoSender.track && videoSender.track.readyState === "live") {
+          const track = videoSender.track;
+          const constraints = track.getConstraints();
+          
+          // 방법 1: frameRate를 살짝 변경하여 인코더 리셋 유도
+          const currentFR = (constraints.frameRate as any)?.ideal || 30;
+          const newFR = currentFR === 30 ? 29 : 30;
+          
+          track.applyConstraints({
+            ...constraints,
+            frameRate: { ideal: newFR, max: 30 },
+          })
+            .then(() => console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe via applyConstraints (${currentFR}→${newFR})`))
+            .catch((e) => {
+              // 방법 2: 트랙 enabled 토글 (폴백)
+              console.warn(`[Broadcaster] [${sessionId.slice(-8)}] applyConstraints failed, track toggle fallback`);
+              track.enabled = false;
+              setTimeout(() => {
+                track.enabled = true;
+                console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe via track toggle`);
+              }, 50);
+            });
+        }
+      }
+    };
+
     pc.onconnectionstatechange = () => {
       console.log(`[Broadcaster] [${sessionId.slice(-8)}] Connection state: ${pc.connectionState}`);
       
@@ -209,18 +246,6 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           clearTimeout(timer);
           disconnectTimersRef.current.delete(sessionId);
           console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Connection recovered from disconnected`);
-        }
-
-        // 🆕 키프레임 강제 생성: 트랙 토글로 인코더 리셋 → I-Frame 발생
-        if (streamRef.current) {
-          const videoTrack = streamRef.current.getVideoTracks()[0];
-          if (videoTrack && videoTrack.readyState === "live") {
-            videoTrack.enabled = false;
-            setTimeout(() => {
-              videoTrack.enabled = true;
-              console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🎬 I-Frame forced via track toggle`);
-            }, 50);
-          }
         }
       } else if (pc.connectionState === "disconnected") {
         // "disconnected" is NOT terminal — WebRTC can auto-recover
