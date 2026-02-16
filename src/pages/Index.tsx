@@ -413,11 +413,20 @@ const Index = () => {
     syncAlarmSounds();
   }, [currentDevice?.id, savedAuth?.user_id]);
 
+  // Track when broadcast sets monitoring (to prevent polling override)
+  const broadcastMonitoringAt = useRef<number>(0);
+
   // Sync isMonitoring from devices data (useDevices already polls)
+  // BUT skip if broadcast recently set the value (within 15s)
   useEffect(() => {
     if (!currentDevice) return;
     const mon = (currentDevice as unknown as Record<string, unknown>).is_monitoring;
     if (mon !== undefined) {
+      const sinceBroadcast = Date.now() - broadcastMonitoringAt.current;
+      if (sinceBroadcast < 15000) {
+        console.log("[Index] 📡 Skipping polling override (broadcast was", Math.round(sinceBroadcast / 1000), "s ago)");
+        return;
+      }
       setIsMonitoring(prev => {
         const val = mon === true;
         if (prev !== val) console.log("[Index] 📡 Monitoring from devices:", val);
@@ -445,6 +454,7 @@ const Index = () => {
     channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
       const isOn = payload.payload?.is_monitoring ?? false;
       console.log("[Index] 📲 Broadcast monitoring_toggle received:", isOn);
+      broadcastMonitoringAt.current = Date.now();
       setIsMonitoring(isOn);
       refetch();
     });
