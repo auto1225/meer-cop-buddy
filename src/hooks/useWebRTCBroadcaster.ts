@@ -211,12 +211,16 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         
         if (videoSender && videoSender.track && videoSender.track.readyState === "live") {
           const track = videoSender.track;
-          // 트랙을 0.1초 껐다 켜기 → 인코더 강제 리셋 → 100% 새 I-Frame 발생
+          // 트랙을 0.5초 껐다 켜기 → 인코더 확실히 리셋 → I-Frame 발생
           track.enabled = false;
           setTimeout(() => {
             track.enabled = true;
-            console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe forced via track toggle (100ms)`);
-          }, 100);
+            console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe forced via track toggle (500ms)`);
+            // 추가: 화질 설정도 건드려서 인코더를 한번 더 자극
+            const constraints = track.getConstraints();
+            track.applyConstraints({ ...constraints, frameRate: 30 })
+              .catch(e => console.warn(`[Broadcaster] [${sessionId.slice(-8)}] applyConstraints after toggle:`, e));
+          }, 500);
         }
       }
     };
