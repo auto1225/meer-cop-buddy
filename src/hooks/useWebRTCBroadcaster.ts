@@ -95,18 +95,28 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const iceCandidateQueueRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const deviceIdRef = useRef(deviceId);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const creatingPeerRef = useRef<Set<string>>(new Set()); // Mutex for peer creation
+  const disconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map()); // Grace period timers
 
   useEffect(() => {
     deviceIdRef.current = deviceId;
   }, [deviceId]);
 
   const cleanupPeer = useCallback((sessionId: string) => {
+    // Clear any pending disconnect timer
+    const timer = disconnectTimersRef.current.get(sessionId);
+    if (timer) {
+      clearTimeout(timer);
+      disconnectTimersRef.current.delete(sessionId);
+    }
+
     const peer = peersRef.current.get(sessionId);
     if (peer) {
       peer.pc.close();
       peersRef.current.delete(sessionId);
+      creatingPeerRef.current.delete(sessionId);
       setViewerCount(peersRef.current.size);
-      console.log(`[Broadcaster] Peer ${sessionId} disconnected`);
+      console.log(`[Broadcaster] ❌ Peer ${sessionId} cleaned up`);
     }
   }, []);
 
@@ -118,15 +128,26 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       return null;
     }
 
+    // Mutex: prevent concurrent creation for the same session
+    if (creatingPeerRef.current.has(sessionId)) {
+      console.log(`[Broadcaster] ⏭️ Already creating peer for ${sessionId}`);
+      return null;
+    }
+
     if (peersRef.current.has(sessionId)) {
       console.log(`[Broadcaster] Peer ${sessionId} already exists`);
       return peersRef.current.get(sessionId)!.pc;
     }
 
+    creatingPeerRef.current.add(sessionId);
     console.log(`[Broadcaster] Creating peer connection for ${sessionId}`);
 
-    // Clear stale broadcaster signals
-    await deleteSignaling(currentDeviceId, "broadcaster");
+    // Clear any pending disconnect timer for this session (reconnection case)
+    const existingTimer = disconnectTimersRef.current.get(sessionId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      disconnectTimersRef.current.delete(sessionId);
+    }
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
@@ -149,13 +170,37 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     };
 
     pc.onconnectionstatechange = () => {
-      console.log(`[Broadcaster] Connection state: ${pc.connectionState}`);
-      if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+      console.log(`[Broadcaster] [${sessionId.slice(-8)}] Connection state: ${pc.connectionState}`);
+      
+      if (pc.connectionState === "connected") {
+        // Clear any pending disconnect timer — connection recovered
+        const timer = disconnectTimersRef.current.get(sessionId);
+        if (timer) {
+          clearTimeout(timer);
+          disconnectTimersRef.current.delete(sessionId);
+          console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Connection recovered from disconnected`);
+        }
+      } else if (pc.connectionState === "disconnected") {
+        // "disconnected" is NOT terminal — WebRTC can auto-recover
+        // Give it 10 seconds grace period before cleanup
+        console.log(`[Broadcaster] [${sessionId.slice(-8)}] ⚠️ Disconnected — waiting 10s for recovery...`);
+        const timer = setTimeout(() => {
+          disconnectTimersRef.current.delete(sessionId);
+          const currentPeer = peersRef.current.get(sessionId);
+          if (currentPeer && currentPeer.pc.connectionState !== "connected") {
+            console.log(`[Broadcaster] [${sessionId.slice(-8)}] ❌ No recovery after 10s — cleaning up`);
+            cleanupPeer(sessionId);
+          }
+        }, 10000);
+        disconnectTimersRef.current.set(sessionId, timer);
+      } else if (pc.connectionState === "failed") {
+        // "failed" IS terminal — cleanup immediately
         cleanupPeer(sessionId);
       }
     };
 
     peersRef.current.set(sessionId, { sessionId, pc });
+    creatingPeerRef.current.delete(sessionId);
     setViewerCount(peersRef.current.size);
 
     try {
@@ -242,13 +287,17 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     if (!streamRef.current) return;
 
     try {
-      // 1. Check for new viewer-joins
+      // 1. Check for new viewer-joins (with mutex guard)
       const joins = await fetchSignaling(currentDeviceId, "viewer-join", "viewer");
       for (const join of joins) {
         const sid = join.session_id;
-        if (!processedViewerJoinsRef.current.has(sid) && !peersRef.current.has(sid)) {
+        if (
+          !processedViewerJoinsRef.current.has(sid) &&
+          !peersRef.current.has(sid) &&
+          !creatingPeerRef.current.has(sid)
+        ) {
           processedViewerJoinsRef.current.add(sid);
-          console.log(`[Broadcaster] 👋 New viewer: ${sid}`);
+          console.log(`[Broadcaster] 👋 New viewer (poll): ${sid}`);
           await createPeerConnectionAndOffer(sid);
         }
       }
@@ -326,7 +375,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
             const sid = record.session_id;
             if (
               !processedViewerJoinsRef.current.has(sid) &&
-              !peersRef.current.has(sid)
+              !peersRef.current.has(sid) &&
+              !creatingPeerRef.current.has(sid)
             ) {
               processedViewerJoinsRef.current.add(sid);
               console.log(`[Broadcaster] 👋 Realtime viewer: ${sid}`);
@@ -360,10 +410,15 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       pollingIntervalRef.current = null;
     }
 
+    // Clear all disconnect grace period timers
+    disconnectTimersRef.current.forEach((timer) => clearTimeout(timer));
+    disconnectTimersRef.current.clear();
+
     const wasActive = channelRef.current !== null || peersRef.current.size > 0;
 
     peersRef.current.forEach((peer) => peer.pc.close());
     peersRef.current.clear();
+    creatingPeerRef.current.clear();
     processedViewerJoinsRef.current.clear();
     processedAnswersRef.current.clear();
     iceCandidateQueueRef.current.clear();
@@ -387,6 +442,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     return () => {
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
       if (channelRef.current) supabaseShared.removeChannel(channelRef.current);
+      disconnectTimersRef.current.forEach((timer) => clearTimeout(timer));
+      disconnectTimersRef.current.clear();
       peersRef.current.forEach((peer) => peer.pc.close());
     };
   }, []);
