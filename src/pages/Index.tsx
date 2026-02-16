@@ -77,7 +77,7 @@ const Index = () => {
   
   console.log("[Index] 📱 smartphoneDevice:", smartphoneDevice?.id, "status:", smartphoneDevice?.status, "online:", smartphoneOnline);
   
-  const { isNetworkConnected, isCameraAvailable, setCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated, savedAuth?.user_id);
+  const { isNetworkConnected, isCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated, savedAuth?.user_id);
 
   // Camera detection - auto-sync to DB
   useCameraDetection({ deviceId: currentDevice?.id });
@@ -629,7 +629,6 @@ const Index = () => {
         <CameraModal
           isOpen={isCameraModalOpen}
           onClose={() => setIsCameraModalOpen(false)}
-          onCameraStatusChange={setCameraAvailable}
           deviceId={currentDevice?.id}
         />
 
