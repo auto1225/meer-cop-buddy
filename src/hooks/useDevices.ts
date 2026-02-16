@@ -5,8 +5,9 @@ import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@
 // Shared DB schema (sltxwkdvaapyeosikegj.supabase.co)
 interface Device {
   id: string;
-  device_id: string;
-  device_name: string;  // Correct column name
+  device_id?: string;
+  device_name?: string;
+  name?: string; // Edge Function returns "name" instead of "device_name"
   device_type: string;
   status: string;
   is_monitoring?: boolean;
@@ -45,8 +46,8 @@ function toCompatDevice(d: Device): DeviceCompat {
   const effectiveOnline = d.status === "online" || (d.is_monitoring === true && d.status !== "offline");
   return {
     id: d.id,
-    device_id: d.device_id,
-    device_name: d.device_name,
+    device_id: d.device_id || d.id,
+    device_name: d.device_name || d.name || "Unknown",
     device_type: d.device_type,
     status: effectiveOnline ? "online" : "offline",
     last_seen_at: d.last_seen_at,
