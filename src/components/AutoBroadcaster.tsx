@@ -17,12 +17,47 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
   const isStoppingRef = useRef(false);
   const lastRequestedRef = useRef<boolean | null>(null);
   const instanceIdRef = useRef(Math.random().toString(36).substring(7));
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 10; // 최대 10회 재시도 (약 30초)
   
   const {
     isBroadcasting,
     startBroadcasting,
     stopBroadcasting,
   } = useWebRTCBroadcaster({ deviceId: deviceId || "" });
+
+  // Clean up retry timer
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
+
+  // Stop camera and broadcasting
+  const stopCameraAndBroadcast = useCallback(async () => {
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
+
+    console.log(`[AutoBroadcaster:${instanceIdRef.current}] Stopping camera and broadcast`);
+
+    globalBroadcastingDevice = null;
+    clearRetryTimer();
+    retryCountRef.current = 0;
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        track.onended = null; // Remove ended listeners
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+
+    await stopBroadcasting();
+
+    isStoppingRef.current = false;
+  }, [stopBroadcasting, clearRetryTimer]);
 
   // Start camera and broadcasting
   const startCameraAndBroadcast = useCallback(async () => {
@@ -31,20 +66,29 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       return;
     }
     
-    if (!deviceId || isStartingRef.current || streamRef.current) {
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] Skipping start`, {
-        deviceId: !!deviceId,
-        isStarting: isStartingRef.current,
-        hasStream: !!streamRef.current,
-      });
+    if (!deviceId || isStartingRef.current) {
       return;
+    }
+
+    // If stream already exists and tracks are alive, skip
+    if (streamRef.current) {
+      const activeTracks = streamRef.current.getTracks().filter(t => t.readyState === "live");
+      if (activeTracks.length > 0) {
+        console.log(`[AutoBroadcaster:${instanceIdRef.current}] Stream already active with ${activeTracks.length} live tracks`);
+        return;
+      }
+      // Dead stream — clean up
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Cleaning dead stream`);
+      streamRef.current.getTracks().forEach(t => { t.onended = null; t.stop(); });
+      streamRef.current = null;
+      await stopBroadcasting();
     }
     
     globalBroadcastingDevice = deviceId;
     isStartingRef.current = true;
 
     try {
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera for streaming request`);
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera (attempt ${retryCountRef.current + 1})`);
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -56,40 +100,67 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       });
 
       streamRef.current = stream;
+      retryCountRef.current = 0; // Reset retry count on success
+      clearRetryTimer();
+
+      // Add track ended listeners to detect camera removal during streaming
+      stream.getTracks().forEach((track) => {
+        track.onended = () => {
+          console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ Track ended: ${track.kind} (${track.label})`);
+          
+          // Check if ALL tracks are ended
+          const allEnded = stream.getTracks().every(t => t.readyState === "ended");
+          if (allEnded && streamRef.current === stream) {
+            console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔌 All tracks ended — camera likely removed during streaming`);
+            
+            // Clean up dead stream but DON'T reset is_streaming_requested
+            // This allows auto-retry when camera is reconnected
+            streamRef.current = null;
+            globalBroadcastingDevice = null;
+            stopBroadcasting();
+            
+            // Schedule retry — camera might be reconnected
+            scheduleRetry();
+          }
+        };
+      });
+
       await startBroadcasting(stream);
 
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ✅ Camera started, waiting for channel subscription`);
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ✅ Camera started and broadcasting`);
     } catch (error) {
       console.error(`[AutoBroadcaster:${instanceIdRef.current}] ❌ Failed to start camera:`, error);
       streamRef.current = null;
       globalBroadcastingDevice = null;
       
-      await updateDeviceViaEdge(deviceId, { is_streaming_requested: false });
+      // Instead of immediately giving up, retry if streaming is still requested
+      if (retryCountRef.current < MAX_RETRIES) {
+        scheduleRetry();
+      } else {
+        console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🛑 Max retries reached, giving up`);
+        retryCountRef.current = 0;
+        await updateDeviceViaEdge(deviceId, { is_streaming_requested: false });
+      }
     } finally {
       isStartingRef.current = false;
     }
-  }, [deviceId, startBroadcasting]);
+  }, [deviceId, startBroadcasting, stopBroadcasting, clearRetryTimer]);
 
-  // Stop camera and broadcasting
-  const stopCameraAndBroadcast = useCallback(async () => {
-    if (isStoppingRef.current) return;
-    isStoppingRef.current = true;
+  // Schedule a retry attempt
+  const scheduleRetry = useCallback(() => {
+    clearRetryTimer();
+    retryCountRef.current++;
+    const delay = 3000; // 3초 간격 재시도
+    console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔄 Retry scheduled in ${delay}ms (${retryCountRef.current}/${MAX_RETRIES})`);
+    retryTimerRef.current = setTimeout(() => {
+      retryTimerRef.current = null;
+      if (isStreamingRequested || lastRequestedRef.current) {
+        startCameraAndBroadcast();
+      }
+    }, delay);
+  }, [clearRetryTimer, startCameraAndBroadcast, isStreamingRequested]);
 
-    console.log(`[AutoBroadcaster:${instanceIdRef.current}] Stopping camera and broadcast`);
-
-    globalBroadcastingDevice = null;
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    await stopBroadcasting();
-
-    isStoppingRef.current = false;
-  }, [deviceId, stopBroadcasting]);
-
-  // Poll streaming status via Edge Function (replaces direct REST + Realtime)
+  // Poll streaming status via Edge Function
   useEffect(() => {
     if (!deviceId || !userId) return;
 
@@ -115,10 +186,7 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       }
     };
 
-    // Initial check
     checkStreamingStatus();
-
-    // Poll every 5 seconds
     const intervalId = setInterval(checkStreamingStatus, 5000);
 
     return () => {
@@ -133,17 +201,25 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       startCameraAndBroadcast();
     } else if (!isStreamingRequested && isBroadcasting) {
       stopCameraAndBroadcast();
+    } else if (!isStreamingRequested && !isBroadcasting) {
+      // Streaming was turned off — clean up any pending retries
+      clearRetryTimer();
+      retryCountRef.current = 0;
     }
-  }, [isStreamingRequested, isBroadcasting, startCameraAndBroadcast, stopCameraAndBroadcast]);
+  }, [isStreamingRequested, isBroadcasting, startCameraAndBroadcast, stopCameraAndBroadcast, clearRetryTimer]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      clearRetryTimer();
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current.getTracks().forEach((track) => {
+          track.onended = null;
+          track.stop();
+        });
       }
     };
-  }, []);
+  }, [clearRetryTimer]);
 
   return null;
 }
