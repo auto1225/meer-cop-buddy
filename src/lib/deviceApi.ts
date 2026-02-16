@@ -1,18 +1,16 @@
-import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
-
-// Local Supabase URL for proxy Edge Functions (this project)
-const LOCAL_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const LOCAL_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
 
 /**
  * Edge Function을 통한 디바이스 API (RLS 우회)
- * 공유 Supabase의 get-devices / update-device Edge Function을 호출
+ * 공유 Supabase의 get-devices Edge Function을 호출
+ * update는 직접 supabaseShared 클라이언트 사용 (RLS open)
  */
 
 interface DeviceRow {
   id: string;
-  device_id: string;
-  device_name: string;
+  device_id?: string;
+  device_name?: string;
+  name?: string;
   device_type: string;
   status: string;
   is_monitoring?: boolean;
@@ -56,22 +54,17 @@ export async function fetchDeviceViaEdge(deviceId: string, userId: string): Prom
   return devices.find(d => d.id === deviceId) || null;
 }
 
-/** 기기 정보 업데이트 (update-device Edge Function) */
+/** 기기 정보 업데이트 (직접 supabaseShared 사용 - RLS open for update) */
 export async function updateDeviceViaEdge(
   deviceId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
-  const res = await fetch(`${LOCAL_SUPABASE_URL}/functions/v1/proxy-update-device`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": LOCAL_SUPABASE_KEY,
-    },
-    body: JSON.stringify({ device_id: deviceId, updates }),
-  });
+  const { error } = await supabaseShared
+    .from("devices")
+    .update(updates)
+    .eq("id", deviceId);
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `update-device failed: ${res.status}`);
+  if (error) {
+    throw new Error(`update-device failed: ${error.message}`);
   }
 }
