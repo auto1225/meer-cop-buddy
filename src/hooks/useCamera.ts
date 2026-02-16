@@ -26,11 +26,34 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const intentionalStopRef = useRef(false);
 
-  // Attach stream to video element
+  // Attach stream to video element and ensure playback
   useEffect(() => {
-    if (stream && videoRef.current) {
-      videoRef.current.srcObject = stream;
-    }
+    const video = videoRef.current;
+    if (!stream || !video) return;
+
+    // Cancel any pending play before changing source
+    video.pause();
+    video.srcObject = stream;
+
+    const attemptPlay = async () => {
+      try {
+        await video.play();
+        console.log("[Camera] ✅ Video play() succeeded");
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          // Stream was replaced before play completed — safe to ignore
+          console.log("[Camera] ⏭️ play() AbortError (stream replaced), ignoring");
+        } else if (err.name === "NotAllowedError") {
+          console.warn("[Camera] ⚠️ Autoplay blocked, user gesture required");
+        } else {
+          console.error("[Camera] ❌ play() failed:", err);
+        }
+      }
+    };
+
+    // Small delay to let the video element process the new srcObject
+    const timer = setTimeout(attemptPlay, 50);
+    return () => clearTimeout(timer);
   }, [stream]);
 
   // Handle stream track ended (camera physically disconnected or spurious)
