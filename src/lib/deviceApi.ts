@@ -2,12 +2,9 @@ import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
 
 /**
  * Edge Function을 통한 디바이스 API (RLS 우회)
- * 조회: 공유 Supabase의 get-devices Edge Function 직접 호출
- * 업데이트: 로컬 proxy-update-device Edge Function 경유 (CORS 우회)
+ * 조회: 공유 Supabase의 get-devices Edge Function 호출
+ * 업데이트: 공유 Supabase PostgREST 직접 PATCH (CORS OK for REST API)
  */
-
-const LOCAL_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const LOCAL_SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 interface DeviceRow {
   id: string;
@@ -31,7 +28,7 @@ interface DeviceRow {
   updated_at: string;
 }
 
-/** 사용자의 모든 기기 목록 조회 (공유 Supabase 직접) */
+/** 사용자의 모든 기기 목록 조회 (공유 Supabase Edge Function) */
 export async function fetchDevicesViaEdge(userId: string): Promise<DeviceRow[]> {
   const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
     method: "POST",
@@ -57,22 +54,27 @@ export async function fetchDeviceViaEdge(deviceId: string, userId: string): Prom
   return devices.find(d => d.id === deviceId) || null;
 }
 
-/** 기기 정보 업데이트 (로컬 프록시 Edge Function 경유 → CORS 우회) */
+/** 기기 정보 업데이트 (공유 Supabase PostgREST 직접 PATCH) */
 export async function updateDeviceViaEdge(
   deviceId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
-  const res = await fetch(`${LOCAL_SUPABASE_URL}/functions/v1/proxy-update-device`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": LOCAL_SUPABASE_KEY,
-    },
-    body: JSON.stringify({ device_id: deviceId, updates }),
-  });
+  const res = await fetch(
+    `${SHARED_SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SHARED_SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SHARED_SUPABASE_ANON_KEY}`,
+        "Prefer": "return=minimal",
+      },
+      body: JSON.stringify(updates),
+    }
+  );
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `update-device failed: ${res.status}`);
+    const err = await res.text();
+    throw new Error(`update-device failed: ${err}`);
   }
 }
