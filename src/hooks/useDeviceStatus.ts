@@ -234,14 +234,13 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
 
     const sendStatusUpdate = (isOnline: boolean) => {
       if (!isOnline) {
-        // 오프라인 전환은 sendBeacon 시도 후 fetch 폴백
         sendOfflineBeacon();
         return;
       }
+      // 카메라 상태는 useCameraDetection이 단독 관리하므로 여기서 제외
       updateDeviceViaEdge(deviceId, {
         status: "online",
         is_network_connected: navigator.onLine,
-        is_camera_connected: status.isCameraAvailable,
         updated_at: new Date().toISOString(),
       }).catch(() => {});
     };
@@ -272,7 +271,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [deviceId, status.isCameraAvailable, syncPresence]);
+  }, [deviceId, syncPresence]);
 
   // Network connectivity detection
   useEffect(() => {
@@ -349,13 +348,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     return () => clearInterval(intervalId);
   }, [deviceId]);
 
-  const setCameraAvailable = useCallback((available: boolean) => {
-    setStatus((prev) => ({ ...prev, isCameraAvailable: available }));
-  }, []);
-
   return {
     isNetworkConnected: status.isNetworkConnected,
     isCameraAvailable: status.isCameraAvailable,
-    setCameraAvailable,
   };
 }

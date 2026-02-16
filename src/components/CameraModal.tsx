@@ -7,11 +7,10 @@ import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
 interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCameraStatusChange: (isAvailable: boolean) => void;
   deviceId?: string;
 }
 
-export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }: CameraModalProps) {
+export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
   const {
     videoRef,
     canvasRef,
@@ -25,7 +24,7 @@ export function CameraModal({ isOpen, onClose, onCameraStatusChange, deviceId }:
     takeSnapshot,
     downloadSnapshot,
     clearSnapshot,
-  } = useCamera({ onStatusChange: onCameraStatusChange });
+  } = useCamera();
 
   const {
     isBroadcasting,
