@@ -76,9 +76,11 @@ async function deleteSignaling(deviceId: string, senderType?: string) {
     .eq("device_id", deviceId);
   if (senderType) query = query.eq("sender_type", senderType);
 
-  const { error } = await query;
+  const { error, count } = await query;
   if (error) {
     console.warn("[Broadcaster] deleteSignaling error:", error.message);
+  } else {
+    console.log(`[Broadcaster] 🧹 Deleted signaling for ${deviceId} (sender: ${senderType || 'all'})`);
   }
 }
 
@@ -453,15 +455,18 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     channelRef.current = channel;
 
     // Do NOT immediately poll — wait for viewer to send fresh viewer-join
-    // after receiving broadcaster-ready. Polling will pick it up naturally.
-    console.log("[Broadcaster] ⏳ Waiting 3s for viewer to send fresh viewer-join...");
-    setTimeout(async () => {
-      // First poll after grace period to catch viewer-join
-      await pollViewerSignals();
-    }, 3000);
-
-    // Poll every 3 seconds (primary mechanism, Realtime is bonus)
-    pollingIntervalRef.current = setInterval(pollViewerSignals, 3000);
+    // after receiving broadcaster-ready. Start polling after a grace period.
+    console.log("[Broadcaster] ⏳ Waiting 4s for viewer to send fresh viewer-join...");
+    
+    // Delay BOTH the first poll and the interval start
+    setTimeout(() => {
+      // Double-check we're still broadcasting before starting polls
+      if (!streamRef.current) return;
+      
+      console.log("[Broadcaster] ▶️ Starting polling for viewer signals");
+      pollViewerSignals();
+      pollingIntervalRef.current = setInterval(pollViewerSignals, 3000);
+    }, 4000);
   }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate, pollViewerSignals]);
 
   const stopBroadcasting = useCallback(async () => {
