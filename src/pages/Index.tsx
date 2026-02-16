@@ -494,9 +494,6 @@ const Index = () => {
       console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageOn);
       broadcastMonitoringAt.current = Date.now();
       setIsCamouflageMode(camouflageOn);
-      if (camouflageOn) {
-        setIsMonitoring(true);
-      }
     });
 
     channel.subscribe((status) => {
