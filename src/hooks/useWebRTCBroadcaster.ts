@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabaseShared } from "@/lib/supabase";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface UseWebRTCBroadcasterOptions {
@@ -309,13 +310,10 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         if (status === 'SUBSCRIBED') {
           setIsBroadcasting(true);
           
-          await supabaseShared
-            .from("devices")
-            .update({ 
-              is_camera_connected: true,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", currentDeviceId);
+          await updateDeviceViaEdge(currentDeviceId, { 
+            is_camera_connected: true,
+            updated_at: new Date().toISOString()
+          });
             
           console.log("[WebRTC Broadcaster] ✅ Ready for viewers, checking for pending viewer-joins...");
           

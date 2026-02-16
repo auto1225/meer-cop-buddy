@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 // Global tracking to prevent duplicate Presence channel subscriptions
@@ -72,14 +73,11 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     lastSyncRef.current = now;
 
     try {
-      await supabaseShared
-        .from("devices")
-        .update({
-          is_network_connected: networkConnected,
-          is_camera_connected: cameraConnected,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", currentDeviceId);
+      await updateDeviceViaEdge(currentDeviceId, {
+        is_network_connected: networkConnected,
+        is_camera_connected: cameraConnected,
+        updated_at: new Date().toISOString(),
+      });
     } catch (error) {
       console.error("Failed to update device status in DB:", error);
     }
@@ -91,13 +89,10 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     if (!currentDeviceId) return;
 
     try {
-      await supabaseShared
-        .from("devices")
-        .update({
-          status: isOnline ? "online" : "offline",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", currentDeviceId);
+      await updateDeviceViaEdge(currentDeviceId, {
+        status: isOnline ? "online" : "offline",
+        updated_at: new Date().toISOString(),
+      });
       console.log(`[DeviceStatus] Updated status to ${isOnline ? "online" : "offline"}`);
     } catch (error) {
       console.error("Failed to update device online status:", error);
@@ -222,24 +217,12 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
 
     const sendStatusUpdate = (isOnline: boolean) => {
-      const url = `${SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`;
-      const data = JSON.stringify({
+      // Use Edge Function for status update (RLS-safe)
+      updateDeviceViaEdge(deviceId, {
         status: isOnline ? "online" : "offline",
         is_network_connected: isOnline ? navigator.onLine : false,
         is_camera_connected: isOnline ? status.isCameraAvailable : false,
         updated_at: new Date().toISOString(),
-      });
-
-      fetch(url, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-          "Prefer": "return=minimal",
-        },
-        body: data,
-        keepalive: true,
       }).catch(() => {});
     };
 
@@ -375,13 +358,10 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
 
     const sendHeartbeat = async () => {
       try {
-        await supabaseShared
-          .from("devices")
-          .update({
-            last_seen_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", deviceId);
+        await updateDeviceViaEdge(deviceId, {
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
         console.log("[DeviceStatus] 💓 Heartbeat sent");
       } catch (error) {
         console.error("[DeviceStatus] Heartbeat failed:", error);

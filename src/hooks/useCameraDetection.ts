@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef } from "react";
-import { supabaseShared } from "@/lib/supabase";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 
 interface CameraDetectionOptions {
   deviceId: string | undefined;
@@ -29,15 +29,10 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     if (lastStatusRef.current === isConnected || !deviceId) return;
     
     try {
-      const { error } = await supabaseShared
-        .from("devices")
-        .update({ 
-          is_camera_connected: isConnected,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", deviceId);
-
-      if (error) throw error;
+      await updateDeviceViaEdge(deviceId, { 
+        is_camera_connected: isConnected,
+        updated_at: new Date().toISOString()
+      });
       
       lastStatusRef.current = isConnected;
       console.log("[CameraDetection] ✅ Updated is_camera_connected:", isConnected);

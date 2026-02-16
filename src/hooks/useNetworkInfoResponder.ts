@@ -1,15 +1,18 @@
 import { useEffect, useRef } from "react";
-import { supabaseShared } from "@/lib/supabase";
+import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
+import { getSavedAuth } from "@/lib/serialAuth";
 
 /**
  * Listens for "network_info" commands from the smartphone app via metadata.network_info_requested.
- * When triggered, gathers network info and saves to devices table.
+ * When triggered, gathers network info and saves via Edge Function.
  */
 export function useNetworkInfoResponder(deviceId?: string) {
   const isGathering = useRef(false);
 
   useEffect(() => {
     if (!deviceId) return;
+    const savedAuth = getSavedAuth();
+    const userId = savedAuth?.user_id;
 
     const handleRequest = async () => {
       if (isGathering.current) return;
@@ -29,32 +32,24 @@ export function useNetworkInfoResponder(deviceId?: string) {
       }
 
       try {
-        // Read existing metadata first to preserve smartphone settings
-        const { data: existing } = await supabaseShared
-          .from("devices")
-          .select("metadata")
-          .eq("id", deviceId)
-          .maybeSingle();
-        const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+        const device = userId ? await fetchDeviceViaEdge(deviceId, userId) : null;
+        const existingMeta = (device?.metadata as Record<string, unknown>) || {};
 
-        await supabaseShared
-          .from("devices")
-          .update({
-            ip_address: ip,
-            is_network_connected: navigator.onLine,
-            metadata: {
-              ...existingMeta,
-              network_info: {
-                type: connection?.type || "unknown",
-                downlink: connection?.downlink ?? null,
-                rtt: connection?.rtt ?? null,
-                effective_type: connection?.effectiveType || "unknown",
-                updated_at: new Date().toISOString(),
-              },
-              network_info_requested: null,
+        await updateDeviceViaEdge(deviceId, {
+          ip_address: ip,
+          is_network_connected: navigator.onLine,
+          metadata: {
+            ...existingMeta,
+            network_info: {
+              type: connection?.type || "unknown",
+              downlink: connection?.downlink ?? null,
+              rtt: connection?.rtt ?? null,
+              effective_type: connection?.effectiveType || "unknown",
+              updated_at: new Date().toISOString(),
             },
-          } as Record<string, unknown>)
-          .eq("id", deviceId);
+            network_info_requested: null,
+          },
+        });
 
         console.log("[NetworkInfoResponder] Network info saved");
       } catch (err) {
@@ -64,43 +59,39 @@ export function useNetworkInfoResponder(deviceId?: string) {
       isGathering.current = false;
     };
 
-    // Check on mount
+    // Check on mount via Edge Function
     const checkInitial = async () => {
-      const { data } = await supabaseShared
-        .from("devices")
-        .select("metadata")
-        .eq("id", deviceId)
-        .maybeSingle();
-
-      const meta = data?.metadata as Record<string, unknown> | null;
-      if (meta?.network_info_requested) {
-        handleRequest();
+      if (!userId) return;
+      try {
+        const device = await fetchDeviceViaEdge(deviceId, userId);
+        const meta = device?.metadata as Record<string, unknown> | null;
+        if (meta?.network_info_requested) {
+          handleRequest();
+        }
+      } catch {
+        // silent
       }
     };
     checkInitial();
 
-    // Subscribe to realtime changes
-    const channel = supabaseShared
-      .channel(`network-cmd-${deviceId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "devices",
-          filter: `id=eq.${deviceId}`,
-        },
-        (payload) => {
-          const meta = (payload.new as Record<string, unknown>).metadata as Record<string, unknown> | null;
-          if (meta?.network_info_requested) {
-            handleRequest();
-          }
+    // Poll for network_info commands (Realtime blocked by RLS)
+    let isMounted = true;
+    const pollInterval = setInterval(async () => {
+      if (!isMounted || !userId) return;
+      try {
+        const device = await fetchDeviceViaEdge(deviceId, userId);
+        const meta = device?.metadata as Record<string, unknown> | null;
+        if (meta?.network_info_requested) {
+          handleRequest();
         }
-      )
-      .subscribe();
+      } catch {
+        // silent
+      }
+    }, 5000);
 
     return () => {
-      supabaseShared.removeChannel(channel);
+      isMounted = false;
+      clearInterval(pollInterval);
     };
   }, [deviceId]);
 }

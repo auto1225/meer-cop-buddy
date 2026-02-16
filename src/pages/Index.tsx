@@ -29,6 +29,7 @@ import { useStealRecovery, markAlertActive, markAlertCleared } from "@/hooks/use
 import { useLocationResponder } from "@/hooks/useLocationResponder";
 import { useNetworkInfoResponder } from "@/hooks/useNetworkInfoResponder";
 import { supabaseShared } from "@/lib/supabase";
+import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
@@ -152,24 +153,21 @@ const Index = () => {
       });
       alertCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       
-      // DB에 위치 업데이트
+      // DB에 위치 업데이트 via Edge Function
       if (currentDevice?.id) {
-        const { data: existing } = await supabaseShared
-          .from("devices")
-          .select("metadata")
-          .eq("id", currentDevice.id)
-          .single();
-        const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
-        await supabaseShared
-          .from("devices")
-          .update({
+        try {
+          const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth?.user_id || "");
+          const existingMeta = (device?.metadata as Record<string, unknown>) || {};
+          await updateDeviceViaEdge(currentDevice.id, {
             latitude: alertCoords.latitude,
             longitude: alertCoords.longitude,
             location_updated_at: new Date().toISOString(),
-            is_streaming_requested: true, // 스트리밍 자동 시작
+            is_streaming_requested: true,
             metadata: { ...existingMeta, last_location_source: "alert_triggered" },
-          })
-          .eq("id", currentDevice.id);
+          });
+        } catch (e) {
+          console.error("[Security] Failed to update device location:", e);
+        }
       }
     } catch {
       console.log("[Security] GPS unavailable at alert time");
@@ -397,30 +395,23 @@ const Index = () => {
     }
   }, [devices, currentDeviceId, savedAuth?.device_id]);
 
-  // Sync alarm sounds list to DB metadata (so smartphone app can display the list)
+  // Sync alarm sounds list to DB metadata via Edge Function
   useEffect(() => {
-    if (!currentDevice?.id) return;
+    if (!currentDevice?.id || !savedAuth?.user_id) return;
     const syncAlarmSounds = async () => {
       try {
-        const { data: existing } = await supabaseShared
-          .from("devices")
-          .select("metadata")
-          .eq("id", currentDevice.id)
-          .single();
-        const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
-        await supabaseShared
-          .from("devices")
-          .update({
-            metadata: { ...existingMeta, available_alarm_sounds: getAlarmSoundsForDB() },
-          })
-          .eq("id", currentDevice.id);
+        const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
+        const existingMeta = (device?.metadata as Record<string, unknown>) || {};
+        await updateDeviceViaEdge(currentDevice.id, {
+          metadata: { ...existingMeta, available_alarm_sounds: getAlarmSoundsForDB() },
+        });
         console.log("[Index] ✅ Alarm sounds list synced to DB");
       } catch (e) {
         console.error("[Index] Failed to sync alarm sounds to DB:", e);
       }
     };
     syncAlarmSounds();
-  }, [currentDevice?.id]);
+  }, [currentDevice?.id, savedAuth?.user_id]);
 
   // Subscribe to monitoring status + smartphone status with reliable polling fallback
   useEffect(() => {
@@ -431,25 +422,15 @@ const Index = () => {
     let pollInterval = 3000; // Start at 3s
     let realtimeWorking = false;
 
-    // Fetch monitoring status AND smartphone status from DB
+    // Fetch monitoring status via Edge Function (RLS-safe)
     const fetchStatus = async () => {
-      if (!isMounted) return;
+      if (!isMounted || !savedAuth?.user_id) return;
       
       try {
-        // 1. Fetch own device's is_monitoring
-        const { data: myDevice, error } = await supabaseShared
-          .from("devices")
-          .select("is_monitoring, metadata")
-          .eq("id", currentDevice.id)
-          .maybeSingle();
-        
-        if (error) {
-          console.error("[Index] Polling error:", error);
-          return;
-        }
+        const myDevice = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
         
         if (myDevice && isMounted) {
-          const isMonitoringFromDB = (myDevice as { is_monitoring?: boolean }).is_monitoring ?? false;
+          const isMonitoringFromDB = myDevice.is_monitoring ?? false;
           setIsMonitoring(prev => {
             if (prev !== isMonitoringFromDB) {
               console.log("[Index] 📡 Monitoring status from poll:", isMonitoringFromDB);
@@ -462,17 +443,13 @@ const Index = () => {
       }
     };
 
-    // Always-on polling with adaptive interval
+    // Polling only (Realtime is blocked by RLS for anon users)
     const schedulePoll = () => {
       if (!isMounted) return;
       pollTimeoutId = setTimeout(async () => {
         await fetchStatus();
-        // Backoff when Realtime is working, stay fast when it's not
-        if (realtimeWorking) {
-          pollInterval = Math.min(pollInterval * 1.5, 30000); // Up to 30s when RT works
-        } else {
-          pollInterval = Math.min(pollInterval * 1.2, 5000); // Stay at 5s max without RT
-        }
+        // Also refetch device list to get metadata updates
+        await refetch();
         schedulePoll();
       }, pollInterval);
     };
@@ -481,90 +458,11 @@ const Index = () => {
     fetchStatus();
     schedulePoll();
 
-    // Realtime subscription (primary, fast path)
-    const channel = supabaseShared
-      .channel(`laptop-monitoring-status-${currentDevice.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "devices",
-          filter: `id=eq.${currentDevice.id}`,
-        },
-        (payload) => {
-          realtimeWorking = true;
-          pollInterval = 10000; // Slow down polling since RT is working
-          
-          const newData = payload.new as { is_monitoring?: boolean; metadata?: Record<string, unknown> };
-          
-          const isMonitoringFromDB = newData.is_monitoring ?? false;
-          console.log("[Index] ⚡ Monitoring status from Realtime:", isMonitoringFromDB);
-          if (isMounted) {
-            setIsMonitoring(isMonitoringFromDB);
-          }
-
-          // Read metadata changes (alarm_pin, sensorSettings, etc.)
-          if (newData.metadata && isMounted) {
-            const meta = newData.metadata as {
-              alarm_pin?: string;
-              alarm_sound_id?: string;
-              require_pc_pin?: boolean;
-              camouflage_mode?: boolean;
-              sensorSettings?: { camera?: boolean; lidClosed?: boolean; microphone?: boolean; keyboard?: boolean; mouse?: boolean; usb?: boolean; power?: boolean };
-              motionSensitivity?: string;
-              mouseSensitivity?: string;
-            };
-            if (meta.alarm_pin) {
-              setAlarmPin(meta.alarm_pin);
-              localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
-            }
-            if (meta.camouflage_mode !== undefined) {
-              setIsCamouflageMode(meta.camouflage_mode);
-            }
-            if (meta.require_pc_pin !== undefined) {
-              setRequirePcPin(meta.require_pc_pin);
-            }
-            if (meta.sensorSettings) {
-              const s = meta.sensorSettings;
-              setSensorToggles({
-                cameraMotion: s.camera ?? true,
-                lid: s.lidClosed ?? true,
-                keyboard: s.keyboard ?? true,
-                mouse: s.mouse ?? true,
-                power: s.power ?? true,
-                microphone: s.microphone ?? false,
-                usb: s.usb ?? false,
-              });
-            }
-            if (meta.motionSensitivity) {
-              const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
-              setMotionThreshold(sensitivityMap[meta.motionSensitivity] ?? 15);
-            }
-            if (meta.mouseSensitivity) {
-              const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
-              setMouseSensitivityPx(mouseMap[meta.mouseSensitivity] ?? 30);
-            }
-          }
-        }
-      )
-      .subscribe((status, err) => {
-        console.log("[Index] Monitoring channel status:", status, err);
-        if (status === "SUBSCRIBED") {
-          realtimeWorking = true;
-          pollInterval = 10000; // Slow polling when RT works
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          realtimeWorking = false;
-          pollInterval = 3000; // Speed up polling when RT fails
-        }
-      });
-
     return () => {
       isMounted = false;
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
-      supabaseShared.removeChannel(channel);
     };
-  }, [currentDevice?.id]);
+  }, [currentDevice?.id, savedAuth?.user_id, refetch]);
 
   // When smartphone goes offline, force stop monitoring
   useEffect(() => {
