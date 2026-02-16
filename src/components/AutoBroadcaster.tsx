@@ -91,13 +91,11 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       streamRef.current = null;
     }
     
-    // Use ref to get latest broadcasting state (avoid stale closure)
-    if (isBroadcastingRef.current) {
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Stopping previous broadcast before restart`);
-      await stopBroadcasting();
-      // Small delay to ensure cleanup completes
-      await new Promise(r => setTimeout(r, 300));
-    }
+    // ALWAYS stop previous broadcast to clear stale PeerConnections/signaling
+    // Even if isBroadcasting is false, there may be leftover polling or signaling data
+    console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Forcing full cleanup before (re)start`);
+    await stopBroadcasting();
+    await new Promise(r => setTimeout(r, 500));
     
     globalBroadcastingDevice = deviceId;
     isStartingRef.current = true;
