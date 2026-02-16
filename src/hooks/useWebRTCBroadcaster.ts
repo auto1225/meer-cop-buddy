@@ -379,7 +379,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     streamRef.current = stream;
     setError(null);
 
-    // Clear old signaling data
+    // Clear ALL old signaling data (both broadcaster and viewer)
     await deleteSignaling(currentDeviceId);
 
     processedViewerJoinsRef.current.clear();
@@ -452,8 +452,13 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
     channelRef.current = channel;
 
-    // Immediate catch-up check
-    await pollViewerSignals();
+    // Do NOT immediately poll — wait for viewer to send fresh viewer-join
+    // after receiving broadcaster-ready. Polling will pick it up naturally.
+    console.log("[Broadcaster] ⏳ Waiting 3s for viewer to send fresh viewer-join...");
+    setTimeout(async () => {
+      // First poll after grace period to catch viewer-join
+      await pollViewerSignals();
+    }, 3000);
 
     // Poll every 3 seconds (primary mechanism, Realtime is bonus)
     pollingIntervalRef.current = setInterval(pollViewerSignals, 3000);
