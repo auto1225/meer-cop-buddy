@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabaseShared } from "@/lib/supabase";
-import { updateDeviceViaEdge } from "@/lib/deviceApi";
+import { updateDeviceViaEdge, fetchSignalingViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface UseWebRTCBroadcasterOptions {
@@ -318,14 +318,9 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           console.log("[WebRTC Broadcaster] ✅ Ready for viewers, checking for pending viewer-joins...");
           
           // Catch-up: process any viewer-join records that arrived before subscription
-          const { data: pendingJoins } = await supabaseShared
-            .from("webrtc_signaling")
-            .select("*")
-            .eq("device_id", currentDeviceId)
-            .eq("type", "viewer-join")
-            .eq("sender_type", "viewer");
+          const pendingJoins = await fetchSignalingViaEdge(currentDeviceId, "viewer-join", "viewer");
           
-          if (pendingJoins && pendingJoins.length > 0) {
+          if (pendingJoins.length > 0) {
             console.log(`[WebRTC Broadcaster] 📥 Found ${pendingJoins.length} pending viewer-join(s)`);
             for (const join of pendingJoins) {
               const viewerSessionId = join.session_id;
@@ -354,12 +349,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       }
       
       try {
-        const { data: pendingJoins } = await supabaseShared
-          .from("webrtc_signaling")
-          .select("*")
-          .eq("device_id", currentDeviceId)
-          .eq("type", "viewer-join")
-          .eq("sender_type", "viewer");
+        const pendingJoins = await fetchSignalingViaEdge(currentDeviceId, "viewer-join", "viewer");
         
         if (pendingJoins) {
           for (const join of pendingJoins) {

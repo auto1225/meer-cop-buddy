@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabaseShared } from "@/lib/supabase";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
 
 interface AutoBroadcasterProps {
@@ -70,10 +71,7 @@ export function AutoBroadcaster({ deviceId }: AutoBroadcasterProps) {
       globalBroadcastingDevice = null;
       
       // Reset the streaming request flag on error
-      await supabaseShared
-        .from("devices")
-        .update({ is_streaming_requested: false })
-        .eq("id", deviceId);
+      await updateDeviceViaEdge(deviceId, { is_streaming_requested: false });
     } finally {
       isStartingRef.current = false;
     }
