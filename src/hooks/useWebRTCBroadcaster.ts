@@ -317,27 +317,48 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     // Proactively clean up dead peers before processing new signals
     cleanupDeadPeers();
 
-    // Also check if stream tracks are still alive
+    // Check if stream tracks are still alive
     const activeTracks = streamRef.current.getTracks().filter(t => t.readyState === "live");
     if (activeTracks.length === 0) {
-      console.warn("[Broadcaster] ⚠️ All stream tracks ended — stream is stale");
+      console.warn("[Broadcaster] ⚠️ All stream tracks ended — stream is stale, requesting restart");
+      window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
       return;
     }
+
+    // Check if video track is muted (producing no frames)
+    const videoTrack = streamRef.current.getVideoTracks()[0];
+    const isVideoStale = videoTrack && (videoTrack.muted || !videoTrack.enabled);
 
     try {
       // 1. Check for new viewer-joins (with mutex guard)
       const joins = await fetchSignaling(currentDeviceId, "viewer-join", "viewer");
-      for (const join of joins) {
-        const sid = join.session_id;
-        if (
-          !processedViewerJoinsRef.current.has(sid) &&
-          !peersRef.current.has(sid) &&
-          !creatingPeerRef.current.has(sid)
-        ) {
-          processedViewerJoinsRef.current.add(sid);
-          console.log(`[Broadcaster] 👋 New viewer (poll): ${sid}`);
-          await createPeerConnectionAndOffer(sid);
+      
+      // Detect new unprocessed viewer-joins
+      const newJoins = joins.filter(join => 
+        !processedViewerJoinsRef.current.has(join.session_id) &&
+        !peersRef.current.has(join.session_id) &&
+        !creatingPeerRef.current.has(join.session_id)
+      );
+
+      // If there are new viewers but NO active connected peers, 
+      // the stream might be stale — trigger full restart
+      if (newJoins.length > 0) {
+        const hasActivePeer = Array.from(peersRef.current.values()).some(
+          p => p.pc.connectionState === "connected" || p.pc.connectionState === "connecting"
+        );
+        
+        if (!hasActivePeer || isVideoStale) {
+          console.log(`[Broadcaster] 🔄 New viewer detected with ${hasActivePeer ? 'stale video' : 'no active peers'} — requesting full restart`);
+          window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
+          return;
         }
+      }
+
+      for (const join of newJoins) {
+        const sid = join.session_id;
+        processedViewerJoinsRef.current.add(sid);
+        console.log(`[Broadcaster] 👋 New viewer (poll): ${sid}`);
+        await createPeerConnectionAndOffer(sid);
       }
 
       // 2. Check for answers
@@ -420,6 +441,16 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
               !peersRef.current.has(sid) &&
               !creatingPeerRef.current.has(sid)
             ) {
+              // Check if we need a restart (no active peers = stale stream likely)
+              const hasActivePeer = Array.from(peersRef.current.values()).some(
+                p => p.pc.connectionState === "connected" || p.pc.connectionState === "connecting"
+              );
+              if (!hasActivePeer && peersRef.current.size === 0) {
+                console.log(`[Broadcaster] 🔄 Realtime: New viewer with no active peers — requesting restart`);
+                window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
+                return;
+              }
+              
               processedViewerJoinsRef.current.add(sid);
               console.log(`[Broadcaster] 👋 Realtime viewer: ${sid}`);
               await createPeerConnectionAndOffer(sid);

@@ -232,6 +232,30 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     return () => window.removeEventListener("camera-status-changed", handleCameraStatusChanged);
   }, [startCameraAndBroadcast, clearRetryTimer]);
 
+  // Listen for broadcast-needs-restart events (stale stream detection)
+  useEffect(() => {
+    const handleNeedsRestart = async () => {
+      if (!isStreamingRequestedRef.current || !deviceId) return;
+      
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔄 Received broadcast-needs-restart — doing full restart`);
+      
+      // Stop current broadcast and camera
+      await stopCameraAndBroadcast();
+      
+      // Small delay to let everything settle
+      await new Promise(r => setTimeout(r, 800));
+      
+      // Restart with fresh camera
+      if (isStreamingRequestedRef.current) {
+        retryCountRef.current = 0;
+        startCameraAndBroadcast();
+      }
+    };
+
+    window.addEventListener("broadcast-needs-restart", handleNeedsRestart);
+    return () => window.removeEventListener("broadcast-needs-restart", handleNeedsRestart);
+  }, [deviceId, stopCameraAndBroadcast, startCameraAndBroadcast]);
+
   // React to streaming request changes
   useEffect(() => {
     if (isStreamingRequested && !isBroadcasting) {
