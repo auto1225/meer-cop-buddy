@@ -368,9 +368,10 @@ const Index = () => {
   useEffect(() => {
     if (devices.length === 0) return;
     
-    // Determine the correct device ID
+    // Determine the correct device ID (priority order)
     let correctDeviceId: string | null = null;
     
+    // 1. Match by UUID (id or device_id)
     if (savedAuth?.device_id) {
       const myDevice = devices.find(d => d.id === savedAuth.device_id) 
         || devices.find(d => d.device_id === savedAuth.device_id);
@@ -379,7 +380,22 @@ const Index = () => {
       }
     }
     
-    // Fallback: find laptop/desktop/notebook type device
+    // 2. Match by device_name from localStorage
+    if (!correctDeviceId && savedAuth?.device_name) {
+      const byName = devices.find(d => 
+        d.device_name === savedAuth.device_name && 
+        (d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook')
+      );
+      if (byName) {
+        correctDeviceId = byName.id;
+        console.log("[Index] 📛 Matched device by name:", savedAuth.device_name, "→", byName.id);
+        // Auto-correct savedAuth.device_id
+        savedAuth.device_id = byName.id;
+        localStorage.setItem("meercop_serial_auth", JSON.stringify(savedAuth));
+      }
+    }
+    
+    // 3. Fallback: find laptop/desktop/notebook type device
     if (!correctDeviceId) {
       const laptopDevice = devices.find(d => 
         d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook'
