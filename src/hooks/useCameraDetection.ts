@@ -11,12 +11,13 @@ interface CameraDetectionOptions {
  */
 export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const lastStatusRef = useRef<boolean | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCheckRef = useRef(false);
 
   const checkCameraAvailability = useCallback(async (): Promise<boolean> => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const hasCamera = devices.some(device => device.kind === "videoinput");
-      console.log("[CameraDetection] Camera available:", hasCamera);
       return hasCamera;
     } catch (error) {
       console.error("[CameraDetection] Error:", error);
@@ -51,11 +52,27 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     await updateCameraStatus(hasCamera);
   }, [checkCameraAvailability, updateCameraStatus]);
 
-  useEffect(() => {
-    if (!deviceId) {
-      console.log("[CameraDetection] ⚠️ No deviceId, skipping");
-      return;
+  // Debounced check: waits for devicechange events to settle before checking
+  const debouncedCheckAndUpdate = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
+    pendingCheckRef.current = true;
+    debounceTimerRef.current = setTimeout(async () => {
+      if (!pendingCheckRef.current) return;
+      pendingCheckRef.current = false;
+      // Double-check after settling: read twice with a small gap to avoid transient states
+      const first = await checkCameraAvailability();
+      await new Promise(r => setTimeout(r, 300));
+      const second = await checkCameraAvailability();
+      const stable = first === second ? first : second;
+      console.log("[CameraDetection] Camera available (debounced):", stable);
+      await updateCameraStatus(stable);
+    }, 500);
+  }, [checkCameraAvailability, updateCameraStatus]);
+
+  useEffect(() => {
+    if (!deviceId) return;
 
     console.log("[CameraDetection] 🚀 Initializing for device:", deviceId);
 
@@ -65,15 +82,16 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
     // Real-time device connect/disconnect events (USB cameras, etc.)
     const handleDeviceChange = () => {
       console.log("[CameraDetection] 🔄 Device change event triggered");
-      checkAndUpdate();
+      debouncedCheckAndUpdate();
     };
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
     return () => {
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [deviceId, checkAndUpdate]);
+  }, [deviceId, checkAndUpdate, debouncedCheckAndUpdate]);
 
   return { checkAndUpdate };
 };
