@@ -99,14 +99,25 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     return `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // Answer/Offer의 remote description 처리 (중복 방지)
+  // Answer/Offer의 remote description 처리 (중복 방지 — 이중 잠금)
+  // ⚠️ 핵심: remoteDescriptionSetRef는 동기 플래그로 비동기 setRemoteDescription
+  // 호출 전에 즉시 설정하여 Realtime 콜백 + 기존 offer 체크 두 경로에서의
+  // 중복 실행을 완전히 차단합니다.
   const handleRemoteDescription = useCallback(async (sdp: any) => {
     if (!pcRef.current) return;
 
+    // 이중 잠금: ref 플래그 + PeerConnection 상태 모두 체크
     if (remoteDescriptionSetRef.current) {
-      console.log("[WebRTC Viewer] ⏭️ Remote description already set, skipping");
+      console.log("[WebRTC Viewer] ⏭️ Remote description already set (flag), skipping");
       return;
     }
+    if (pcRef.current.remoteDescription) {
+      console.log("[WebRTC Viewer] ⏭️ Remote description already set (PC), skipping");
+      remoteDescriptionSetRef.current = true;
+      return;
+    }
+
+    // 즉시 잠금 (await 전에 설정하여 동시 호출 차단)
     remoteDescriptionSetRef.current = true;
 
     try {
@@ -120,6 +131,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       }
 
       const remoteDesc = new RTCSessionDescription(sdpObj);
+      console.log(`[WebRTC Viewer] Setting remote description (SDP length: ${sdpObj.sdp?.length || 'N/A'})`);
       await pcRef.current.setRemoteDescription(remoteDesc);
       console.log("[WebRTC Viewer] ✅ Remote description 설정 완료");
 
