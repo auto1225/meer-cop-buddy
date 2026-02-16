@@ -10,5 +10,5 @@ export const supabaseShared = createClient(SHARED_SUPABASE_URL, SHARED_SUPABASE_
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
 });
