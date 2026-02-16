@@ -216,19 +216,41 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const SUPABASE_URL = SHARED_SUPABASE_URL;
     const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
 
+    const sendOfflineBeacon = () => {
+      // sendBeacon은 브라우저 종료 시에도 안정적으로 전송됨
+      const url = `${SHARED_SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`;
+      const body = JSON.stringify({
+        status: "offline",
+        is_network_connected: false,
+        is_camera_connected: false,
+        updated_at: new Date().toISOString(),
+      });
+      const headers = {
+        type: "application/json",
+      };
+      const blob = new Blob([body], headers);
+      
+      const sent = navigator.sendBeacon(url + `&apikey=${SHARED_SUPABASE_ANON_KEY}`, blob);
+      console.log(`[DeviceStatus] 🚪 sendBeacon offline: ${sent}`);
+    };
+
     const sendStatusUpdate = (isOnline: boolean) => {
-      // Use Edge Function for status update (RLS-safe)
+      if (!isOnline) {
+        // 오프라인 전환은 sendBeacon 시도 후 fetch 폴백
+        sendOfflineBeacon();
+        return;
+      }
       updateDeviceViaEdge(deviceId, {
-        status: isOnline ? "online" : "offline",
-        is_network_connected: isOnline ? navigator.onLine : false,
-        is_camera_connected: isOnline ? status.isCameraAvailable : false,
+        status: "online",
+        is_network_connected: navigator.onLine,
+        is_camera_connected: status.isCameraAvailable,
         updated_at: new Date().toISOString(),
       }).catch(() => {});
     };
 
     // 브라우저 종료 시
     const handleBeforeUnload = () => {
-      sendStatusUpdate(false);
+      sendOfflineBeacon();
     };
 
     // 절전모드 진입/복귀 감지
