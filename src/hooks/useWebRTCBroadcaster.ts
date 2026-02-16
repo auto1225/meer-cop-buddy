@@ -199,39 +199,24 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       }
     };
 
-    // 🆕 ICE 연결 상태 변경 시 키프레임 강제 생성 (getSenders 기반)
+    // 🆕 ICE 연결 시 키프레임 강제 생성 — 트랙 토글 (가장 확실한 방법)
     pc.oniceconnectionstatechange = () => {
       console.log(`[Broadcaster] [${sessionId.slice(-8)}] ICE state: ${pc.iceConnectionState}`);
       
       if (pc.iceConnectionState === "connected") {
-        console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔥 뷰어 ICE 연결! 키프레임 강제 생성`);
+        console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔥 뷰어 ICE 연결! Track Toggle로 키프레임 강제 생성`);
         
-        // getSenders()를 통해 실제 전송 중인 비디오 트랙을 직접 찾기
         const senders = pc.getSenders();
         const videoSender = senders.find(s => s.track && s.track.kind === "video");
         
         if (videoSender && videoSender.track && videoSender.track.readyState === "live") {
           const track = videoSender.track;
-          const constraints = track.getConstraints();
-          
-          // 방법 1: frameRate를 살짝 변경하여 인코더 리셋 유도
-          const currentFR = (constraints.frameRate as any)?.ideal || 30;
-          const newFR = currentFR === 30 ? 29 : 30;
-          
-          track.applyConstraints({
-            ...constraints,
-            frameRate: { ideal: newFR, max: 30 },
-          })
-            .then(() => console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe via applyConstraints (${currentFR}→${newFR})`))
-            .catch((e) => {
-              // 방법 2: 트랙 enabled 토글 (폴백)
-              console.warn(`[Broadcaster] [${sessionId.slice(-8)}] applyConstraints failed, track toggle fallback`);
-              track.enabled = false;
-              setTimeout(() => {
-                track.enabled = true;
-                console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe via track toggle`);
-              }, 50);
-            });
+          // 트랙을 0.1초 껐다 켜기 → 인코더 강제 리셋 → 100% 새 I-Frame 발생
+          track.enabled = false;
+          setTimeout(() => {
+            track.enabled = true;
+            console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe forced via track toggle (100ms)`);
+          }, 100);
         }
       }
     };
