@@ -75,14 +75,20 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     }
     
     if (!deviceId || isStartingRef.current || isStoppingRef.current) {
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⏭️ Skipped: starting=${isStartingRef.current} stopping=${isStoppingRef.current}`);
       return;
     }
+
+    // Set guard IMMEDIATELY to prevent duplicate calls
+    isStartingRef.current = true;
+    globalBroadcastingDevice = deviceId;
 
     // If stream already exists and tracks are alive, skip
     if (streamRef.current) {
       const activeTracks = streamRef.current.getTracks().filter(t => t.readyState === "live");
       if (activeTracks.length > 0) {
         console.log(`[AutoBroadcaster:${instanceIdRef.current}] Stream already active with ${activeTracks.length} live tracks`);
+        isStartingRef.current = false;
         return;
       }
       // Dead stream — clean up
@@ -92,13 +98,9 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     }
     
     // ALWAYS stop previous broadcast to clear stale PeerConnections/signaling
-    // Even if isBroadcasting is false, there may be leftover polling or signaling data
     console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Forcing full cleanup before (re)start`);
     await stopBroadcasting();
     await new Promise(r => setTimeout(r, 500));
-    
-    globalBroadcastingDevice = deviceId;
-    isStartingRef.current = true;
 
     try {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera (attempt ${retryCountRef.current + 1})`);
