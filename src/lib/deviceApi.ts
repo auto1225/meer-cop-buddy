@@ -54,6 +54,34 @@ export async function fetchDeviceViaEdge(deviceId: string, userId: string): Prom
   return devices.find(d => d.id === deviceId) || null;
 }
 
+/** WebRTC 시그널링 데이터 조회 (공유 Supabase get-signaling Edge Function) */
+export async function fetchSignalingViaEdge(
+  deviceId: string,
+  type?: string,
+  senderType?: string
+): Promise<any[]> {
+  const body: Record<string, string> = { device_id: deviceId };
+  if (type) body.type = type;
+  if (senderType) body.sender_type = senderType;
+
+  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-signaling`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SHARED_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    console.warn(`[deviceApi] get-signaling failed: ${res.status}`);
+    return [];
+  }
+
+  const data = await res.json();
+  return data.signals || [];
+}
+
 /** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
 export async function updateDeviceViaEdge(
   deviceId: string,
