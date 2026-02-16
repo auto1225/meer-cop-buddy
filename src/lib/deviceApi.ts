@@ -54,37 +54,28 @@ export async function fetchDeviceViaEdge(deviceId: string, userId: string): Prom
   return devices.find(d => d.id === deviceId) || null;
 }
 
-/** 기기 정보 업데이트 (공유 Supabase PostgREST 직접 PATCH) */
+/** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
 export async function updateDeviceViaEdge(
   deviceId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
   const res = await fetch(
-    `${SHARED_SUPABASE_URL}/rest/v1/devices?id=eq.${deviceId}`,
+    `${SHARED_SUPABASE_URL}/functions/v1/update-device`,
     {
-      method: "PATCH",
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         "apikey": SHARED_SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SHARED_SUPABASE_ANON_KEY}`,
-        "Prefer": "return=representation",
       },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ device_id: deviceId, updates }),
     }
   );
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`update-device failed: ${err}`);
+    throw new Error(`update-device failed: ${res.status} ${err}`);
   }
 
-  // return=representation 으로 실제 업데이트된 행 확인
   const data = await res.json();
-  if (!data || (Array.isArray(data) && data.length === 0)) {
-    console.warn(`[deviceApi] ⚠️ PATCH returned 0 rows for device ${deviceId}. RLS may be blocking updates.`);
-  } else {
-    console.log(`[deviceApi] ✅ PATCH updated device ${deviceId}:`, 
-      Array.isArray(data) ? `${data.length} row(s), last_seen_at=${data[0]?.last_seen_at}` : data
-    );
-  }
+  console.log(`[deviceApi] ✅ Edge Function updated device ${deviceId}:`, data);
 }
