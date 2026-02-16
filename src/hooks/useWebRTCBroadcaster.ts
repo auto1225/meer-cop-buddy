@@ -336,11 +336,6 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     // Set broadcasting state immediately
     setIsBroadcasting(true);
 
-    await updateDeviceViaEdge(currentDeviceId, {
-      is_camera_connected: true,
-      updated_at: new Date().toISOString(),
-    });
-
     console.log("[Broadcaster] ✅ Broadcasting started, polling for viewers...");
 
     // Also try Realtime subscription as bonus (may or may not work)
