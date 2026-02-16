@@ -336,7 +336,16 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     // Set broadcasting state immediately
     setIsBroadcasting(true);
 
-    console.log("[Broadcaster] ✅ Broadcasting started, polling for viewers...");
+    // Insert broadcaster-ready signal so smartphone viewer knows to reconnect
+    await insertSignaling({
+      device_id: currentDeviceId,
+      session_id: `ready-${Date.now()}`,
+      type: "broadcaster-ready",
+      sender_type: "broadcaster",
+      data: { timestamp: Date.now() },
+    });
+
+    console.log("[Broadcaster] ✅ Broadcasting started + broadcaster-ready signal sent");
 
     // Also try Realtime subscription as bonus (may or may not work)
     const channelName = `webrtc-${currentDeviceId}`;
