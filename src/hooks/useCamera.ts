@@ -33,24 +33,48 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     }
   }, [stream]);
 
-  // Handle stream track ended (camera physically disconnected)
+  // Handle stream track ended (camera physically disconnected or spurious)
+  const isReacquiringRef = useRef(false);
+
   useEffect(() => {
     if (!stream) return;
 
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) return;
 
-    const handleEnded = () => {
+    const handleEnded = async () => {
       if (intentionalStopRef.current) return;
-      // Double-check: if the stream is still active, this is a spurious event
-      if (stream.active) {
-        console.warn("[Camera] ⚠️ Track ended but stream still active — ignoring");
+      
+      // If stream is still "active" but track ended, the track won't produce frames.
+      // Try to re-acquire the camera automatically.
+      if (stream.active && !isReacquiringRef.current) {
+        console.warn("[Camera] ⚠️ Track ended but stream active — auto re-acquiring camera...");
+        isReacquiringRef.current = true;
+        try {
+          const newStream = await navigator.mediaDevices.getUserMedia(
+            { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
+          );
+          if (newStream.getVideoTracks().length > 0) {
+            console.log("[Camera] ✅ Camera re-acquired successfully");
+            setStream(newStream);
+          }
+        } catch (err) {
+          console.error("[Camera] ❌ Re-acquire failed:", err);
+          setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
+          setStream(null);
+          onStatusChange?.(false);
+        } finally {
+          isReacquiringRef.current = false;
+        }
         return;
       }
-      console.log("[Camera] 🔌 Track ended, stream inactive — camera disconnected");
-      setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
-      setStream(null);
-      onStatusChange?.(false);
+      
+      if (!stream.active) {
+        console.log("[Camera] 🔌 Track ended, stream inactive — camera disconnected");
+        setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
+        setStream(null);
+        onStatusChange?.(false);
+      }
     };
 
     videoTrack.addEventListener("ended", handleEnded);
