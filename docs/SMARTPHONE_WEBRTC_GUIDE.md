@@ -200,36 +200,36 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
 
-    // 트랙 수신 처리 — unmute 후 디바운스로 1회만 스트림 전달
-    let streamDeliverTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const deliverStream = () => {
-      if (streamDeliverTimer) clearTimeout(streamDeliverTimer);
-      streamDeliverTimer = setTimeout(() => {
-        const currentPC = pcRef.current;
-        if (!currentPC) return;
-        // 현재 수신 중인 모든 트랙으로 새 MediaStream 생성
-        const receivers = currentPC.getReceivers?.() || [];
-        const tracks = receivers.map((r: any) => r.track).filter(Boolean);
-        if (tracks.length > 0) {
-          const wrapped = new MediaStream(tracks);
-          updateStream(wrapped);
-          console.log("[WebRTC Viewer] 📤 디바운스 스트림 전달 완료");
-        }
-      }, 150);
-    };
+    // 🆕 트랙별 독립 MediaStream 생성 방식
+    // event.streams[0]을 그대로 사용하면 재연결 시 모바일 브라우저가
+    // "빈 껍데기 스트림"을 잡고 readyState: 0에 멈출 수 있습니다.
+    // 대신 수신된 트랙으로 새 MediaStream을 직접 생성합니다.
+    const receivedTracksRef: Record<string, any> = {};
 
     pc.ontrack = (event: any) => {
-      console.log("[WebRTC Viewer] 트랙 수신:", event.track.kind);
+      console.log("[WebRTC Viewer] ✅ 트랙 수신:", event.track.kind);
 
-      // muted 트랙은 unmute 대기, unmuted 트랙은 즉시 전달 예약
+      // 트랙 저장 (audio/video)
+      receivedTracksRef[event.track.kind] = event.track;
+
+      // unmute 대기 후 스트림 조립
+      const assembleStream = () => {
+        const tracks = Object.values(receivedTracksRef).filter(Boolean);
+        if (tracks.length > 0) {
+          // 🆕 핵심: 새로운 MediaStream을 직접 생성 (event.streams[0] 사용 금지)
+          const freshStream = new MediaStream(tracks as MediaStreamTrack[]);
+          updateStream(freshStream);
+          console.log(`[WebRTC Viewer] 📤 새 MediaStream 생성 (${tracks.length}개 트랙)`);
+        }
+      };
+
       if (event.track.muted) {
         event.track.addEventListener("unmute", () => {
           console.log(`[WebRTC Viewer] ✅ Track unmuted: ${event.track.kind}`);
-          deliverStream();
+          assembleStream();
         }, { once: true });
       } else {
-        deliverStream();
+        assembleStream();
       }
     };
 
@@ -547,13 +547,57 @@ export function CameraViewer({ deviceId, onClose }: CameraViewerProps) {
 
 ### CameraViewer 핵심 변경사항
 
-1. **`remoteStream`을 직접 사용**: `videoRef`를 통한 간접 참조 대신, `useWebRTCViewer`가 반환하는 `remoteStream` 상태를 `RTCView`의 `streamURL`에 직접 전달합니다. 이렇게 하면 stream이 변경될 때 React가 자동으로 컴포넌트를 리렌더링하여 RTCView가 새 streamURL을 인식합니다.
+1. **`key={streamKey}`로 비디오 태그 강제 재생성**: 재연결 시 `streamKey`를 증가시켜 RTCView를 DOM에서 완전히 제거하고 새로 생성합니다. 이렇게 하면 브라우저의 미디어 파이프라인이 완전히 리셋되어 `readyState: 0` 고착 문제가 해결됩니다.
 
-2. **`objectFit: "contain"`**: `cover` 대신 `contain`을 사용하여 영상 비율을 유지합니다. `cover`는 컨테이너에 맞추기 위해 영상을 잘라내거나 찌그러뜨릴 수 있습니다.
+2. **`remoteStream`을 직접 사용**: `videoRef`를 통한 간접 참조 대신, `useWebRTCViewer`가 반환하는 `remoteStream` 상태를 `RTCView`의 `streamURL`에 직접 전달합니다.
 
-3. **`remoteStream` 기반 조건부 렌더링**: `isConnected` 대신 `remoteStream`의 존재 여부로 RTCView를 렌더링합니다. 이렇게 하면 연결 상태와 스트림 수신이 동기화되지 않는 경우에도 안정적으로 동작합니다.
+3. **`objectFit: "contain"`**: `cover` 대신 `contain`을 사용하여 영상 비율을 유지합니다.
 
-4. **불필요한 `attemptPlay` 제거**: RTCView는 `streamURL`이 유효하면 자동으로 재생하므로 수동 play 로직이 불필요합니다.
+4. **`remoteStream` 기반 조건부 렌더링**: `isConnected` 대신 `remoteStream`의 존재 여부로 RTCView를 렌더링합니다.
+
+5. **불필요한 `attemptPlay` 제거**: RTCView는 `streamURL`이 유효하면 자동으로 재생하므로 수동 play 로직이 불필요합니다.
+
+### ⚠️ 웹뷰(브라우저) 기반 앱인 경우 — 비디오 재생 타이밍
+
+React Native의 `RTCView`가 아닌 웹 `<video>` 태그를 사용하는 경우, `loadedmetadata` 이벤트를 기다린 후 재생해야 합니다:
+
+```typescript
+// stream이 변경될 때마다 실행
+useEffect(() => {
+  const video = videoRef.current;
+  if (!video || !stream) return;
+
+  // 1. 기존 재생 중단
+  video.pause();
+  video.srcObject = stream;
+
+  // 2. 데이터가 로드된 것을 확인하고 재생 (즉시 play() 금지!)
+  const onLoadedMetadata = () => {
+    video.play().catch(e => {
+      if (e.name === 'NotAllowedError') {
+        // 사용자 상호작용 필요 → "터치하여 재생" 버튼 표시
+        setShowPlayButton(true);
+      }
+    });
+  };
+
+  video.addEventListener("loadedmetadata", onLoadedMetadata);
+  video.load(); // 미디어 파이프라인 강제 리셋
+
+  return () => {
+    video.removeEventListener("loadedmetadata", onLoadedMetadata);
+  };
+}, [stream]);
+
+// JSX — key 속성으로 비디오 태그 강제 재생성
+<video
+  key={streamKey}
+  ref={videoRef}
+  autoPlay
+  playsInline  // iOS 필수
+  muted        // 자동재생 정책 우회
+/>
+```
 
 ### 2. 동작 흐름
 
