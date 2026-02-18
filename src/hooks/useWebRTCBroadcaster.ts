@@ -85,6 +85,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const creatingPeerRef = useRef<Set<string>>(new Set());
   const disconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const isStoppingBroadcastRef = useRef(false);
+  const lastBroadcasterReadyRef = useRef<number>(0); // timestamp of last broadcaster-ready
+  const BROADCASTER_READY_INTERVAL = 10000; // re-send every 10s if no viewers
   // L-16: 재연결 시도 카운터 (sessionId → 시도 횟수)
   const reconnectAttemptsRef = useRef<Map<string, number>>(new Map());
   const MAX_PEER_RECONNECT = 3;
@@ -408,6 +410,27 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           await handleIceCandidate(cand.session_id, cand.data.candidate);
         }
       }
+
+      // 4. If no active peers and no pending joins, periodically re-send broadcaster-ready
+      // This handles the case where the smartphone's Realtime subscription dropped
+      // and it missed the initial broadcaster-ready signal
+      const activePeers = Array.from(peersRef.current.values()).filter(
+        p => p.pc.connectionState === "connected" || p.pc.connectionState === "connecting"
+      );
+      if (activePeers.length === 0 && newJoins.length === 0) {
+        const now = Date.now();
+        if (now - lastBroadcasterReadyRef.current >= BROADCASTER_READY_INTERVAL) {
+          lastBroadcasterReadyRef.current = now;
+          console.log("[Broadcaster] 📢 No viewers — re-sending broadcaster-ready");
+          await insertSignaling({
+            device_id: currentDeviceId,
+            session_id: `ready-${now}`,
+            type: "broadcaster-ready",
+            sender_type: "broadcaster",
+            data: { timestamp: now },
+          });
+        }
+      }
     } catch (e) {
       console.warn("[Broadcaster] Poll error:", e);
     }
@@ -432,6 +455,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
     // Set broadcasting state immediately
     setIsBroadcasting(true);
+    lastBroadcasterReadyRef.current = Date.now();
 
     // Insert broadcaster-ready signal so smartphone viewer knows to reconnect
     await insertSignaling({
