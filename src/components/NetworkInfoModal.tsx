@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Wifi, Loader2, Globe, Signal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabaseShared } from "@/lib/supabase";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 
 interface NetworkInfoModalProps {
   isOpen: boolean;
@@ -54,24 +54,21 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
       // Save to DB
       if (deviceId) {
         try {
-          await supabaseShared
-            .from("devices")
-            .update({
-              ip_address: ip,
-              is_network_connected: navigator.onLine,
-              metadata: {
-                network_info: {
-                  type: info.type,
-                  downlink: info.downlink,
-                  rtt: info.rtt,
-                  effective_type: info.effectiveType,
-                  updated_at: new Date().toISOString(),
-                },
-                network_info_requested: null,
+          await updateDeviceViaEdge(deviceId, {
+            ip_address: ip,
+            is_network_connected: navigator.onLine,
+            metadata: {
+              network_info: {
+                type: info.type,
+                downlink: info.downlink,
+                rtt: info.rtt,
+                effective_type: info.effectiveType,
+                updated_at: new Date().toISOString(),
               },
-            } as Record<string, unknown>)
-            .eq("id", deviceId);
-          console.log("[NetworkInfo] Saved to DB");
+              network_info_requested: null,
+            },
+          });
+          console.log("[NetworkInfo] Saved to DB via Edge Function");
         } catch (err) {
           console.error("[NetworkInfo] Failed to save:", err);
         }
