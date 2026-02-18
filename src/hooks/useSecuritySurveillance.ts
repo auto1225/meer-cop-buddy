@@ -59,7 +59,8 @@ export function useSecuritySurveillance({
 }: UseSecuritySurveillanceOptions = {}) {
   const [isActive, setIsActive] = useState(false);
 
-  const photoBufferRef = useRef<{ timestamp: number; dataUrl: string }[]>([]);
+  // L-8: Blob 기반 사진 버퍼 (메모리 효율 — Base64 대비 ~33% 절감)
+  const photoBufferRef = useRef<{ timestamp: number; blob: Blob }[]>([]);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -117,44 +118,69 @@ export function useSecuritySurveillance({
     };
   }, []);
 
-  const capturePhoto = useCallback((): string | null => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.videoWidth === 0) return null;
+  // L-8: Blob으로 캡처 (toBlob은 비동기 콜백이므로 Promise 래핑)
+  const capturePhotoAsBlob = useCallback((): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || video.videoWidth === 0) {
+        resolve(null);
+        return;
+      }
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
 
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL("image/jpeg", 0.7);
+      ctx.drawImage(video, 0, 0);
+      canvas.toBlob(
+        (blob) => resolve(blob),
+        "image/jpeg",
+        0.7
+      );
+    });
   }, []);
 
   const addToBuffer = useCallback(
-    (dataUrl: string) => {
+    (blob: Blob) => {
       const now = Date.now();
       const cutoffTime = now - bufferDuration * 1000;
       const filtered = photoBufferRef.current.filter(
         (p) => p.timestamp > cutoffTime
       );
-      photoBufferRef.current = [...filtered, { timestamp: now, dataUrl }];
+      photoBufferRef.current = [...filtered, { timestamp: now, blob }];
     },
     [bufferDuration]
   );
 
-  const getBufferPhotos = useCallback((): string[] => {
-    return photoBufferRef.current.map((p) => p.dataUrl);
+  // L-8: Blob → Base64 변환 (전송 시점에만 수행)
+  const blobToDataUrl = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const getBufferPhotos = useCallback(async (): Promise<string[]> => {
+    const blobs = photoBufferRef.current.map((p) => p.blob);
+    return Promise.all(blobs.map(blobToDataUrl));
   }, []);
 
   const triggerEvent = useCallback(
-    (type: SecurityEvent["type"], changePercent?: number) => {
+    async (type: SecurityEvent["type"], changePercent?: number) => {
       if (!isMonitoringRef.current) return;
 
+      const photos = await getBufferPhotos();
       const event: SecurityEvent = {
         type,
         timestamp: new Date(),
-        photos: getBufferPhotos(),
+        photos,
         changePercent,
       };
 
@@ -188,8 +214,8 @@ export function useSecuritySurveillance({
         motionCooldown
       );
 
-      captureIntervalRef.current = setInterval(() => {
-        const photo = capturePhoto();
+      captureIntervalRef.current = setInterval(async () => {
+        const photo = await capturePhotoAsBlob();
         if (photo) addToBuffer(photo);
 
         if (
@@ -323,7 +349,7 @@ export function useSecuritySurveillance({
     return true;
   }, [
     captureInterval,
-    capturePhoto,
+    capturePhotoAsBlob,
     addToBuffer,
     triggerEvent,
     mouseSensitivity,
