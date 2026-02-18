@@ -35,17 +35,44 @@ export function useAlerts(deviceId?: string, userId?: string) {
   const lastAlertTimeRef = useRef<string | null>(null);
   const lastProcessedDismissalRef = useRef<string | null>(null);
 
-  // Presence 채널로 알림 전송 (스마트폰 앱이 수신)
+  // Presence 채널로 알림 전송 + Broadcast active_alert 이벤트 (스마트폰 앱이 수신)
   const broadcastAlert = useCallback(async (alert: Alert | null) => {
     if (!channelRef.current) return;
 
     try {
+      // 7-2: Presence track with status: 'alert' or 'online'
       await channelRef.current.track({
         device_id: deviceIdRef.current,
-        active_alert: alert,
+        active_alert: alert ? {
+          id: alert.id,
+          type: alert.event_type,
+          title: alert.event_data?.alert_type || alert.event_type,
+          message: alert.event_data?.message || null,
+          created_at: alert.created_at,
+        } : null,
+        status: alert ? 'alert' : 'online',
         updated_at: new Date().toISOString(),
       });
-      console.log("[Alerts] Broadcasted alert via Presence:", alert?.event_type || "cleared");
+
+      // 1-2: Also send broadcast active_alert event for immediate detection
+      if (alert) {
+        await channelRef.current.send({
+          type: "broadcast",
+          event: "active_alert",
+          payload: {
+            device_id: deviceIdRef.current,
+            active_alert: {
+              id: alert.id,
+              type: alert.event_type,
+              title: alert.event_data?.alert_type || alert.event_type,
+              message: alert.event_data?.message || null,
+              created_at: alert.created_at,
+            },
+          },
+        });
+      }
+
+      console.log("[Alerts] Broadcasted alert via Presence + Broadcast:", alert?.event_type || "cleared");
     } catch (error) {
       console.error("[Alerts] Failed to broadcast alert:", error);
     }
@@ -107,18 +134,16 @@ export function useAlerts(deviceId?: string, userId?: string) {
 
     setActiveAlert(null);
 
-    // Presence 상태에서 active_alert를 null로 명시적 갱신
-    // → 스마트폰 재접속 시 stale alert 수신 방지
+    // 7-3: Presence 상태에서 active_alert: null, status: 'online'으로 재track
     if (channelRef.current) {
       try {
         await channelRef.current.track({
           device_id: deviceId,
-          role: "laptop",
           active_alert: null,
-          status: "listening",
+          status: "online",
           last_seen_at: new Date().toISOString(),
         });
-        console.log("[Alerts] ✅ Presence cleared: active_alert = null");
+        console.log("[Alerts] ✅ Presence cleared: active_alert = null, status = online");
       } catch (error) {
         console.error("[Alerts] Failed to clear Presence:", error);
       }
@@ -229,7 +254,8 @@ export function useAlerts(deviceId?: string, userId?: string) {
           console.log("[Alerts] ✅ Channel subscribed — broadcast + presence ready");
           await channel.track({
             device_id: deviceId,
-            status: "listening",
+            active_alert: null,
+            status: "online",
             updated_at: new Date().toISOString(),
           });
         }

@@ -216,11 +216,13 @@ const Index = () => {
       const transmission: PhotoTransmission = {
         id: alertId,
         device_id: currentDevice.id,
+        device_name: currentDevice.device_name,
         event_type: event.type,
         photos: event.photos,
         change_percent: event.changePercent,
         latitude: alertCoords?.latitude,
         longitude: alertCoords?.longitude,
+        location_source: alertCoords ? "gps" : undefined,
         auto_streaming: true,
         created_at: now,
       };
@@ -520,6 +522,10 @@ const Index = () => {
         if (settings.alarm_pin) {
           setAlarmPin(settings.alarm_pin);
           localStorage.setItem('meercop-alarm-pin', settings.alarm_pin);
+        }
+        if (settings.alarm_sound_id) {
+          setSelectedSoundId(settings.alarm_sound_id);
+          localStorage.setItem('meercop-alarm-sound', settings.alarm_sound_id);
         }
         if (settings.require_pc_pin !== undefined) {
           setRequirePcPin(settings.require_pc_pin);

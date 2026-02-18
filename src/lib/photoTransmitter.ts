@@ -20,11 +20,13 @@ const MAX_PENDING = 5; // 최대 대기 큐 수
 export interface PhotoTransmission {
   id: string;
   device_id: string;
+  device_name?: string;
   event_type: string;
   photos: string[]; // base64 JPEG data URLs
   change_percent?: number;
   latitude?: number;
   longitude?: number;
+  location_source?: string;
   auto_streaming?: boolean;
   created_at: string;
 }
@@ -81,13 +83,14 @@ async function sendViaChannel(
   tx: PhotoTransmission
 ): Promise<boolean> {
   try {
-    // 1. 전송 시작 알림
+    // 1. 전송 시작 알림 (6-1: device_name 포함)
     const startResult = await channel.send({
       type: "broadcast",
       event: "photo_alert_start",
       payload: {
         id: tx.id,
         device_id: tx.device_id,
+        device_name: tx.device_name,
         event_type: tx.event_type,
         total_photos: tx.photos.length,
         change_percent: tx.change_percent,
@@ -131,7 +134,7 @@ async function sendViaChannel(
       console.log(`[PhotoTx] Sent chunk ${i + 1}/${chunks.length}`);
     }
 
-    // 3. 전송 완료 알림 (위치 + 스트리밍 정보 포함)
+    // 3. 전송 완료 알림 (6-3: location_source 포함)
     await channel.send({
       type: "broadcast",
       event: "photo_alert_end",
@@ -140,6 +143,7 @@ async function sendViaChannel(
         total_photos: tx.photos.length,
         latitude: tx.latitude,
         longitude: tx.longitude,
+        location_source: tx.location_source,
         auto_streaming: tx.auto_streaming ?? false,
       },
     });
