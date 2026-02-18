@@ -28,7 +28,7 @@ import { useAlarmSystem } from "@/hooks/useAlarmSystem";
 import { useStealRecovery, markAlertActive, markAlertCleared } from "@/hooks/useStealRecovery";
 import { useLocationResponder } from "@/hooks/useLocationResponder";
 import { useNetworkInfoResponder } from "@/hooks/useNetworkInfoResponder";
-import { supabaseShared } from "@/lib/supabase";
+import { channelManager } from "@/lib/channelManager";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import mainBg from "@/assets/main-bg.png";
 
@@ -480,14 +480,7 @@ const Index = () => {
     const channelName = `device-commands-${currentDevice.id}`;
     console.log("[Index] 🔌 Subscribing to broadcast channel:", channelName);
 
-    // Remove any existing channel with same name to avoid duplicates
-    const existingChannels = supabaseShared.getChannels();
-    const existing = existingChannels.find(ch => ch.topic === `realtime:${channelName}`);
-    if (existing) {
-      supabaseShared.removeChannel(existing);
-    }
-
-    const channel = supabaseShared.channel(channelName);
+    const channel = channelManager.getOrCreate(channelName);
     
     channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
       const isOn = payload.payload?.is_monitoring ?? false;
@@ -522,7 +515,7 @@ const Index = () => {
     });
 
     return () => {
-      supabaseShared.removeChannel(channel);
+      channelManager.remove(channelName);
     };
   }, [currentDevice?.id, refetch, stopAlarm]);
 
@@ -594,6 +587,8 @@ const Index = () => {
         <PinKeypad
           isOpen={showPinKeypad && isAlarming}
           correctPin={alarmPin}
+          deviceId={currentDevice?.id}
+          metadata={currentDevice?.metadata as { alarm_pin_hash?: string; alarm_pin?: string } | null}
           onSuccess={handleAlarmDismiss}
           onClose={() => setShowPinKeypad(false)}
         />

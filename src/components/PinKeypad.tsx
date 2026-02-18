@@ -1,16 +1,23 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Delete } from "lucide-react";
+import { verifyPin } from "@/lib/pinHash";
 
 interface PinKeypadProps {
   isOpen: boolean;
+  /** @deprecated 폴백용 평문 PIN — alarm_pin_hash가 있으면 무시됨 */
   correctPin: string;
+  /** 해시 검증용 디바이스 ID */
+  deviceId?: string;
+  /** DB metadata (alarm_pin_hash, alarm_pin 포함) */
+  metadata?: { alarm_pin_hash?: string; alarm_pin?: string } | null;
   onSuccess: () => void;
   onClose: () => void;
 }
 
-export function PinKeypad({ isOpen, correctPin, onSuccess, onClose }: PinKeypadProps) {
+export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, onClose }: PinKeypadProps) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const isVerifyingRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -20,25 +27,42 @@ export function PinKeypad({ isOpen, correctPin, onSuccess, onClose }: PinKeypadP
   }, [isOpen]);
 
   const handleDigit = useCallback((digit: string) => {
+    if (isVerifyingRef.current) return;
     setError(false);
     setPin(prev => {
       const next = prev + digit;
       if (next.length === 4) {
-        if (next === correctPin) {
-          onSuccess();
-          return "";
-        } else {
-          setError(true);
-          setTimeout(() => {
-            setPin("");
-            setError(false);
-          }, 600);
-          return next;
-        }
+        // 비동기 해시 검증
+        isVerifyingRef.current = true;
+        (async () => {
+          try {
+            let valid = false;
+            if (deviceId && metadata) {
+              valid = await verifyPin(next, deviceId, metadata);
+            } else {
+              // 폴백: 평문 비교
+              valid = next === correctPin;
+            }
+
+            if (valid) {
+              onSuccess();
+              setPin("");
+            } else {
+              setError(true);
+              setTimeout(() => {
+                setPin("");
+                setError(false);
+              }, 600);
+            }
+          } finally {
+            isVerifyingRef.current = false;
+          }
+        })();
+        return next;
       }
       return next;
     });
-  }, [correctPin, onSuccess]);
+  }, [correctPin, deviceId, metadata, onSuccess]);
 
   const handleDelete = useCallback(() => {
     setPin(prev => prev.slice(0, -1));
