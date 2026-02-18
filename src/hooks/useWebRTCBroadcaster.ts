@@ -82,8 +82,11 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const iceCandidateQueueRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const deviceIdRef = useRef(deviceId);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const creatingPeerRef = useRef<Set<string>>(new Set()); // Mutex for peer creation
-  const disconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map()); // Grace period timers
+  const creatingPeerRef = useRef<Set<string>>(new Set());
+  const disconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // L-16: 재연결 시도 카운터 (sessionId → 시도 횟수)
+  const reconnectAttemptsRef = useRef<Map<string, number>>(new Map());
+  const MAX_PEER_RECONNECT = 3;
 
   useEffect(() => {
     deviceIdRef.current = deviceId;
@@ -221,6 +224,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           disconnectTimersRef.current.delete(sessionId);
           console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Connection recovered from disconnected`);
         }
+        // L-16: 재연결 성공 시 카운터 리셋
+        reconnectAttemptsRef.current.delete(sessionId);
       } else if (pc.connectionState === "disconnected") {
         // "disconnected" is NOT terminal — WebRTC can auto-recover
         // Give it 10 seconds grace period before cleanup
@@ -235,8 +240,24 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         }, 10000);
         disconnectTimersRef.current.set(sessionId, timer);
       } else if (pc.connectionState === "failed") {
-        // "failed" IS terminal — cleanup immediately
+        // L-16: "failed" — 지수 백오프로 재연결 시도 (최대 3회)
+        const attempts = reconnectAttemptsRef.current.get(sessionId) || 0;
         cleanupPeer(sessionId);
+        
+        if (attempts < MAX_PEER_RECONNECT && streamRef.current) {
+          const delay = Math.pow(2, attempts) * 1000; // 1s, 2s, 4s
+          console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔄 Reconnect attempt ${attempts + 1}/${MAX_PEER_RECONNECT} in ${delay}ms`);
+          reconnectAttemptsRef.current.set(sessionId, attempts + 1);
+          
+          setTimeout(() => {
+            if (streamRef.current) {
+              createPeerConnectionAndOffer(sessionId);
+            }
+          }, delay);
+        } else {
+          reconnectAttemptsRef.current.delete(sessionId);
+          console.log(`[Broadcaster] [${sessionId.slice(-8)}] ❌ Max reconnect attempts reached`);
+        }
       }
     };
 
@@ -500,6 +521,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     processedViewerJoinsRef.current.clear();
     processedAnswersRef.current.clear();
     iceCandidateQueueRef.current.clear();
+    reconnectAttemptsRef.current.clear();
 
     if (channelRef.current) {
       await supabaseShared.removeChannel(channelRef.current);
