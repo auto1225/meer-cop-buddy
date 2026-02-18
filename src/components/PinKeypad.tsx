@@ -38,7 +38,7 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
           try {
             let valid = false;
             if (deviceId && metadata) {
-              valid = await verifyPin(next, deviceId, metadata);
+              valid = await verifyPin(next, deviceId, metadata, correctPin);
             } else {
               // 폴백: 평문 비교
               valid = next === correctPin;
