@@ -190,28 +190,27 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       }
     };
 
-    // 🆕 ICE 연결 시 키프레임 강제 생성 — 트랙 토글 (가장 확실한 방법)
+    // 🆕 ICE 연결 시 키프레임 강제 생성 — replaceTrack 방식 (트랙 비활성화 없이)
     pc.oniceconnectionstatechange = () => {
       console.log(`[Broadcaster] [${sessionId.slice(-8)}] ICE state: ${pc.iceConnectionState}`);
       
       if (pc.iceConnectionState === "connected") {
-        console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔥 뷰어 ICE 연결! Track Toggle로 키프레임 강제 생성`);
+        console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔥 뷰어 ICE 연결! replaceTrack으로 키프레임 강제 생성`);
         
         const senders = pc.getSenders();
         const videoSender = senders.find(s => s.track && s.track.kind === "video");
         
         if (videoSender && videoSender.track && videoSender.track.readyState === "live") {
           const track = videoSender.track;
-          // 트랙을 1초 껐다 켜기 → 인코더 확실히 리셋 → I-Frame 발생
-          track.enabled = false;
-          setTimeout(() => {
-            track.enabled = true;
-            console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe forced via track toggle (1000ms)`);
-            // 추가: 화질 설정도 건드려서 인코더를 한번 더 자극
-            const constraints = track.getConstraints();
-            track.applyConstraints({ ...constraints, frameRate: 30 })
-              .catch(e => console.warn(`[Broadcaster] [${sessionId.slice(-8)}] applyConstraints after toggle:`, e));
-          }, 1000);
+          // replaceTrack with the SAME track forces encoder reset → keyframe without disabling
+          videoSender.replaceTrack(track)
+            .then(() => {
+              console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe forced via replaceTrack`);
+              // Also nudge constraints to stimulate encoder
+              const constraints = track.getConstraints();
+              return track.applyConstraints({ ...constraints, frameRate: 30 });
+            })
+            .catch(e => console.warn(`[Broadcaster] [${sessionId.slice(-8)}] replaceTrack/applyConstraints:`, e));
         }
       }
     };
