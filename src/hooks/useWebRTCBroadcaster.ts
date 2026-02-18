@@ -12,6 +12,10 @@ interface PeerConnection {
   pc: RTCPeerConnection;
 }
 
+// TURN credential은 환경변수에서 로드 (보안: 소스코드 노출 방지)
+const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || "";
+const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "";
+
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -19,21 +23,26 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
     { urls: "stun:stun4.l.google.com:19302" },
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
+    // TURN 서버는 credential이 설정된 경우에만 추가
+    ...(TURN_USERNAME && TURN_CREDENTIAL
+      ? [
+          {
+            urls: "turn:openrelay.metered.ca:80",
+            username: TURN_USERNAME,
+            credential: TURN_CREDENTIAL,
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443",
+            username: TURN_USERNAME,
+            credential: TURN_CREDENTIAL,
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443?transport=tcp",
+            username: TURN_USERNAME,
+            credential: TURN_CREDENTIAL,
+          },
+        ]
+      : []),
   ],
   iceCandidatePoolSize: 10,
 };
