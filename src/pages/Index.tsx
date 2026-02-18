@@ -73,9 +73,7 @@ const Index = () => {
   // Detect smartphone online status from devices list
   // device_type enum: laptop | desktop | smartphone | tablet
   const smartphoneDevice = devices.find(d => d.device_type === 'smartphone');
-  const smartphoneOnline = smartphoneDevice
-    ? (smartphoneDevice.status === 'online' || smartphoneDevice.is_monitoring === true)
-    : false;
+  const smartphoneOnline = smartphoneDevice?.status === 'online';
   
   console.log("[Index] 📱 smartphoneDevice:", smartphoneDevice?.id, "status:", smartphoneDevice?.status, "online:", smartphoneOnline);
   
