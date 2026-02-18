@@ -72,6 +72,12 @@ export function useSecuritySurveillance({
   const onEventDetectedRef = useRef(onEventDetected);
   const motionDetectorRef = useRef<MotionDetector | null>(null);
   const sensorTogglesRef = useRef(sensorToggles);
+  // 설정값을 ref로 관리하여 startSurveillance 참조 안정성 확보
+  const captureIntervalValRef = useRef(captureInterval);
+  const mouseSensitivityRef = useRef(mouseSensitivity);
+  const motionThresholdRef = useRef(motionThreshold);
+  const motionConsecutiveRef = useRef(motionConsecutive);
+  const motionCooldownRef = useRef(motionCooldown);
 
   // L-5: 전역 변수 대신 useRef로 이벤트 핸들러 관리
   const keyboardHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
@@ -88,6 +94,26 @@ export function useSecuritySurveillance({
   useEffect(() => {
     sensorTogglesRef.current = sensorToggles;
   }, [sensorToggles]);
+
+  useEffect(() => {
+    captureIntervalValRef.current = captureInterval;
+  }, [captureInterval]);
+
+  useEffect(() => {
+    mouseSensitivityRef.current = mouseSensitivity;
+  }, [mouseSensitivity]);
+
+  useEffect(() => {
+    motionThresholdRef.current = motionThreshold;
+  }, [motionThreshold]);
+
+  useEffect(() => {
+    motionConsecutiveRef.current = motionConsecutive;
+  }, [motionConsecutive]);
+
+  useEffect(() => {
+    motionCooldownRef.current = motionCooldown;
+  }, [motionCooldown]);
 
   // Initialize hidden video and canvas elements once
   useEffect(() => {
@@ -209,9 +235,9 @@ export function useSecuritySurveillance({
       cameraAvailable = true;
 
       motionDetectorRef.current = new MotionDetector(
-        motionThreshold,
-        motionConsecutive,
-        motionCooldown
+        motionThresholdRef.current,
+        motionConsecutiveRef.current,
+        motionCooldownRef.current
       );
 
       captureIntervalRef.current = setInterval(async () => {
@@ -239,7 +265,7 @@ export function useSecuritySurveillance({
             }
           }
         }
-      }, captureInterval);
+      }, captureIntervalValRef.current);
     } catch (error) {
       console.warn("[Surveillance] Camera unavailable — non-camera sensors will still work:", error);
     }
@@ -274,11 +300,11 @@ export function useSecuritySurveillance({
           accum.distance += segmentDist;
         }
 
-        if (accum.distance >= mouseSensitivity) {
+        if (accum.distance >= mouseSensitivityRef.current) {
           console.log(
             "[Surveillance] Mouse movement detected:",
             accum.distance.toFixed(0),
-            "px in 200ms (threshold:", mouseSensitivity, "px)"
+            "px in 200ms (threshold:", mouseSensitivityRef.current, "px)"
           );
           triggerEvent("mouse");
           accum.distance = 0;
@@ -348,14 +374,9 @@ export function useSecuritySurveillance({
 
     return true;
   }, [
-    captureInterval,
     capturePhotoAsBlob,
     addToBuffer,
     triggerEvent,
-    mouseSensitivity,
-    motionThreshold,
-    motionConsecutive,
-    motionCooldown,
   ]);
 
   const stopSurveillance = useCallback(() => {
