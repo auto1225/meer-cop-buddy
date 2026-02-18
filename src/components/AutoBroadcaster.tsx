@@ -121,7 +121,7 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
 
       // Add track ended listeners to detect camera removal during streaming
       stream.getTracks().forEach((track) => {
-        track.onended = () => {
+        track.onended = async () => {
           console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ Track ended: ${track.kind} (${track.label})`);
           
           const allEnded = stream.getTracks().every(t => t.readyState === "ended");
@@ -131,7 +131,11 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
             streamRef.current = null;
             globalBroadcastingDevice = null;
             isStartingRef.current = false;
-            stopBroadcasting();
+            
+            // CRITICAL: await stopBroadcasting to ensure deleteSignaling completes
+            // before any restart attempt. Fire-and-forget caused a race condition
+            // where the delayed delete would remove the new broadcaster-ready signal.
+            await stopBroadcasting();
             
             // Schedule retry if streaming is still requested
             if (isStreamingRequestedRef.current) {
