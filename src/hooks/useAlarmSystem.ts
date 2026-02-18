@@ -32,7 +32,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
   // Get audio context
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (audioContextRef.current.state === 'suspended') {
       audioContextRef.current.resume();

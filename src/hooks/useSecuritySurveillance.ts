@@ -276,8 +276,8 @@ export function useSecuritySurveillance({
 
     const setupBatteryMonitoring = async () => {
       try {
-        if ("getBattery" in navigator) {
-          const battery = await (navigator as any).getBattery();
+        if (navigator.getBattery) {
+          const battery = await navigator.getBattery();
           lastChargingState = battery.charging;
           
           // 명명된 핸들러 생성 (cleanup 가능)

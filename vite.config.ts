@@ -18,4 +18,14 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // §2-5: 프로덕션 빌드 시 console.log 자동 제거
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+  },
 }));

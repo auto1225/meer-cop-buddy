@@ -338,7 +338,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       };
 
       // Gather network info
-      const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const networkInfo: Record<string, unknown> = {
         type: connection?.type || "unknown",
         downlink: connection?.downlink ?? null,
