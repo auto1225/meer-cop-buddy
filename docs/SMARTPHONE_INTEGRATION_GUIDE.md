@@ -9,10 +9,11 @@ Supabase Presence 채널과 DB Realtime을 사용합니다.
 
 ## 1️⃣ 경보 수신 및 해제 (Presence 채널)
 
-### 채널: `device-alerts-${DEVICE_ID}`
+### 채널: `user-alerts-${userId}` (v2 통합 채널)
 
 ```typescript
-const channel = supabase.channel(`device-alerts-${DEVICE_ID}`, {
+// v2 통합 채널: user-alerts-${userId} (기기별 → 사용자별)
+const channel = supabase.channel(`user-alerts-${userId}`, {
   config: { presence: { key: DEVICE_ID } },
 });
 ```
@@ -103,12 +104,12 @@ async function dismissAlarmRemotely() {
 
 ## 2️⃣ 사진 수신 (Broadcast 채널)
 
-### 채널: `photo-transmission-${DEVICE_ID}`
+### 채널: `user-photos-${userId}` (v2 통합 채널)
 
 랩탑이 경보 발생 시 촬영한 사진을 Broadcast로 전송합니다.
 
 ```typescript
-const photoChannel = supabase.channel(`photo-transmission-${DEVICE_ID}`);
+const photoChannel = supabase.channel(`user-photos-${userId}`);
 
 photoChannel
   .on("broadcast", { event: "photo_data" }, (payload) => {
@@ -194,10 +195,10 @@ await supabase
 
 ## 5️⃣ 장치 상태 확인 (Presence 채널)
 
-### 채널: `device-presence-${DEVICE_ID}`
+### 채널: `user-presence-${userId}` (v2 통합 채널)
 
 ```typescript
-const presenceChannel = supabase.channel(`device-presence-${DEVICE_ID}`, {
+const presenceChannel = supabase.channel(`user-presence-${userId}`, {
   config: { presence: { key: DEVICE_ID } },
 });
 

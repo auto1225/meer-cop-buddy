@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { getAlarmSoundsForDB } from "@/lib/alarmSounds";
 import { LaptopHeader } from "@/components/LaptopHeader";
 import { LaptopStatusIcons } from "@/components/LaptopStatusIcons";
@@ -33,6 +34,7 @@ import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
+  const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const savedAuth = getSavedAuth();
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -510,6 +512,30 @@ const Index = () => {
       setIsCamouflageMode(camouflageOn);
     });
 
+    // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
+    channel.on('broadcast', { event: 'lock_command' }, (payload) => {
+      console.log("[Index] 🔒 Broadcast lock_command received:", payload);
+      setShowPinKeypad(true);
+      // 잠금 시 화면을 위장 모드처럼 덮어 사용 차단
+      setIsCamouflageMode(true);
+      toast({
+        title: "🔒 기기 잠금",
+        description: "스마트폰에서 원격 잠금이 활성화되었습니다.",
+      });
+    });
+
+    // 메시지 명령: 토스트 알림으로 메시지 표시
+    channel.on('broadcast', { event: 'message_command' }, (payload) => {
+      const message = payload.payload?.message || "메시지가 도착했습니다.";
+      const title = payload.payload?.title || "📩 원격 메시지";
+      console.log("[Index] 💬 Broadcast message_command received:", message);
+      toast({
+        title,
+        description: message,
+        duration: 10000, // 10초간 표시
+      });
+    });
+
     channel.subscribe((status) => {
       console.log("[Index] 📡 device-commands channel status:", status);
     });
@@ -517,7 +543,7 @@ const Index = () => {
     return () => {
       channelManager.remove(channelName);
     };
-  }, [currentDevice?.id, refetch, stopAlarm]);
+  }, [currentDevice?.id, refetch, stopAlarm, toast]);
 
   // When smartphone goes offline, force stop monitoring
   useEffect(() => {
