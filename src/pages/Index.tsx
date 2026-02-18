@@ -469,6 +469,16 @@ const Index = () => {
     });
   }, [currentDevice]);
 
+  // 스마트폰 online/offline 변경 시 즉시 DB 재조회 (Presence LEAVE → DB 최신 상태 반영)
+  const prevSmartphoneOnlineRef = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (prevSmartphoneOnlineRef.current !== undefined && prevSmartphoneOnlineRef.current !== smartphoneOnline) {
+      console.log("[Index] 📱 Smartphone online changed:", smartphoneOnline, "→ refetching devices");
+      refetch();
+    }
+    prevSmartphoneOnlineRef.current = smartphoneOnline;
+  }, [smartphoneOnline, refetch]);
+
   // Subscribe to broadcast commands from smartphone (instant, no polling)
   useEffect(() => {
     if (!currentDevice?.id) return;
