@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { X, User, HelpCircle, LogOut, Mail, Key, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
 import meercopMascot from "@/assets/meercop-mascot.png";
+import { HelpModal } from "@/components/HelpModal";
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface SideMenuProps {
 export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const { signOut } = useAuth();
   const savedAuth = getSavedAuth();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const handleSignOut = () => {
     signOut();
@@ -91,7 +94,10 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
         {/* Bottom Menu */}
         <div className="border-t border-white/15 p-2 space-y-0.5">
-          <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors">
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"
+          >
             <HelpCircle className="w-5 h-5 text-white/70" />
             <span className="text-sm font-bold">Q&A / 도움말</span>
           </button>
@@ -104,6 +110,8 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
           </button>
         </div>
       </div>
+
+      <HelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <style>{`
         @keyframes slide-in {
