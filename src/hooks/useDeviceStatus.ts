@@ -16,11 +16,14 @@ interface DeviceStatus {
   isCameraAvailable: boolean;
 }
 
-// Presence state - only status and network, NOT camera
-// Camera status is synced via DB Realtime only
+// Presence state - status, network, camera, battery
 interface PresenceState {
+  device_id?: string;
   status: "online" | "offline";
   is_network_connected: boolean;
+  is_camera_connected: boolean;
+  battery_level: number | null;
+  is_charging: boolean;
   last_seen_at: string;
 }
 
@@ -37,16 +40,33 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   deviceIdRef.current = deviceId;
 
   // Presence 기반 상태 동기화 (실시간, DB 쓰기 없음)
-  // 카메라 상태는 DB Realtime에서만 동기화 (Presence에서 제외)
   const syncPresence = useCallback(async (
     networkConnected: boolean
   ) => {
     const currentDeviceId = deviceIdRef.current;
     if (!currentDeviceId || !channelRef.current) return;
 
+    // 배터리 + 카메라 정보 수집
+    let batteryLevel: number | null = null;
+    let isCharging = false;
+    if (navigator.getBattery) {
+      try {
+        const battery = await navigator.getBattery();
+        batteryLevel = Math.round(battery.level * 100);
+        isCharging = battery.charging;
+      } catch { /* Battery API 미지원 */ }
+    }
+
+    // 카메라 상태는 커스텀 이벤트로부터 최신 값 참조
+    const isCameraConnected = status.isCameraAvailable;
+
     const presenceState: PresenceState = {
+      device_id: currentDeviceId,
       status: "online",
       is_network_connected: networkConnected,
+      is_camera_connected: isCameraConnected,
+      battery_level: batteryLevel,
+      is_charging: isCharging,
       last_seen_at: new Date().toISOString(),
     };
 
@@ -56,7 +76,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     } catch (error) {
       console.error("[DeviceStatus] Failed to sync presence:", error);
     }
-  }, []);
+  }, [status.isCameraAvailable]);
 
   // DB 업데이트 (네트워크 상태만 - 카메라는 useCameraDetection이 단독 관리)
   const updateNetworkStatusInDB = useCallback(async (
@@ -412,8 +432,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     // Send immediately on mount
     sendHeartbeat();
 
-    // L-9: 하트비트 주기 60초 → 120초 (DB 쓰기 50%↓)
-    const intervalId = setInterval(sendHeartbeat, 120_000);
+    // 체크리스트 8-1: 노트북 하트비트 주기 60초
+    const intervalId = setInterval(sendHeartbeat, 60_000);
 
     return () => clearInterval(intervalId);
   }, [deviceId]);
