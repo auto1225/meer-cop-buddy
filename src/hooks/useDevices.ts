@@ -117,21 +117,18 @@ export function useDevices(userId?: string) {
   useEffect(() => {
     let isMounted = true;
     let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    let pollInterval = 5000;
     let realtimeWorking = false;
+    // Presence + Realtime이 동작하므로 폴링은 드문 안전장치로만 사용
+    let pollInterval = 60000;
 
     fetchDevices();
 
-    // Always-on polling fallback for device status (especially smartphone)
+    // 폴링: Realtime/Presence 실패 시 안전장치 (기본 60초, Realtime 실패 시 15초)
     const schedulePoll = () => {
       if (!isMounted) return;
       pollTimeoutId = setTimeout(async () => {
         await fetchDevices();
-        if (realtimeWorking) {
-          pollInterval = Math.min(pollInterval * 1.5, 30000);
-        } else {
-          pollInterval = Math.min(pollInterval * 1.2, 10000);
-        }
+        pollInterval = realtimeWorking ? 60000 : 15000;
         schedulePoll();
       }, pollInterval);
     };
