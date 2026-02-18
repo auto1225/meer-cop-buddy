@@ -132,12 +132,12 @@ export function useDevices(userId?: string) {
 
     fetchDevices();
 
-    // 폴링: Realtime/Presence 실패 시 안전장치 (기본 60초, Realtime 실패 시 15초)
+    // 폴링: Realtime/Presence 실패 시 안전장치 (Realtime 정상 시 120초, 실패 시 15초)
     const schedulePoll = () => {
       if (!isMounted) return;
       pollTimeoutId = setTimeout(async () => {
         await fetchDevices();
-        pollInterval = realtimeWorking ? 60000 : 15000;
+        pollInterval = realtimeWorking ? 120000 : 15000;
         schedulePoll();
       }, pollInterval);
     };
@@ -159,7 +159,7 @@ export function useDevices(userId?: string) {
         },
         (payload) => {
           realtimeWorking = true;
-          pollInterval = 15000;
+          // Realtime이 동작하므로 폴링 간격을 넉넉하게 설정
 
           if (payload.eventType === "INSERT") {
             setDevices((prev) => [payload.new as Device, ...prev]);
@@ -180,10 +180,10 @@ export function useDevices(userId?: string) {
         console.log(`[useDevices] Channel status: ${status}`);
         if (status === "SUBSCRIBED") {
           realtimeWorking = true;
-          pollInterval = 15000;
+          pollInterval = 120000; // Realtime 정상 → 120초 폴링
         } else if (status === "CHANNEL_ERROR") {
           realtimeWorking = false;
-          pollInterval = 5000;
+          pollInterval = 15000; // Realtime 실패 → 15초 폴링
           console.error("[useDevices] Channel error");
         }
       });
