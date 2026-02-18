@@ -66,6 +66,8 @@ export function useDevices(userId?: string) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Presence로 감지한 스마트폰 온라인 상태를 DB 폴링이 덮어쓰지 않도록 보존
+  const phoneOnlineByPresenceRef = useRef(false);
 
   const isFirstLoad = useRef(true);
 
@@ -103,7 +105,14 @@ export function useDevices(userId?: string) {
       const data = await res.json();
       const deviceList = data.devices || data || [];
       console.log("[useDevices] Edge Function fetched:", deviceList.length, "devices");
-      setDevices(deviceList as Device[]);
+      // Presence로 감지한 스마트폰 online 상태를 DB 데이터가 덮어쓰지 않도록 보정
+      const correctedList = (deviceList as Device[]).map((d) => {
+        if (d.device_type === "smartphone" && phoneOnlineByPresenceRef.current && d.status !== "online") {
+          return { ...d, status: "online" };
+        }
+        return d;
+      });
+      setDevices(correctedList);
       setError(null);
     } catch (err) {
       console.error("[useDevices] Error fetching devices:", err);
@@ -253,6 +262,7 @@ export function useDevices(userId?: string) {
       // useAlerts에서 발생시키는 커스텀 이벤트를 수신하여 즉시 반영
       const handlePhonePresence = (e: Event) => {
         const { online } = (e as CustomEvent<{ online: boolean }>).detail;
+        phoneOnlineByPresenceRef.current = online;
         console.log("[useDevices] 📱 Phone presence event:", online);
         setDevices((prev) => {
           let changed = false;
