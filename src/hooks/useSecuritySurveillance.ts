@@ -1,5 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { MotionDetector, captureFrameData } from "@/lib/motionDetection";
+import {
+  DEFAULT_BUFFER_DURATION,
+  DEFAULT_CAPTURE_INTERVAL_MS,
+  DEFAULT_MOUSE_SENSITIVITY_PX,
+  DEFAULT_MOTION_THRESHOLD,
+  DEFAULT_MOTION_CONSECUTIVE,
+  DEFAULT_MOTION_COOLDOWN_MS,
+} from "@/lib/constants";
 
 export interface SecurityEvent {
   type: "keyboard" | "mouse" | "usb" | "lid" | "power" | "camera_motion";
@@ -33,27 +41,20 @@ interface UseSecuritySurveillanceOptions {
   bufferDuration?: number;
   captureInterval?: number;
   mouseSensitivity?: number;
-  motionThreshold?: number; // 카메라 변화율(%) 임계값
-  motionConsecutive?: number; // 연속 초과 프레임 수
-  motionCooldown?: number; // 감지 후 쿨다운 (ms)
+  motionThreshold?: number;
+  motionConsecutive?: number;
+  motionCooldown?: number;
   sensorToggles?: SensorToggles;
 }
-
-const DEFAULT_BUFFER_DURATION = 10;
-const DEFAULT_CAPTURE_INTERVAL = 1000;
-const DEFAULT_MOUSE_SENSITIVITY = 30; // pixels within 200ms window (≈3cm)
-const DEFAULT_MOTION_THRESHOLD = 15;
-const DEFAULT_MOTION_CONSECUTIVE = 2;
-const DEFAULT_MOTION_COOLDOWN = 1000;
 
 export function useSecuritySurveillance({
   onEventDetected,
   bufferDuration = DEFAULT_BUFFER_DURATION,
-  captureInterval = DEFAULT_CAPTURE_INTERVAL,
-  mouseSensitivity = DEFAULT_MOUSE_SENSITIVITY,
+  captureInterval = DEFAULT_CAPTURE_INTERVAL_MS,
+  mouseSensitivity = DEFAULT_MOUSE_SENSITIVITY_PX,
   motionThreshold = DEFAULT_MOTION_THRESHOLD,
   motionConsecutive = DEFAULT_MOTION_CONSECUTIVE,
-  motionCooldown = DEFAULT_MOTION_COOLDOWN,
+  motionCooldown = DEFAULT_MOTION_COOLDOWN_MS,
   sensorToggles = DEFAULT_SENSOR_TOGGLES,
 }: UseSecuritySurveillanceOptions = {}) {
   const [isActive, setIsActive] = useState(false);
@@ -70,6 +71,14 @@ export function useSecuritySurveillance({
   const onEventDetectedRef = useRef(onEventDetected);
   const motionDetectorRef = useRef<MotionDetector | null>(null);
   const sensorTogglesRef = useRef(sensorToggles);
+
+  // L-5: 전역 변수 대신 useRef로 이벤트 핸들러 관리
+  const keyboardHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
+  const mouseHandlerRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const visibilityHandlerRef = useRef<(() => void) | null>(null);
+  // L-4: Battery API 핸들러를 명명된 함수로 관리
+  const batteryRef = useRef<any>(null);
+  const batteryHandlerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     onEventDetectedRef.current = onEventDetected;
@@ -94,7 +103,6 @@ export function useSecuritySurveillance({
     document.body.appendChild(canvas);
     canvasRef.current = canvas;
 
-    // 모션 분석용 별도 캔버스
     const analysisCanvas = document.createElement("canvas");
     analysisCanvas.style.display = "none";
     document.body.appendChild(analysisCanvas);
@@ -109,7 +117,6 @@ export function useSecuritySurveillance({
     };
   }, []);
 
-  // Capture a single photo (full resolution for buffer)
   const capturePhoto = useCallback((): string | null => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -159,7 +166,6 @@ export function useSecuritySurveillance({
   const startSurveillance = useCallback(async () => {
     if (isMonitoringRef.current) return true;
 
-    // 카메라 접근 시도 (실패해도 다른 센서는 작동)
     let cameraAvailable = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -176,20 +182,16 @@ export function useSecuritySurveillance({
 
       cameraAvailable = true;
 
-      // 모션 감지기 초기화
       motionDetectorRef.current = new MotionDetector(
         motionThreshold,
         motionConsecutive,
         motionCooldown
       );
 
-      // 캡처 + 모션 분석 인터벌
       captureIntervalRef.current = setInterval(() => {
-        // 1. 사진 버퍼에 추가
         const photo = capturePhoto();
         if (photo) addToBuffer(photo);
 
-        // 2. 모션 분석 (센서 토글 확인)
         if (
           sensorTogglesRef.current.cameraMotion &&
           videoRef.current &&
@@ -216,7 +218,7 @@ export function useSecuritySurveillance({
       console.warn("[Surveillance] Camera unavailable — non-camera sensors will still work:", error);
     }
 
-    // === 카메라 성공 여부와 무관하게 항상 센서 리스너 등록 ===
+    // === 센서 리스너 등록 (useRef로 관리 — 전역 오염 제거) ===
 
     // Keyboard listener
     const handleKeyboard = (e: KeyboardEvent) => {
@@ -226,8 +228,8 @@ export function useSecuritySurveillance({
       }
     };
 
-    // Mouse listener — accumulate distance within 200ms window
-    const MOUSE_TIME_WINDOW = 200; // ms
+    // Mouse listener
+    const MOUSE_TIME_WINDOW = 200;
     const handleMouse = (e: MouseEvent) => {
       if (!isMonitoringRef.current || !sensorTogglesRef.current.mouse) return;
       const currentPos = { x: e.clientX, y: e.clientY };
@@ -261,7 +263,7 @@ export function useSecuritySurveillance({
       lastMousePosition.current = currentPos;
     };
 
-    // Power detection
+    // Power detection — L-4: 명명된 핸들러 + cleanup
     let lastChargingState: boolean | null = null;
     const handleChargingChange = (charging: boolean) => {
       if (!isMonitoringRef.current || !sensorTogglesRef.current.power) return;
@@ -274,18 +276,20 @@ export function useSecuritySurveillance({
 
     const setupBatteryMonitoring = async () => {
       try {
-        // @ts-ignore
         if ("getBattery" in navigator) {
-          // @ts-ignore
-          const battery = await navigator.getBattery();
+          const battery = await (navigator as any).getBattery();
           lastChargingState = battery.charging;
-          battery.addEventListener("chargingchange", () => {
-            handleChargingChange(battery.charging);
-          });
-          (window as any).__meercop_battery = battery;
+          
+          // 명명된 핸들러 생성 (cleanup 가능)
+          const handler = () => handleChargingChange(battery.charging);
+          battery.addEventListener("chargingchange", handler);
+          
+          // ref에 저장하여 cleanup 시 사용
+          batteryRef.current = battery;
+          batteryHandlerRef.current = handler;
         }
       } catch (err) {
-        console.log("[Surveillance] Battery API error:", err);
+        console.warn("[Surveillance] Battery API unavailable:", err);
       }
     };
 
@@ -300,13 +304,15 @@ export function useSecuritySurveillance({
       }
     };
 
+    // 이벤트 리스너 등록
     window.addEventListener("keydown", handleKeyboard);
     window.addEventListener("mousemove", handleMouse);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    (window as any).__meercop_keyboard_handler = handleKeyboard;
-    (window as any).__meercop_mouse_handler = handleMouse;
-    (window as any).__meercop_visibility_handler = handleVisibilityChange;
+    // ref에 저장 (cleanup 시 사용 — 전역 오염 제거)
+    keyboardHandlerRef.current = handleKeyboard;
+    mouseHandlerRef.current = handleMouse;
+    visibilityHandlerRef.current = handleVisibilityChange;
 
     console.log(
       `[Surveillance] Started - camera: ${cameraAvailable ? "ON" : "OFF"}, monitoring keyboard, mouse, power, lid`
@@ -337,25 +343,28 @@ export function useSecuritySurveillance({
       streamRef.current = null;
     }
 
-    // Reset motion detector
     motionDetectorRef.current?.reset();
     motionDetectorRef.current = null;
 
-    const keyboardHandler = (window as any).__meercop_keyboard_handler;
-    const mouseHandler = (window as any).__meercop_mouse_handler;
-    const visibilityHandler = (window as any).__meercop_visibility_handler;
+    // L-4: Battery 리스너 정리
+    if (batteryRef.current && batteryHandlerRef.current) {
+      batteryRef.current.removeEventListener("chargingchange", batteryHandlerRef.current);
+      batteryRef.current = null;
+      batteryHandlerRef.current = null;
+    }
 
-    if (keyboardHandler) {
-      window.removeEventListener("keydown", keyboardHandler);
-      delete (window as any).__meercop_keyboard_handler;
+    // L-5: ref 기반 리스너 정리 (전역 오염 없음)
+    if (keyboardHandlerRef.current) {
+      window.removeEventListener("keydown", keyboardHandlerRef.current);
+      keyboardHandlerRef.current = null;
     }
-    if (mouseHandler) {
-      window.removeEventListener("mousemove", mouseHandler);
-      delete (window as any).__meercop_mouse_handler;
+    if (mouseHandlerRef.current) {
+      window.removeEventListener("mousemove", mouseHandlerRef.current);
+      mouseHandlerRef.current = null;
     }
-    if (visibilityHandler) {
-      document.removeEventListener("visibilitychange", visibilityHandler);
-      delete (window as any).__meercop_visibility_handler;
+    if (visibilityHandlerRef.current) {
+      document.removeEventListener("visibilitychange", visibilityHandlerRef.current);
+      visibilityHandlerRef.current = null;
     }
 
     photoBufferRef.current = [];
@@ -373,12 +382,16 @@ export function useSecuritySurveillance({
       if (streamRef.current)
         streamRef.current.getTracks().forEach((track) => track.stop());
       motionDetectorRef.current?.reset();
-      const kh = (window as any).__meercop_keyboard_handler;
-      const mh = (window as any).__meercop_mouse_handler;
-      const vh = (window as any).__meercop_visibility_handler;
-      if (kh) window.removeEventListener("keydown", kh);
-      if (mh) window.removeEventListener("mousemove", mh);
-      if (vh) document.removeEventListener("visibilitychange", vh);
+      
+      // L-4: Battery cleanup on unmount
+      if (batteryRef.current && batteryHandlerRef.current) {
+        batteryRef.current.removeEventListener("chargingchange", batteryHandlerRef.current);
+      }
+      
+      // L-5: ref 기반 cleanup on unmount
+      if (keyboardHandlerRef.current) window.removeEventListener("keydown", keyboardHandlerRef.current);
+      if (mouseHandlerRef.current) window.removeEventListener("mousemove", mouseHandlerRef.current);
+      if (visibilityHandlerRef.current) document.removeEventListener("visibilitychange", visibilityHandlerRef.current);
     };
   }, []);
 

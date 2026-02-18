@@ -348,11 +348,14 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       };
 
       // Fetch IP (non-blocking, skip on failure)
+      // IP 조회 (비차단, 실패 시 무시 — 의도적 catch)
       try {
         const res = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(3000) });
         const data = await res.json();
         if (data.ip) updates.ip_address = data.ip;
-      } catch { /* skip */ }
+      } catch {
+        // IP 조회 실패는 정상 동작에 영향 없음 — 의도적으로 무시
+      }
 
       // Merge network_info into metadata
       try {
@@ -361,8 +364,9 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         const device = uid ? await fetchDeviceViaEdge(deviceId, uid) : null;
         const existingMeta = (device?.metadata as Record<string, unknown>) || {};
         updates.metadata = { ...existingMeta, network_info: networkInfo };
-      } catch {
-        // If metadata fetch fails, just send network_info standalone
+      } catch (err) {
+        // metadata fetch 실패 시 network_info만 단독 전송
+        console.warn("[DeviceStatus] Metadata fetch failed, sending standalone:", err);
         updates.metadata = { network_info: networkInfo };
       }
 
@@ -379,7 +383,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         updates.longitude = position.coords.longitude;
         updates.location_updated_at = now;
       } catch {
-        // Location unavailable — skip
+        // GPS 위치 획득 실패 — 정상 동작에 영향 없음, 의도적으로 무시
       }
 
       try {
@@ -393,7 +397,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     // Send immediately on mount
     sendHeartbeat();
 
-    const intervalId = setInterval(sendHeartbeat, 60000);
+    // L-9: 하트비트 주기 60초 → 120초 (DB 쓰기 50%↓)
+    const intervalId = setInterval(sendHeartbeat, 120_000);
 
     return () => clearInterval(intervalId);
   }, [deviceId]);

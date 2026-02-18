@@ -134,6 +134,8 @@ const Index = () => {
   const handleSecurityEvent = useCallback(async (event: SecurityEvent) => {
     console.log("[Security] Event detected:", event.type, "Photos:", event.photos.length, 
       event.changePercent ? `Change: ${event.changePercent.toFixed(1)}%` : "");
+    
+    // ── Phase 0: 즉시 실행 (UI 반응성) ──
     setCurrentEventType(event.type);
     startAlarmRef.current();
 
@@ -144,7 +146,7 @@ const Index = () => {
     // localStorage에 경보 상태 영속 저장 (도난 복구용)
     markAlertActive(`alert_${event.type}`, alertMessage);
 
-    // GPS 위치 확인 (경보 시점)
+    // ── Phase 1: GPS 위치 확인 (fail-safe) ──
     let alertCoords: { latitude: number; longitude: number } | null = null;
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -153,52 +155,62 @@ const Index = () => {
         });
       });
       alertCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      
-      // DB에 위치 업데이트 via Edge Function
-      if (currentDevice?.id) {
-        try {
-          const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth?.user_id || "");
-          const existingMeta = (device?.metadata as Record<string, unknown>) || {};
-          await updateDeviceViaEdge(currentDevice.id, {
-            latitude: alertCoords.latitude,
-            longitude: alertCoords.longitude,
-            location_updated_at: new Date().toISOString(),
-            is_streaming_requested: true,
-            metadata: { ...existingMeta, last_location_source: "alert_triggered" },
-          });
-        } catch (e) {
-          console.error("[Security] Failed to update device location:", e);
-        }
-      }
     } catch {
       console.log("[Security] GPS unavailable at alert time");
     }
 
-    // 스마트폰에 경보 알림 전송 (위치 + 스트리밍 포함)
-    triggerAlertRef.current(`alert_${event.type}`, {
-      alert_type: event.type,
-      change_percent: event.changePercent,
-      photo_count: event.photos.length,
-      message: alertMessage,
-      latitude: alertCoords?.latitude,
-      longitude: alertCoords?.longitude,
-      auto_streaming: true,
-    });
+    // ── Phase 2: DB 업데이트 (GPS 결과 반영) ──
+    if (currentDevice?.id) {
+      try {
+        const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth?.user_id || "");
+        const existingMeta = (device?.metadata as Record<string, unknown>) || {};
+        const dbUpdate: Record<string, unknown> = {
+          is_streaming_requested: true,
+          metadata: { ...existingMeta, last_location_source: "alert_triggered" },
+        };
+        if (alertCoords) {
+          dbUpdate.latitude = alertCoords.latitude;
+          dbUpdate.longitude = alertCoords.longitude;
+          dbUpdate.location_updated_at = new Date().toISOString();
+        }
+        await updateDeviceViaEdge(currentDevice.id, dbUpdate);
+      } catch (e) {
+        console.error("[Security] Failed to update device location:", e);
+      }
+    }
 
+    // ── Phase 3: 알림 + 사진 전송 (독립적, 병렬 OK) ──
     const alertId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const now = new Date().toISOString();
 
-    if (event.photos.length > 0 && currentDevice?.id) {
-      // 1. IndexedDB에 로컬 백업 저장
-      saveAlertPhotos({
-        id: alertId,
-        device_id: currentDevice.id,
-        event_type: event.type,
-        photos: event.photos,
-        created_at: now,
-      });
+    const parallelTasks: Promise<unknown>[] = [];
 
-      // 2. 스마트폰으로 사진 전송 (Broadcast + 오프라인 큐)
+    // 3-1. 스마트폰 경보 알림 전송
+    parallelTasks.push(
+      Promise.resolve(triggerAlertRef.current(`alert_${event.type}`, {
+        alert_type: event.type,
+        change_percent: event.changePercent,
+        photo_count: event.photos.length,
+        message: alertMessage,
+        latitude: alertCoords?.latitude,
+        longitude: alertCoords?.longitude,
+        auto_streaming: true,
+      }))
+    );
+
+    // 3-2. IndexedDB 로컬 백업 저장
+    if (event.photos.length > 0 && currentDevice?.id) {
+      parallelTasks.push(
+        saveAlertPhotos({
+          id: alertId,
+          device_id: currentDevice.id,
+          event_type: event.type,
+          photos: event.photos,
+          created_at: now,
+        }).catch(e => console.error("[Security] Failed to save local photos:", e))
+      );
+
+      // 3-3. 스마트폰으로 사진 전송 (Broadcast + 오프라인 큐)
       const transmission: PhotoTransmission = {
         id: alertId,
         device_id: currentDevice.id,
@@ -211,22 +223,31 @@ const Index = () => {
         created_at: now,
       };
       
-      transmitterRef.current?.transmit(transmission).then(sent => {
-        console.log(`[Security] Photo transmission ${sent ? "✅ sent" : "📥 queued"}`);
-      });
+      parallelTasks.push(
+        (transmitterRef.current?.transmit(transmission) ?? Promise.resolve(false)).then(sent => {
+          console.log(`[Security] Photo transmission ${sent ? "✅ sent" : "📥 queued"}`);
+        }).catch(e => console.error("[Security] Photo transmission error:", e))
+      );
     }
 
-    // 활동 로그에 메타데이터만 기록 (사진 제외)
+    // 3-4. 활동 로그 기록
     if (currentDevice?.id) {
-      addActivityLog(currentDevice.id, `alert_${event.type}`, {
-        alert_type: event.type,
-        photo_count: event.photos.length,
-        change_percent: event.changePercent,
-        alert_id: alertId,
-        message: event.type === "camera_motion"
-          ? `카메라 모션 감지 (변화율: ${event.changePercent?.toFixed(1)}%)`
-          : `${event.type} 이벤트 감지됨`,
-      });
+      parallelTasks.push(
+        Promise.resolve(addActivityLog(currentDevice.id, `alert_${event.type}`, {
+          alert_type: event.type,
+          photo_count: event.photos.length,
+          change_percent: event.changePercent,
+          alert_id: alertId,
+          message: alertMessage,
+        }))
+      );
+    }
+
+    // 모든 병렬 태스크 완료 대기 (하나가 실패해도 나머지 계속)
+    const results = await Promise.allSettled(parallelTasks);
+    const failures = results.filter(r => r.status === "rejected");
+    if (failures.length > 0) {
+      console.warn(`[Security] ${failures.length}/${results.length} tasks failed`);
     }
   }, [currentDevice?.id]);
 
