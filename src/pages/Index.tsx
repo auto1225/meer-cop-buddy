@@ -456,41 +456,18 @@ const Index = () => {
     syncAlarmSounds();
   }, [currentDevice?.id, savedAuth?.user_id]);
 
-  // Track when broadcast sets monitoring (to prevent polling override)
-  const broadcastMonitoringAt = useRef<number>(0);
-
-  // Sync isMonitoring from devices data (useDevices already polls)
-  // BUT skip if broadcast recently set the value (within 15s)
-  // AND skip if smartphone is offline (don't re-enable from stale DB data)
+  // ── Single Source of Truth: DB의 is_monitoring을 그대로 반영 ──
+  // Broadcast는 refetch 트리거 역할만 하고, 실제 상태는 DB만 따른다.
   useEffect(() => {
     if (!currentDevice) return;
     const mon = (currentDevice as unknown as Record<string, unknown>).is_monitoring;
-    if (mon !== undefined) {
-      const val = mon === true;
-      // OFF는 항상 즉시 반영 (스마트폰 새로고침 등)
-      if (!val) {
-        setIsMonitoring(prev => {
-          if (prev !== val) console.log("[Index] 📡 Monitoring OFF from DB");
-          return val;
-        });
-        return;
-      }
-      // ON은 broadcast guard + smartphone online 체크
-      const sinceBroadcast = Date.now() - broadcastMonitoringAt.current;
-      if (sinceBroadcast < 15000) {
-        console.log("[Index] 📡 Skipping polling override (broadcast was", Math.round(sinceBroadcast / 1000), "s ago)");
-        return;
-      }
-      if (!smartphoneOnline) {
-        console.log("[Index] 📡 Skipping monitoring enable — smartphone is offline");
-        return;
-      }
-      setIsMonitoring(prev => {
-        if (prev !== val) console.log("[Index] 📡 Monitoring ON from DB");
-        return val;
-      });
-    }
-  }, [currentDevice, smartphoneOnline]);
+    if (mon === undefined) return;
+    const val = mon === true;
+    setIsMonitoring(prev => {
+      if (prev !== val) console.log("[Index] 📡 Monitoring from DB:", val);
+      return val;
+    });
+  }, [currentDevice]);
 
   // Subscribe to broadcast commands from smartphone (instant, no polling)
   useEffect(() => {
@@ -501,11 +478,9 @@ const Index = () => {
 
     const channel = channelManager.getOrCreate(channelName);
     
+    // monitoring_toggle: DB를 즉시 다시 읽어서 반영 (broadcast 자체로 상태를 바꾸지 않음)
     channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
-      const isOn = payload.payload?.is_monitoring ?? false;
-      console.log("[Index] 📲 Broadcast monitoring_toggle received:", isOn);
-      broadcastMonitoringAt.current = Date.now();
-      setIsMonitoring(isOn);
+      console.log("[Index] 📲 Broadcast monitoring_toggle received:", payload.payload);
       refetch();
     });
     
@@ -564,7 +539,6 @@ const Index = () => {
     channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
       const camouflageOn = payload.payload?.camouflage_mode ?? false;
       console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageOn);
-      broadcastMonitoringAt.current = Date.now();
       setIsCamouflageMode(camouflageOn);
     });
 
@@ -572,7 +546,6 @@ const Index = () => {
     channel.on('broadcast', { event: 'lock_command' }, (payload) => {
       console.log("[Index] 🔒 Broadcast lock_command received:", payload);
       setShowPinKeypad(true);
-      // 잠금 시 화면을 위장 모드처럼 덮어 사용 차단
       setIsCamouflageMode(true);
       toast({
         title: "🔒 기기 잠금",
@@ -588,7 +561,7 @@ const Index = () => {
       toast({
         title,
         description: message,
-        duration: 10000, // 10초간 표시
+        duration: 10000,
       });
     });
 
@@ -600,14 +573,6 @@ const Index = () => {
       channelManager.remove(channelName);
     };
   }, [currentDevice?.id, refetch, stopAlarm, toast]);
-
-  // When smartphone goes offline, immediately stop monitoring
-  useEffect(() => {
-    if (!smartphoneOnline && isMonitoring) {
-      console.log("[Index] 📴 Smartphone offline → stopping monitoring immediately");
-      setIsMonitoring(false);
-    }
-  }, [smartphoneOnline, isMonitoring]);
 
   // Start/stop surveillance based on monitoring state from DB
   useEffect(() => {
