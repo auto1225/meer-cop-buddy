@@ -461,6 +461,7 @@ const Index = () => {
 
   // Sync isMonitoring from devices data (useDevices already polls)
   // BUT skip if broadcast recently set the value (within 15s)
+  // AND skip if smartphone is offline (don't re-enable from stale DB data)
   useEffect(() => {
     if (!currentDevice) return;
     const mon = (currentDevice as unknown as Record<string, unknown>).is_monitoring;
@@ -470,13 +471,18 @@ const Index = () => {
         console.log("[Index] 📡 Skipping polling override (broadcast was", Math.round(sinceBroadcast / 1000), "s ago)");
         return;
       }
+      const val = mon === true;
+      // 스마트폰이 오프라인이면 DB에서 is_monitoring=true여도 켜지 않음
+      if (val && !smartphoneOnline) {
+        console.log("[Index] 📡 Skipping monitoring enable — smartphone is offline");
+        return;
+      }
       setIsMonitoring(prev => {
-        const val = mon === true;
         if (prev !== val) console.log("[Index] 📡 Monitoring from devices:", val);
         return val;
       });
     }
-  }, [currentDevice]);
+  }, [currentDevice, smartphoneOnline]);
 
   // Subscribe to broadcast commands from smartphone (instant, no polling)
   useEffect(() => {
@@ -587,12 +593,27 @@ const Index = () => {
     };
   }, [currentDevice?.id, refetch, stopAlarm, toast]);
 
-  // When smartphone goes offline, force stop monitoring
+  // When smartphone goes offline, force stop monitoring (debounced to avoid flicker during reset)
+  const smartphoneOfflineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!smartphoneOnline && isMonitoring) {
-      console.log("[Index] 📴 Smartphone went offline → stopping monitoring");
-      setIsMonitoring(false);
+      // 디바운스: 5초 후에도 여전히 오프라인이면 감시 중지
+      smartphoneOfflineTimerRef.current = setTimeout(() => {
+        console.log("[Index] 📴 Smartphone offline for 5s → stopping monitoring");
+        setIsMonitoring(false);
+      }, 5000);
+    } else {
+      // 스마트폰이 다시 온라인이 되면 타이머 취소
+      if (smartphoneOfflineTimerRef.current) {
+        clearTimeout(smartphoneOfflineTimerRef.current);
+        smartphoneOfflineTimerRef.current = null;
+      }
     }
+    return () => {
+      if (smartphoneOfflineTimerRef.current) {
+        clearTimeout(smartphoneOfflineTimerRef.current);
+      }
+    };
   }, [smartphoneOnline, isMonitoring]);
 
   // Start/stop surveillance based on monitoring state from DB
