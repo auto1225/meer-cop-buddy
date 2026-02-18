@@ -224,6 +224,8 @@ const Index = () => {
         longitude: alertCoords?.longitude,
         location_source: alertCoords ? "gps" : undefined,
         auto_streaming: true,
+        batch_id: alertId,   // 단일 이벤트 = 단일 배치
+        batch_total: 1,
         created_at: now,
       };
       

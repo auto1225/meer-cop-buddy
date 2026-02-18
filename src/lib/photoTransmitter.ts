@@ -28,6 +28,8 @@ export interface PhotoTransmission {
   longitude?: number;
   location_source?: string;
   auto_streaming?: boolean;
+  batch_id?: string;      // 동일 이벤트의 여러 전송을 묶는 배치 ID
+  batch_total?: number;   // 배치 내 총 전송 시퀀스 수
   created_at: string;
 }
 
@@ -94,6 +96,8 @@ async function sendViaChannel(
         event_type: tx.event_type,
         total_photos: tx.photos.length,
         change_percent: tx.change_percent,
+        batch_id: tx.batch_id,
+        batch_total: tx.batch_total,
         created_at: tx.created_at,
       },
     });
