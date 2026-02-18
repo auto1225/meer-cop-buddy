@@ -241,23 +241,28 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         }, 10000);
         disconnectTimersRef.current.set(sessionId, timer);
       } else if (pc.connectionState === "failed") {
-        // L-16: "failed" — 지수 백오프로 재연결 시도 (최대 3회)
-        const attempts = reconnectAttemptsRef.current.get(sessionId) || 0;
         cleanupPeer(sessionId);
+        reconnectAttemptsRef.current.delete(sessionId);
         
-        if (attempts < MAX_PEER_RECONNECT && streamRef.current) {
-          const delay = Math.pow(2, attempts) * 1000; // 1s, 2s, 4s
-          console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔄 Reconnect attempt ${attempts + 1}/${MAX_PEER_RECONNECT} in ${delay}ms`);
-          reconnectAttemptsRef.current.set(sessionId, attempts + 1);
+        // Instead of reusing the same session ID (viewer already abandoned it),
+        // send a fresh broadcaster-ready signal so the viewer can start a new session
+        if (streamRef.current) {
+          console.log(`[Broadcaster] [${sessionId.slice(-8)}] ❌ Connection failed — sending fresh broadcaster-ready for new handshake`);
           
-          setTimeout(() => {
-            if (streamRef.current) {
-              createPeerConnectionAndOffer(sessionId);
-            }
-          }, delay);
-        } else {
-          reconnectAttemptsRef.current.delete(sessionId);
-          console.log(`[Broadcaster] [${sessionId.slice(-8)}] ❌ Max reconnect attempts reached`);
+          // Clear old signaling and send broadcaster-ready
+          deleteSignaling(currentDeviceId).then(() => {
+            insertSignaling({
+              device_id: currentDeviceId,
+              session_id: `ready-${Date.now()}`,
+              type: "broadcaster-ready",
+              sender_type: "broadcaster",
+              data: { timestamp: Date.now() },
+            });
+          });
+          
+          // Reset processed sets so new viewer-join will be accepted
+          processedViewerJoinsRef.current.clear();
+          processedAnswersRef.current.clear();
         }
       }
     };
