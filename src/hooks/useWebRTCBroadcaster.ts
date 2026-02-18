@@ -84,6 +84,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const creatingPeerRef = useRef<Set<string>>(new Set());
   const disconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const isStoppingBroadcastRef = useRef(false);
   // L-16: 재연결 시도 카운터 (sessionId → 시도 횟수)
   const reconnectAttemptsRef = useRef<Map<string, number>>(new Map());
   const MAX_PEER_RECONNECT = 3;
@@ -415,6 +416,10 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
     // Clear ALL old signaling data (both broadcaster and viewer)
     await deleteSignaling(currentDeviceId);
+    
+    // Small safety delay to ensure delete is fully processed on server
+    // before inserting new broadcaster-ready (prevents race with delayed deletes)
+    await new Promise(r => setTimeout(r, 300));
 
     processedViewerJoinsRef.current.clear();
     processedAnswersRef.current.clear();
@@ -502,6 +507,17 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
   }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate, pollViewerSignals]);
 
   const stopBroadcasting = useCallback(async () => {
+    // Mutex guard: prevent concurrent stopBroadcasting calls
+    if (isStoppingBroadcastRef.current) {
+      console.log("[Broadcaster] ⏭️ stopBroadcasting already in progress, skipping");
+      // Wait for the ongoing stop to complete
+      while (isStoppingBroadcastRef.current) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return;
+    }
+    isStoppingBroadcastRef.current = true;
+
     const currentDeviceId = deviceIdRef.current;
 
     if (pollingIntervalRef.current) {
@@ -535,6 +551,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     streamRef.current = null;
     setIsBroadcasting(false);
     setViewerCount(0);
+    isStoppingBroadcastRef.current = false;
     console.log("[Broadcaster] Stopped broadcasting");
   }, []);
 
