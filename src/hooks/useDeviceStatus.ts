@@ -152,13 +152,27 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
             reconnectAttempts.set(deviceId, 0);
             
             try {
+              // 배터리 정보 포함 (스마트폰 측 요구사항)
+              let batteryLevel: number | null = null;
+              let isCharging = false;
+              if (navigator.getBattery) {
+                try {
+                  const battery = await navigator.getBattery();
+                  batteryLevel = Math.round(battery.level * 100);
+                  isCharging = battery.charging;
+                } catch {
+                  // Battery API 미지원
+                }
+              }
               await channel.track({
                 device_id: deviceId,
                 status: "online",
                 is_network_connected: navigator.onLine,
+                battery_level: batteryLevel,
+                is_charging: isCharging,
                 last_seen_at: new Date().toISOString(),
               });
-              console.log("[DeviceStatus] Presence synced");
+              console.log("[DeviceStatus] Presence synced (battery:", batteryLevel, "%)");
             } catch (e) {
               console.error("[DeviceStatus] Failed to sync presence:", e);
             }
