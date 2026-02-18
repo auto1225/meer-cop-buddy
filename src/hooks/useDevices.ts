@@ -165,9 +165,15 @@ export function useDevices(userId?: string) {
             setDevices((prev) => [payload.new as Device, ...prev]);
           } else if (payload.eventType === "UPDATE") {
             setDevices((prev) =>
-              prev.map((d) =>
-                d.id === (payload.new as Device).id ? (payload.new as Device) : d
-              )
+              prev.map((d) => {
+                if (d.id !== (payload.new as Device).id) return d;
+                const updated = payload.new as Device;
+                // Presence가 smartphone을 offline으로 감지했으면 DB UPDATE가 덮어쓰지 않도록 보정
+                if (updated.device_type === "smartphone" && !phoneOnlineByPresenceRef.current && updated.status === "online") {
+                  return { ...updated, status: "offline" };
+                }
+                return updated;
+              })
             );
           } else if (payload.eventType === "DELETE") {
             setDevices((prev) =>
