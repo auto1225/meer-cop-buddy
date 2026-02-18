@@ -325,6 +325,18 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         }
       }
       iceCandidateQueueRef.current.delete(sessionId);
+
+      // 🆕 Answer 수신 후 브로드캐스터의 offer/ICE 시그널링 즉시 삭제
+      // 이렇게 하면 뷰어가 폴링으로 같은 offer를 다시 발견하여 재처리하는 문제를 방지
+      console.log(`[Broadcaster] 🧹 Cleaning up broadcaster signaling after answer received for ${sessionId}`);
+      supabaseShared.from("webrtc_signaling").delete()
+        .eq("device_id", deviceIdRef.current)
+        .eq("sender_type", "broadcaster")
+        .in("type", ["offer", "ice-candidate", "broadcaster-ready"])
+        .then(({ error: delErr }) => {
+          if (delErr) console.warn("[Broadcaster] Failed to clean broadcaster signaling:", delErr);
+          else console.log("[Broadcaster] ✅ Broadcaster signaling cleaned after answer");
+        });
     } catch (err) {
       console.error("[Broadcaster] ❌ Error setting remote description:", err);
       processedAnswersRef.current.delete(sessionId);
