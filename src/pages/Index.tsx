@@ -492,8 +492,43 @@ const Index = () => {
       refetch();
     });
     
-    channel.on('broadcast', { event: 'settings_update' }, () => {
-      console.log("[Index] 📲 Broadcast settings_update received");
+    channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
+      console.log("[Index] 📲 Broadcast settings_updated received:", payload.payload);
+      // 즉시 설정 반영 (DB 폴링 대기 없이)
+      const settings = payload.payload?.settings;
+      if (settings) {
+        if (settings.sensorSettings) {
+          const s = settings.sensorSettings;
+          setSensorToggles({
+            cameraMotion: s.camera ?? true,
+            lid: s.lidClosed ?? true,
+            keyboard: s.keyboard ?? true,
+            mouse: s.mouse ?? true,
+            power: s.power ?? true,
+            microphone: s.microphone ?? false,
+            usb: s.usb ?? false,
+          });
+        }
+        if (settings.motionSensitivity) {
+          const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
+          setMotionThreshold(sensitivityMap[settings.motionSensitivity] ?? 15);
+        }
+        if (settings.mouseSensitivity) {
+          const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
+          setMouseSensitivityPx(mouseMap[settings.mouseSensitivity] ?? 30);
+        }
+        if (settings.alarm_pin) {
+          setAlarmPin(settings.alarm_pin);
+          localStorage.setItem('meercop-alarm-pin', settings.alarm_pin);
+        }
+        if (settings.require_pc_pin !== undefined) {
+          setRequirePcPin(settings.require_pc_pin);
+        }
+        if (settings.camouflage_mode !== undefined) {
+          setIsCamouflageMode(settings.camouflage_mode);
+        }
+      }
+      // DB도 함께 갱신
       refetch();
     });
 
