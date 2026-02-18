@@ -250,7 +250,7 @@ export function useDevices(userId?: string) {
         .subscribe();
 
       // 스마트폰은 user-alerts 채널에 Presence JOIN하므로 해당 채널도 감시
-      alertsPresenceChannel = supabaseShared.channel(`user-alerts-${userId}-device-watcher`);
+      alertsPresenceChannel = supabaseShared.channel(`user-alerts-${userId}`);
       alertsPresenceChannel
         .on("presence", { event: "sync" }, () => {
           const state = alertsPresenceChannel!.presenceState();
@@ -312,7 +312,7 @@ export function useDevices(userId?: string) {
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
       supabaseShared.removeChannel(channel);
       if (presenceChannel) supabaseShared.removeChannel(presenceChannel);
-      if (alertsPresenceChannel) supabaseShared.removeChannel(alertsPresenceChannel);
+      // alertsPresenceChannel은 useAlerts와 공유하므로 제거하지 않음
     };
   }, [fetchDevices, userId]);
 
