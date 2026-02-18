@@ -228,6 +228,19 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     setIsAlarmEnabled(prev => !prev);
   }, []);
 
+  // Update volume in real-time when volumePercent changes during playback
+  useEffect(() => {
+    const volumeMultiplier = volumePercent / 100;
+    if (gainRef.current) {
+      const soundConfig = getAlarmSoundById(selectedSoundId);
+      const baseVolume = soundConfig?.volume ?? 0.5;
+      gainRef.current.gain.value = baseVolume * volumeMultiplier;
+    }
+    if (customAudioRef.current) {
+      customAudioRef.current.volume = volumeMultiplier;
+    }
+  }, [volumePercent, selectedSoundId]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
