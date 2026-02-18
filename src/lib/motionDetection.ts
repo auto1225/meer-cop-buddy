@@ -73,17 +73,40 @@ export class MotionDetector {
   private consecutiveCount = 0;
   private lastTriggerTime = 0;
 
+  // L-11: 적응형 임계값 — 최근 변화율의 이동 평균으로 환경 변화 학습
+  private readonly baseThreshold: number;
+  private recentChanges: number[] = [];
+  private readonly historySize = 30; // 최근 30프레임의 변화율 기록
+
   constructor(
-    private motionThreshold: number = 15, // 전체 픽셀 중 변화율(%) 임계값
-    private consecutiveRequired: number = 2, // 연속 초과 프레임 수
-    private cooldownMs: number = 30000 // 감지 후 쿨다운 (ms)
-  ) {}
+    private motionThreshold: number = 15,
+    private consecutiveRequired: number = 2,
+    private cooldownMs: number = 30000
+  ) {
+    this.baseThreshold = motionThreshold;
+  }
 
   /**
-   * 새 프레임을 분석하고 모션 감지 여부를 반환
-   * 
-   * @returns { detected: boolean, changePercent: number }
+   * 적응형 임계값 계산
+   * 환경의 기본 노이즈(조명 변화, 미세 떨림 등)를 학습하여
+   * 실제 움직임만 감지하도록 임계값을 동적 조정합니다.
    */
+  private getAdaptiveThreshold(): number {
+    if (this.recentChanges.length < 10) {
+      return this.baseThreshold; // 데이터 부족 시 기본값
+    }
+
+    const avg = this.recentChanges.reduce((a, b) => a + b, 0) / this.recentChanges.length;
+    const stdDev = Math.sqrt(
+      this.recentChanges.reduce((sum, v) => sum + (v - avg) ** 2, 0) / this.recentChanges.length
+    );
+
+    // 임계값 = max(기본값, 평균 + 2σ) — 환경 노이즈를 초과하는 움직임만 감지
+    const adaptive = Math.max(this.baseThreshold, avg + 2 * stdDev);
+    // 기본값의 3배를 상한으로 제한 (너무 둔감해지는 것 방지)
+    return Math.min(adaptive, this.baseThreshold * 3);
+  }
+
   analyze(currentFrame: ImageData): { detected: boolean; changePercent: number } {
     if (!this.prevFrame) {
       this.prevFrame = currentFrame;
@@ -93,13 +116,23 @@ export class MotionDetector {
     const changePercent = compareFrames(this.prevFrame, currentFrame);
     this.prevFrame = currentFrame;
 
-    // 쿨다운 중이면 무시
+    // 이동 평균 기록 (쿨다운/감지 트리거 시에는 제외)
     const now = Date.now();
-    if (now - this.lastTriggerTime < this.cooldownMs) {
+    const inCooldown = now - this.lastTriggerTime < this.cooldownMs;
+    if (!inCooldown) {
+      this.recentChanges.push(changePercent);
+      if (this.recentChanges.length > this.historySize) {
+        this.recentChanges.shift();
+      }
+    }
+
+    if (inCooldown) {
       return { detected: false, changePercent };
     }
 
-    if (changePercent >= this.motionThreshold) {
+    const threshold = this.getAdaptiveThreshold();
+
+    if (changePercent >= threshold) {
       this.consecutiveCount++;
 
       if (this.consecutiveCount >= this.consecutiveRequired) {
@@ -108,17 +141,16 @@ export class MotionDetector {
         return { detected: true, changePercent };
       }
     } else {
-      // 연속성이 깨지면 리셋
       this.consecutiveCount = 0;
     }
 
     return { detected: false, changePercent };
   }
 
-  /** 상태 초기화 */
   reset(): void {
     this.prevFrame = null;
     this.consecutiveCount = 0;
     this.lastTriggerTime = 0;
+    this.recentChanges = [];
   }
 }

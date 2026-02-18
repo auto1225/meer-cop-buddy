@@ -17,7 +17,10 @@ import { useEffect, useRef, useCallback } from "react";
 import { supabaseShared } from "@/lib/supabase";
 
 const STOLEN_STATE_KEY = "meercop_stolen_state";
-const TRACKING_INTERVAL_MS = 30_000; // 30초 간격 위치 추적
+
+// L-12: GPS 폴링 지수 백오프 (30s → 60s → 120s → 300s)
+const GPS_INTERVALS = [30_000, 60_000, 120_000, 300_000];
+const BATTERY_STOP_THRESHOLD = 0.2; // 20% 미만 시 추적 중단
 
 export interface StolenState {
   isActive: boolean;
@@ -92,7 +95,8 @@ interface UseStealRecoveryOptions {
 }
 
 export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTriggered }: UseStealRecoveryOptions) {
-  const trackingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const trackingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trackingStepRef = useRef(0); // 지수 백오프 단계
   const isRecoveringRef = useRef(false);
   const deviceIdRef = useRef(deviceId);
   deviceIdRef.current = deviceId;
@@ -114,25 +118,36 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
     return () => window.removeEventListener("offline", handleOffline);
   }, [isAlarming]);
 
-  // 주기적 위치 추적
-  const startPeriodicTracking = useCallback((devId: string) => {
-    if (trackingIntervalRef.current) return;
-
-    console.log("[StealRecovery] 📍 Starting periodic location tracking (30s)");
-    trackingIntervalRef.current = setInterval(async () => {
+  // L-12: 주기적 위치 추적 (지수 백오프 + 배터리 체크)
+  const scheduleNextTracking = useCallback((devId: string) => {
+    const step = trackingStepRef.current;
+    const interval = GPS_INTERVALS[Math.min(step, GPS_INTERVALS.length - 1)];
+    
+    console.log(`[StealRecovery] 📍 Next location update in ${interval / 1000}s (step ${step})`);
+    
+    trackingTimerRef.current = setTimeout(async () => {
       const stolenState = getStolenState();
       if (!stolenState?.isActive) {
-        // 경보 해제됨 → 추적 중단
-        if (trackingIntervalRef.current) {
-          clearInterval(trackingIntervalRef.current);
-          trackingIntervalRef.current = null;
-        }
+        trackingTimerRef.current = null;
         return;
+      }
+
+      // L-12: 배터리 20% 미만 시 추적 중단
+      if (navigator.getBattery) {
+        try {
+          const battery = await navigator.getBattery();
+          if (battery.level < BATTERY_STOP_THRESHOLD && !battery.charging) {
+            console.log(`[StealRecovery] 🔋 Battery ${(battery.level * 100).toFixed(0)}% — stopping tracking to save power`);
+            trackingTimerRef.current = null;
+            return;
+          }
+        } catch {
+          // Battery API 미지원 — 계속 진행
+        }
       }
 
       const coords = await getCurrentPosition();
       if (coords) {
-        // 기존 metadata 보존하면서 위치 업데이트
         try {
           const { data: existing } = await supabaseShared
             .from("devices")
@@ -160,7 +175,11 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
           console.error("[StealRecovery] Failed to update location:", e);
         }
       }
-    }, TRACKING_INTERVAL_MS);
+
+      // 다음 단계로 증가 후 재스케줄
+      trackingStepRef.current = step + 1;
+      scheduleNextTracking(devId);
+    }, interval);
   }, []);
 
   // 네트워크 복구 시 복구 시퀀스 실행
@@ -256,8 +275,9 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
       // 푸시 알림은 Presence 채널을 통해 전달되므로 별도 Edge Function 호출 불필요
       console.log("[StealRecovery] ✅ Recovery alert sent via Presence");
 
-      // 5. 주기적 위치 추적 시작
-      startPeriodicTracking(devId);
+      // 5. 주기적 위치 추적 시작 (지수 백오프)
+      trackingStepRef.current = 0;
+      scheduleNextTracking(devId);
 
       onRecoveryTriggered?.();
     } catch (error) {
@@ -265,7 +285,7 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
     } finally {
       isRecoveringRef.current = false;
     }
-  }, [userId, startPeriodicTracking, onRecoveryTriggered]);
+  }, [userId, scheduleNextTracking, onRecoveryTriggered]);
 
   // 네트워크 online 이벤트 감지
   useEffect(() => {
@@ -289,9 +309,9 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
 
     return () => {
       window.removeEventListener("online", handleOnline);
-      if (trackingIntervalRef.current) {
-        clearInterval(trackingIntervalRef.current);
-        trackingIntervalRef.current = null;
+      if (trackingTimerRef.current) {
+        clearTimeout(trackingTimerRef.current);
+        trackingTimerRef.current = null;
       }
     };
   }, [executeRecovery]);
@@ -299,9 +319,9 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
   // 경보 해제 시 추적 중단 + stolen state 정리
   useEffect(() => {
     if (!isAlarming) {
-      if (trackingIntervalRef.current) {
-        clearInterval(trackingIntervalRef.current);
-        trackingIntervalRef.current = null;
+      if (trackingTimerRef.current) {
+        clearTimeout(trackingTimerRef.current);
+        trackingTimerRef.current = null;
         console.log("[StealRecovery] 🛑 Periodic tracking stopped (alarm cleared)");
       }
     }

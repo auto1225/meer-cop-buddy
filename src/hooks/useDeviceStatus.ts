@@ -318,12 +318,13 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   }, []);
 
   // Initial sync when deviceId becomes available
+  // syncPresence and updateNetworkStatusInDB are stable (useCallback with no changing deps)
   useEffect(() => {
     if (deviceId) {
       syncPresence(status.isNetworkConnected);
       updateNetworkStatusInDB(status.isNetworkConnected);
     }
-  }, [deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [deviceId, syncPresence, updateNetworkStatusInDB, status.isNetworkConnected]);
 
   // Periodic heartbeat: update last_seen_at + location + network every 60s
   useEffect(() => {
