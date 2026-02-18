@@ -169,6 +169,12 @@ export function useAlerts(deviceId?: string, userId?: string) {
       // 2. Presence: 하위 호환 (track 방식)
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
+        
+        // 스마트폰 Presence 감지 → useDevices에 커스텀 이벤트로 전달
+        const hasPhone = Object.values(state).some((presences) =>
+          (presences as Record<string, unknown>[]).some((p) => p.role === "phone")
+        );
+        window.dispatchEvent(new CustomEvent("phone-presence-changed", { detail: { online: hasPhone } }));
         // 로그 노이즈 감소: 비어있으면 무시
         if (Object.keys(state).length > 0) {
           console.log("[Alerts] Presence sync:", state);
