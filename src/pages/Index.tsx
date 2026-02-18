@@ -593,27 +593,12 @@ const Index = () => {
     };
   }, [currentDevice?.id, refetch, stopAlarm, toast]);
 
-  // When smartphone goes offline, force stop monitoring (debounced to avoid flicker during reset)
-  const smartphoneOfflineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // When smartphone goes offline, immediately stop monitoring
   useEffect(() => {
     if (!smartphoneOnline && isMonitoring) {
-      // 디바운스: 5초 후에도 여전히 오프라인이면 감시 중지
-      smartphoneOfflineTimerRef.current = setTimeout(() => {
-        console.log("[Index] 📴 Smartphone offline for 5s → stopping monitoring");
-        setIsMonitoring(false);
-      }, 5000);
-    } else {
-      // 스마트폰이 다시 온라인이 되면 타이머 취소
-      if (smartphoneOfflineTimerRef.current) {
-        clearTimeout(smartphoneOfflineTimerRef.current);
-        smartphoneOfflineTimerRef.current = null;
-      }
+      console.log("[Index] 📴 Smartphone offline → stopping monitoring immediately");
+      setIsMonitoring(false);
     }
-    return () => {
-      if (smartphoneOfflineTimerRef.current) {
-        clearTimeout(smartphoneOfflineTimerRef.current);
-      }
-    };
   }, [smartphoneOnline, isMonitoring]);
 
   // Start/stop surveillance based on monitoring state from DB
