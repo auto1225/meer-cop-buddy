@@ -183,26 +183,71 @@ export function useDevices(userId?: string) {
       });
 
     // Presence channel: detect smartphone online/offline instantly
+    // Presence 상태를 직접 로컬에 반영하여 DB 폴링 대기 없이 즉시 UI 업데이트
     let presenceChannel: ReturnType<typeof supabaseShared.channel> | null = null;
     if (userId) {
       presenceChannel = supabaseShared.channel(`user-presence-${userId}-devices`, {
         config: { presence: { key: "device-watcher" } },
       });
 
+      // Presence 상태에서 온라인 device_id 목록 추출
+      const getOnlineDeviceIdsFromPresence = (state: Record<string, unknown[]>): Set<string> => {
+        const onlineIds = new Set<string>();
+        for (const [key, presences] of Object.entries(state)) {
+          if (key === "device-watcher") continue; // 자기 자신 스킵
+          // key 자체가 device_id인 경우
+          onlineIds.add(key);
+          // presence payload에 device_id가 있는 경우도 처리
+          for (const p of presences as Record<string, unknown>[]) {
+            if (p.device_id && typeof p.device_id === "string") {
+              onlineIds.add(p.device_id);
+            }
+          }
+        }
+        return onlineIds;
+      };
+
+      // Presence 변경 시 로컬 devices 상태 즉시 업데이트
+      const applyPresenceToDevices = (state: Record<string, unknown[]>) => {
+        const onlineIds = getOnlineDeviceIdsFromPresence(state);
+        console.log("[useDevices] 📡 Presence online devices:", [...onlineIds]);
+        
+        setDevices((prev) => {
+          let changed = false;
+          const updated = prev.map((d) => {
+            const isPresenceOnline = onlineIds.has(d.id) || onlineIds.has(d.device_id || "");
+            const currentlyOnline = d.status === "online";
+            
+            if (isPresenceOnline && !currentlyOnline) {
+              changed = true;
+              return { ...d, status: "online" };
+            } else if (!isPresenceOnline && currentlyOnline && d.device_type === "smartphone") {
+              // 스마트폰만 Presence LEAVE로 즉시 offline 처리
+              // 랩탑은 자체 heartbeat가 있으므로 DB 기준 유지
+              changed = true;
+              return { ...d, status: "offline" };
+            }
+            return d;
+          });
+          return changed ? updated : prev;
+        });
+      };
+
       presenceChannel
         .on("presence", { event: "sync" }, () => {
           const state = presenceChannel!.presenceState();
-          console.log("[useDevices] 📡 Presence sync — triggering refetch", Object.keys(state));
-          // Presence 상태 변경 감지 → 즉시 refetch
-          fetchDevices();
+          console.log("[useDevices] 📡 Presence sync", Object.keys(state));
+          applyPresenceToDevices(state);
         })
         .on("presence", { event: "join" }, ({ key, newPresences }) => {
           console.log("[useDevices] 📱 Presence JOIN:", key, newPresences);
-          fetchDevices();
+          const state = presenceChannel!.presenceState();
+          applyPresenceToDevices(state);
         })
         .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
           console.log("[useDevices] 📴 Presence LEAVE:", key, leftPresences);
-          fetchDevices();
+          const state = presenceChannel!.presenceState();
+          applyPresenceToDevices(state);
         })
         .subscribe();
     }
