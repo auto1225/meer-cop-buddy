@@ -182,6 +182,7 @@ export function useDevices(userId?: string) {
     // Presence channel: detect smartphone online/offline instantly
     // Presence 상태를 직접 로컬에 반영하여 DB 폴링 대기 없이 즉시 UI 업데이트
     let presenceChannel: ReturnType<typeof supabaseShared.channel> | null = null;
+    let alertsPresenceChannel: ReturnType<typeof supabaseShared.channel> | null = null;
     if (userId) {
       presenceChannel = supabaseShared.channel(`user-presence-${userId}-devices`, {
         config: { presence: { key: "device-watcher" } },
@@ -247,6 +248,63 @@ export function useDevices(userId?: string) {
           applyPresenceToDevices(state);
         })
         .subscribe();
+
+      // 스마트폰은 user-alerts 채널에 Presence JOIN하므로 해당 채널도 감시
+      alertsPresenceChannel = supabaseShared.channel(`user-alerts-${userId}-device-watcher`);
+      alertsPresenceChannel
+        .on("presence", { event: "sync" }, () => {
+          const state = alertsPresenceChannel!.presenceState();
+          // role: "phone"인 presence가 있으면 스마트폰 온라인
+          const hasPhone = Object.values(state).some((presences) =>
+            (presences as Record<string, unknown>[]).some((p) => p.role === "phone")
+          );
+          console.log("[useDevices] 📡 Alerts Presence sync — phone online:", hasPhone);
+          setDevices((prev) => {
+            let changed = false;
+            const updated = prev.map((d) => {
+              if (d.device_type !== "smartphone") return d;
+              const currentlyOnline = d.status === "online";
+              if (hasPhone && !currentlyOnline) {
+                changed = true;
+                return { ...d, status: "online" };
+              } else if (!hasPhone && currentlyOnline) {
+                changed = true;
+                return { ...d, status: "offline" };
+              }
+              return d;
+            });
+            return changed ? updated : prev;
+          });
+        })
+        .on("presence", { event: "join" }, ({ key, newPresences }) => {
+          const isPhone = (newPresences as Record<string, unknown>[]).some((p) => p.role === "phone");
+          if (isPhone) {
+            console.log("[useDevices] 📱 Phone JOIN detected via alerts channel");
+            setDevices((prev) => {
+              const updated = prev.map((d) =>
+                d.device_type === "smartphone" && d.status !== "online"
+                  ? { ...d, status: "online" }
+                  : d
+              );
+              return updated;
+            });
+          }
+        })
+        .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+          const isPhone = (leftPresences as Record<string, unknown>[]).some((p) => p.role === "phone");
+          if (isPhone) {
+            console.log("[useDevices] 📴 Phone LEAVE detected via alerts channel");
+            setDevices((prev) => {
+              const updated = prev.map((d) =>
+                d.device_type === "smartphone" && d.status === "online"
+                  ? { ...d, status: "offline" }
+                  : d
+              );
+              return updated;
+            });
+          }
+        })
+        .subscribe();
     }
 
     return () => {
@@ -254,6 +312,7 @@ export function useDevices(userId?: string) {
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
       supabaseShared.removeChannel(channel);
       if (presenceChannel) supabaseShared.removeChannel(presenceChannel);
+      if (alertsPresenceChannel) supabaseShared.removeChannel(alertsPresenceChannel);
     };
   }, [fetchDevices, userId]);
 
