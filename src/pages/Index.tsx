@@ -89,7 +89,7 @@ const Index = () => {
   // Network info responder - reacts to metadata.network_info_requested (no independent polling)
   useNetworkInfoResponder(currentDevice?.id, currentMeta);
   // Alerts system - broadcasts alerts to smartphone via Presence
-  const { triggerAlert, dismissedBySmartphone } = useAlerts(currentDevice?.id, savedAuth?.user_id);
+  const { triggerAlert, dismissedBySmartphone, stopAlert } = useAlerts(currentDevice?.id, savedAuth?.user_id);
   const triggerAlertRef = useRef(triggerAlert);
   triggerAlertRef.current = triggerAlert;
   // PIN for alarm dismissal (default: 1234, will be set from smartphone)
@@ -272,10 +272,11 @@ const Index = () => {
   // Handle alarm dismiss (from PIN keypad success)
   const handleAlarmDismiss = useCallback(() => {
     stopAlarm();
+    stopAlert();
     setCurrentEventType(undefined);
     setShowPinKeypad(false);
     markAlertCleared(); // 도난 복구 상태 해제
-  }, [stopAlarm]);
+  }, [stopAlarm, stopAlert]);
 
   // When AlertOverlay dismiss is clicked, show PIN keypad or dismiss directly
   const handleAlarmDismissRequest = useCallback(() => {
