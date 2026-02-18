@@ -466,19 +466,27 @@ const Index = () => {
     if (!currentDevice) return;
     const mon = (currentDevice as unknown as Record<string, unknown>).is_monitoring;
     if (mon !== undefined) {
+      const val = mon === true;
+      // OFF는 항상 즉시 반영 (스마트폰 새로고침 등)
+      if (!val) {
+        setIsMonitoring(prev => {
+          if (prev !== val) console.log("[Index] 📡 Monitoring OFF from DB");
+          return val;
+        });
+        return;
+      }
+      // ON은 broadcast guard + smartphone online 체크
       const sinceBroadcast = Date.now() - broadcastMonitoringAt.current;
       if (sinceBroadcast < 15000) {
         console.log("[Index] 📡 Skipping polling override (broadcast was", Math.round(sinceBroadcast / 1000), "s ago)");
         return;
       }
-      const val = mon === true;
-      // 스마트폰이 오프라인이면 DB에서 is_monitoring=true여도 켜지 않음
-      if (val && !smartphoneOnline) {
+      if (!smartphoneOnline) {
         console.log("[Index] 📡 Skipping monitoring enable — smartphone is offline");
         return;
       }
       setIsMonitoring(prev => {
-        if (prev !== val) console.log("[Index] 📡 Monitoring from devices:", val);
+        if (prev !== val) console.log("[Index] 📡 Monitoring ON from DB");
         return val;
       });
     }
