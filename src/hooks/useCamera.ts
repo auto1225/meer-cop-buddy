@@ -83,7 +83,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
           }
         } catch (err) {
           console.error("[Camera] ❌ Re-acquire failed:", err);
-          setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
+          setError("CAMERA_DISCONNECTED");
           setStream(null);
           onStatusChange?.(false);
         } finally {
@@ -94,7 +94,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
       
       if (!stream.active) {
         console.log("[Camera] 🔌 Track ended, stream inactive — camera disconnected");
-        setError("카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.");
+        setError("CAMERA_DISCONNECTED");
         setStream(null);
         onStatusChange?.(false);
       }
@@ -132,7 +132,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
         const mediaStream = await Promise.race([
           navigator.mediaDevices.getUserMedia(constraints),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("카메라 연결 시간이 초과되었습니다.\n\n브라우저 권한 팝업이 표시되지 않았다면 주소창의 카메라 아이콘을 클릭하여 권한을 허용해주세요.")), 10000)
+            setTimeout(() => reject(new Error("CAMERA_TIMEOUT")), 10000)
           ),
         ]);
         // Verify we actually got a video track
@@ -143,7 +143,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
       } catch (err) {
         lastError = err as Error;
         // If permission denied or timeout, don't try other constraints
-        if ((err as Error).name === "NotAllowedError" || (err as Error).message.includes("시간이 초과")) {
+        if ((err as Error).name === "NotAllowedError" || (err as Error).message === "CAMERA_TIMEOUT") {
           throw err;
         }
         // Continue to next fallback
@@ -167,7 +167,7 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
     try {
       // Check if mediaDevices API is available
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("이 브라우저는 카메라를 지원하지 않습니다.");
+        throw new Error("CAMERA_NOT_SUPPORTED");
       }
 
       // Check permissions API first
@@ -205,25 +205,28 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
       // User-friendly error messages in Korean
       switch (err.name) {
         case "NotAllowedError":
-          setError("카메라 권한이 거부되었습니다.\n\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하여 카메라 권한을 허용해주세요.");
+          setError("CAMERA_NOT_ALLOWED");
           break;
         case "NotFoundError":
-          setError("카메라를 찾을 수 없습니다.\n\n• 카메라가 연결되어 있는지 확인하세요\n• 다른 앱에서 카메라를 사용 중인지 확인하세요\n• 브라우저를 재시작해보세요");
+          setError("CAMERA_NOT_FOUND");
           break;
         case "NotReadableError":
-          setError("카메라에 접근할 수 없습니다.\n\n• 다른 앱이나 탭에서 카메라를 종료해주세요\n• 카메라 연결을 확인해주세요");
+          setError("CAMERA_NOT_READABLE");
           break;
         case "OverconstrainedError":
-          setError("카메라 설정을 적용할 수 없습니다.\n\n다른 카메라를 사용해보세요.");
+          setError("CAMERA_OVERCONSTRAINED");
           break;
         case "AbortError":
-          setError("카메라 연결이 중단되었습니다.\n\n다시 시도해주세요.");
+          setError("CAMERA_ABORT");
           break;
         case "SecurityError":
-          setError("보안 설정으로 인해 카메라를 사용할 수 없습니다.\n\nHTTPS 연결이 필요합니다.");
+          setError("CAMERA_SECURITY");
           break;
         default:
-          setError(err.message || "카메라를 시작할 수 없습니다.\n\n다시 시도해주세요.");
+          if (err.message === "CAMERA_TIMEOUT") setError("CAMERA_TIMEOUT");
+          else if (err.message === "CAMERA_NOT_SUPPORTED") setError("CAMERA_NOT_SUPPORTED");
+          else if (err.message === "CAMERA_DISCONNECTED") setError("CAMERA_DISCONNECTED");
+          else setError("CAMERA_DEFAULT");
       }
     } finally {
       setIsLoading(false);

@@ -116,7 +116,7 @@ export function useDevices(userId?: string) {
       setError(null);
     } catch (err) {
       console.error("[useDevices] Error fetching devices:", err);
-      setError("디바이스 목록을 불러오는데 실패했습니다.");
+      setError("LOAD_DEVICES_FAILED");
     } finally {
       isFirstLoad.current = false;
       setIsLoading(false);
