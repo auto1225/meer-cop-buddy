@@ -33,7 +33,7 @@ import { channelManager } from "@/lib/channelManager";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useAppStabilizer } from "@/hooks/useAppStabilizer";
-import { I18nProvider } from "@/lib/i18n";
+import { I18nProvider, type Lang } from "@/lib/i18n";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
@@ -104,9 +104,9 @@ const Index = () => {
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
   const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
-  // Language setting from smartphone
-  const [appLanguage, setAppLanguage] = useState<"ko" | "en">(() => {
-    return (localStorage.getItem('meercop-language') as "ko" | "en") || "ko";
+  // Language setting from smartphone (supports 17 languages)
+  const [appLanguage, setAppLanguage] = useState<string>(() => {
+    return localStorage.getItem('meercop-language') || "ko";
   });
   // Alarm system
   const { 
@@ -357,7 +357,7 @@ const Index = () => {
       console.log("[Index] ✅ camouflage_mode applied:", meta.camouflage_mode);
     }
 
-    if (meta?.language && (meta.language === "ko" || meta.language === "en")) {
+    if (meta?.language) {
       setAppLanguage(meta.language);
       localStorage.setItem('meercop-language', meta.language);
       console.log("[Index] ✅ language applied from DB:", meta.language);
@@ -547,7 +547,7 @@ const Index = () => {
         if (settings.camouflage_mode !== undefined) {
           setIsCamouflageMode(settings.camouflage_mode);
         }
-        if (settings.language && (settings.language === "ko" || settings.language === "en")) {
+        if (settings.language) {
           setAppLanguage(settings.language);
           localStorage.setItem('meercop-language', settings.language);
           console.log("[Index] ✅ Language updated via broadcast:", settings.language);
@@ -633,7 +633,7 @@ const Index = () => {
   }
 
   return (
-    <I18nProvider initialLang={appLanguage}>
+    <I18nProvider initialLang={appLanguage as Lang}>
     <ResizableContainer
       initialWidth={300}
       initialHeight={520}
