@@ -4,8 +4,21 @@ import { Link } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { type SensorToggles } from "@/hooks/useSecuritySurveillance";
-import { type AlarmSoundConfig, getSelectedSoundName, getCustomSounds, saveCustomSound, deleteCustomSound, isCustomSound, type CustomAlarmSound } from "@/lib/alarmSounds";
+import { type AlarmSoundConfig, getCustomSounds, saveCustomSound, deleteCustomSound, isCustomSound, type CustomAlarmSound } from "@/lib/alarmSounds";
 import { useTranslation, type Lang, getLanguageNativeLabel } from "@/lib/i18n";
+
+const ALARM_I18N_MAP: Record<string, string> = {
+  "police-siren": "alarm.policeSiren",
+  "security-alarm": "alarm.securityAlarm",
+  "air-raid": "alarm.airRaid",
+  "intruder-alert": "alarm.intruderAlert",
+  "panic-alarm": "alarm.panicAlarm",
+  "car-alarm": "alarm.carAlarm",
+  "emergency-horn": "alarm.emergencyHorn",
+  "theft-deterrent": "alarm.theftDeterrent",
+  "loud-klaxon": "alarm.loudKlaxon",
+  "triple-threat": "alarm.tripleThreat",
+};
 
 interface SensorSettingsPanelProps {
   isOpen: boolean;
@@ -161,7 +174,7 @@ export function SensorSettingsPanel({
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("settings.alarmSound")}</p>
             <span className="text-[9px] font-bold text-secondary bg-secondary/15 px-2 py-0.5 rounded-full truncate max-w-[140px]">
-              🔊 {getSelectedSoundName(selectedSoundId)}
+              🔊 {ALARM_I18N_MAP[selectedSoundId] ? t(ALARM_I18N_MAP[selectedSoundId]) : selectedSoundId}
             </span>
           </div>
           {/* Volume */}
@@ -192,7 +205,7 @@ export function SensorSettingsPanel({
                   }`}
                 >
                   <span className={`text-[11px] font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] ${isSelected ? "text-secondary" : "text-white/90"}`}>
-                    {sound.nameKo}
+                    {ALARM_I18N_MAP[sound.id] ? t(ALARM_I18N_MAP[sound.id]) : sound.nameKo}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); onPreviewSound(sound.id); }}
