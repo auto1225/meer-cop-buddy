@@ -76,20 +76,35 @@ export function useDevices(userId?: string) {
     try {
       if (isFirstLoad.current) setIsLoading(true);
       
-      // Edge Function을 통해 기기 목록 조회 (RLS 우회, service_role 사용)
-      const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SHARED_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({ user_id: userId }),
-      });
+      // 공유 Supabase Edge Function 호출 (최대 2회 재시도)
+      let res: Response | null = null;
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": SHARED_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ user_id: userId }),
+          });
+          if (res.ok) break;
+          lastError = await res.json().catch(() => ({}));
+          console.warn(`[useDevices] Edge Function attempt ${attempt + 1} failed:`, res.status, lastError);
+          res = null;
+          // 짧은 대기 후 재시도
+          if (attempt < 1) await new Promise(r => setTimeout(r, 1500));
+        } catch (e) {
+          lastError = e;
+          console.warn(`[useDevices] Edge Function attempt ${attempt + 1} network error:`, e);
+          if (attempt < 1) await new Promise(r => setTimeout(r, 1500));
+        }
+      }
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        console.warn("[useDevices] Edge Function error:", res.status, errData);
+      if (!res || !res.ok) {
         // Fallback: 직접 쿼리 시도 (RLS 허용 시)
+        console.warn("[useDevices] All Edge Function attempts failed, trying direct query...");
         const { data: fallbackData } = await supabaseShared
           .from("devices")
           .select("*");
@@ -99,7 +114,9 @@ export function useDevices(userId?: string) {
           setError(null);
           return;
         }
-        throw new Error(errData.error || `get-devices failed: ${res.status}`);
+        throw new Error(
+          (lastError as Record<string, string>)?.error || "get-devices failed after retries"
+        );
       }
 
       const data = await res.json();
