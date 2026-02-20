@@ -61,16 +61,28 @@ const localeLoaders: Record<Lang, () => Promise<{ default: Record<string, string
 // Preloaded cache to avoid repeated imports
 const loadedLocales: Partial<Record<Lang, Record<string, string>>> = {};
 
+// Normalize locale codes like "zh-CN" → "zh", "pt-BR" → "pt"
+export function normalizeLang(code: string): Lang {
+  if (!code) return "ko";
+  const lower = code.toLowerCase().trim();
+  // Check exact match first
+  if (localeLoaders[lower as Lang]) return lower as Lang;
+  // Try base language (before hyphen)
+  const base = lower.split("-")[0].split("_")[0];
+  if (localeLoaders[base as Lang]) return base as Lang;
+  return "en"; // fallback
+}
+
 async function loadLocale(lang: Lang): Promise<Record<string, string>> {
-  if (loadedLocales[lang]) return loadedLocales[lang]!;
+  const normalized = normalizeLang(lang);
+  if (loadedLocales[normalized]) return loadedLocales[normalized]!;
   try {
-    const module = await localeLoaders[lang]();
-    loadedLocales[lang] = module.default;
+    const module = await localeLoaders[normalized]();
+    loadedLocales[normalized] = module.default;
     return module.default;
   } catch (e) {
-    console.error("[i18n] Failed to load locale:", lang, e);
-    // Fallback to English
-    if (lang !== "en") return loadLocale("en");
+    console.error("[i18n] Failed to load locale:", normalized, e);
+    if (normalized !== "en") return loadLocale("en" as Lang);
     return {};
   }
 }
@@ -97,9 +109,12 @@ export function I18nProvider({ children, initialLang }: { children: React.ReactN
 
   // Update lang when initialLang changes (from smartphone sync)
   useEffect(() => {
-    if (initialLang && initialLang !== lang) {
-      console.log("[i18n] Language changed from external:", initialLang);
-      setLang(initialLang);
+    if (initialLang) {
+      const normalized = normalizeLang(initialLang);
+      if (normalized !== lang) {
+        console.log("[i18n] Language changed from external:", initialLang, "→", normalized);
+        setLang(normalized);
+      }
     }
   }, [initialLang]);
 
