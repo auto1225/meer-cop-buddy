@@ -1,1 +1,4 @@
 project_id = "dmvbwyfzueywuwxkjuuy"
+
+[functions.monitor-heartbeat]
+verify_jwt = false

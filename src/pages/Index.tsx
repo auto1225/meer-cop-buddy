@@ -31,6 +31,8 @@ import { useLocationResponder } from "@/hooks/useLocationResponder";
 import { useNetworkInfoResponder } from "@/hooks/useNetworkInfoResponder";
 import { channelManager } from "@/lib/channelManager";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
+import { useWakeLock } from "@/hooks/useWakeLock";
+import { useAppStabilizer } from "@/hooks/useAppStabilizer";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
@@ -614,6 +616,11 @@ const Index = () => {
   const handleDeviceSelect = useCallback((deviceId: string) => {
     setCurrentDeviceId(deviceId);
   }, []);
+
+  // Wake Lock: 감시 중 화면 꺼짐 방지
+  useWakeLock(isMonitoring);
+  // App Stabilizer: 포그라운드 복귀 시 DB 재확인 + 캐시 정리
+  useAppStabilizer();
 
   // Show loading while checking auth - ALL HOOKS MUST BE ABOVE THIS LINE
   if (authLoading) {
