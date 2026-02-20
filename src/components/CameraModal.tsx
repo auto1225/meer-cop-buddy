@@ -284,10 +284,17 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
       setRecordingTime(0);
     } else if (stream) {
       recordedChunksRef.current = [];
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : "video/webm";
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+        ? "video/webm;codecs=vp9,opus"
+        : MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+          ? "video/webm;codecs=vp9"
+          : "video/webm";
+      // Combine video + audio tracks for recording
+      const recordingStream = new MediaStream([
+        ...stream.getVideoTracks(),
+        ...(audioStreamRef.current ? audioStreamRef.current.getAudioTracks() : []),
+      ]);
+      const recorder = new MediaRecorder(recordingStream, { mimeType });
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) recordedChunksRef.current.push(e.data);
       };
