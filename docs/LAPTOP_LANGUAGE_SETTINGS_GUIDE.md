@@ -68,57 +68,63 @@ SELECT metadata FROM devices WHERE device_id = '${deviceId}'
 
 ---
 
-## 3️⃣ 번역 시스템
+## 3️⃣ 번역 시스템 (정적 번들 방식)
 
-### 3-1. 정적 번역 (ko / en)
+모든 17개 언어를 **빌드 타임에 포함된 정적 JSON 파일**로 관리합니다.
+AI 동적 번역(Edge Function)은 사용하지 않습니다.
 
-한국어와 영어는 코드 내 정적 번역 맵으로 관리합니다.
+### 3-1. 파일 구조
+
+```
+src/
+  locales/
+    ko.json
+    en.json
+    ja.json
+    zh.json
+    es.json
+    fr.json
+    de.json
+    pt.json
+    ru.json
+    vi.json
+    th.json
+    id.json
+    ms.json
+    hi.json
+    tr.json
+    ar.json
+    it.json
+```
+
+### 3-2. JSON 파일 형식
+
+```json
+// src/locales/ko.json
+{
+  "settings.title": "설정",
+  "settings.device_type": "기기 타입",
+  "settings.alarm_sound": "경보음",
+  "settings.sensors": "감지 센서",
+  "monitoring.start": "감시 시작",
+  "monitoring.stop": "감시 중지",
+  "alert.dismiss": "경보 해제"
+}
+```
+
+### 3-3. 로딩 방식
 
 ```typescript
-// 예시 구조
-const translations = {
-  ko: {
-    "settings.title": "설정",
-    "settings.device_type": "기기 타입",
-    "settings.alarm_sound": "경보음",
-    "settings.sensors": "감지 센서",
-    "monitoring.start": "감시 시작",
-    "monitoring.stop": "감시 중지",
-    "alert.dismiss": "경보 해제",
-    // ...
-  },
-  en: {
-    "settings.title": "Settings",
-    "settings.device_type": "Device Type",
-    "settings.alarm_sound": "Alarm Sound",
-    "settings.sensors": "Detection Sensors",
-    "monitoring.start": "Start Monitoring",
-    "monitoring.stop": "Stop Monitoring",
-    "alert.dismiss": "Dismiss Alarm",
-    // ...
-  },
+// 동적 import로 필요한 언어만 로드
+const loadTranslations = async (lang: string) => {
+  const module = await import(`@/locales/${lang}.json`);
+  return module.default;
 };
 ```
 
-### 3-2. AI 동적 번역 (ko/en 이외 언어)
-
-ko/en 이외의 언어가 선택되면 AI 번역 API를 호출하여 동적으로 번역합니다.
-
-```
-요청: POST /v1/chat/completions
-모델: google/gemini-2.5-flash-lite
-프롬프트: "Translate the following UI strings to {targetLanguage}..."
-```
-
-### 3-3. localStorage 캐시
-
-AI 번역 결과는 localStorage에 캐시하여 중복 API 호출을 방지합니다.
-
-```
-키: meercop-translations-{langCode}
-값: { "settings.title": "設定", ... }
-TTL: 7일
-```
+- 빌드 시 Vite가 각 JSON을 청크로 분리하여 번들에 포함
+- 런타임에 `import()`로 해당 언어 청크만 로드 (네트워크 요청 없음)
+- 별도의 캐시/TTL 관리 불필요
 
 ---
 
@@ -310,21 +316,21 @@ useEffect(() => {
 - [ ] 1. `metadata.language` 값을 DB에서 읽어 초기 언어 설정
 - [ ] 2. `settings_updated` broadcast 수신 시 언어 갱신
 - [ ] 3. localStorage(`meercop-language`) 동기화
-- [ ] 4. ko/en 정적 번역 맵 구현
-- [ ] 5. AI 동적 번역 API 연동 (ko/en 이외 언어)
-- [ ] 6. 번역 캐시 시스템 (localStorage, TTL 7일)
-- [ ] 7. 설정 패널 언어 선택 UI
-- [ ] 8. 경보 화면 다국어 표시
-- [ ] 9. 잠금 화면 다국어 표시
-- [ ] 10. 시리얼 인증 화면 다국어 표시
-- [ ] 11. RTL 대응 (아랍어)
-- [ ] 12. 동적 폰트 로딩
+- [ ] 4. 17개 언어 정적 JSON 번역 파일 생성 (`src/locales/*.json`)
+- [ ] 5. 동적 `import()`를 통한 언어 파일 로딩
+- [ ] 6. 설정 패널 언어 선택 UI
+- [ ] 7. 경보 화면 다국어 표시
+- [ ] 8. 잠금 화면 다국어 표시
+- [ ] 9. 시리얼 인증 화면 다국어 표시
+- [ ] 10. RTL 대응 (아랍어)
+- [ ] 11. 동적 폰트 로딩
 
 ---
 
 ## ⚠️ 주의사항
 
-1. **성능**: AI 번역은 앱 시작 시 1회만 호출하고 캐시를 활용합니다
-2. **오프라인**: 캐시된 번역이 없으면 기본 한국어로 폴백합니다
+1. **성능**: 정적 JSON은 Vite 빌드에 포함되어 네트워크 요청 없이 즉시 로드됩니다
+2. **오프라인**: 번들에 포함되므로 오프라인에서도 모든 언어가 정상 동작합니다
 3. **일관성**: `docs/I18N_SHARED_KEYS_GUIDE.md`의 공유 키와 충돌하지 않도록 주의합니다
 4. **테스트**: 긴 번역 텍스트가 UI를 깨뜨리지 않는지 확인합니다 (독일어, 아랍어 등)
+5. **번역 추가**: 새 키 추가 시 17개 JSON 파일 모두에 해당 키를 추가해야 합니다
