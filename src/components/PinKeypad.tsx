@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Delete } from "lucide-react";
 import { verifyPin } from "@/lib/pinHash";
+import { useTranslation } from "@/lib/i18n";
 
 interface PinKeypadProps {
   isOpen: boolean;
-  /** @deprecated 폴백용 평문 PIN — alarm_pin_hash가 있으면 무시됨 */
   correctPin: string;
-  /** 해시 검증용 디바이스 ID */
   deviceId?: string;
-  /** DB metadata (alarm_pin_hash, alarm_pin 포함) */
   metadata?: { alarm_pin_hash?: string; alarm_pin?: string } | null;
   onSuccess: () => void;
   onClose: () => void;
@@ -18,6 +16,7 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const isVerifyingRef = useRef(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isOpen) {
@@ -32,7 +31,6 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
     setPin(prev => {
       const next = prev + digit;
       if (next.length === 4) {
-        // 비동기 해시 검증
         isVerifyingRef.current = true;
         (async () => {
           try {
@@ -40,7 +38,6 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
             if (deviceId && metadata) {
               valid = await verifyPin(next, deviceId, metadata, correctPin);
             } else {
-              // 폴백: 평문 비교
               valid = next === correctPin;
             }
 
@@ -69,7 +66,6 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
     setError(false);
   }, []);
 
-  // Listen for physical keyboard input
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -98,7 +94,6 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
         WebkitBackdropFilter: "blur(24px)",
       }}
     >
-      {/* Close button - glassmorphism circle */}
       <button
         onClick={onClose}
         tabIndex={-1}
@@ -107,10 +102,9 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
         <X className="w-5 h-5" />
       </button>
 
-      <h2 className="text-white font-extrabold text-xl mb-2 drop-shadow-md">경보 해제</h2>
-      <p className="text-white/60 text-sm mb-6 font-medium">4자리 비밀번호를 입력하세요</p>
+      <h2 className="text-white font-extrabold text-xl mb-2 drop-shadow-md">{t("pin.title")}</h2>
+      <p className="text-white/60 text-sm mb-6 font-medium">{t("pin.subtitle")}</p>
 
-      {/* PIN dots */}
       <div className="flex gap-4 mb-8">
         {[0, 1, 2, 3].map(i => (
           <div
@@ -127,10 +121,9 @@ export function PinKeypad({ isOpen, correctPin, deviceId, metadata, onSuccess, o
       </div>
 
       {error && (
-        <p className="text-destructive text-sm mb-4 font-bold drop-shadow-sm">비밀번호가 틀렸습니다</p>
+        <p className="text-destructive text-sm mb-4 font-bold drop-shadow-sm">{t("pin.wrong")}</p>
       )}
 
-      {/* Keypad grid - glassmorphism buttons */}
       <div className="grid grid-cols-3 gap-3 w-72">
         {digits.map((d, i) => {
           if (d === "") return <div key={i} />;

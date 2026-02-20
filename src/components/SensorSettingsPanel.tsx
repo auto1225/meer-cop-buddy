@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { type SensorToggles } from "@/hooks/useSecuritySurveillance";
 import { type AlarmSoundConfig, getSelectedSoundName, getCustomSounds, saveCustomSound, deleteCustomSound, isCustomSound, type CustomAlarmSound } from "@/lib/alarmSounds";
+import { useTranslation } from "@/lib/i18n";
 
 interface SensorSettingsPanelProps {
   isOpen: boolean;
@@ -32,28 +33,23 @@ const SENSOR_ICONS: Record<string, React.ElementType> = {
   power: Power,
 };
 
-const SENSOR_ITEMS: { key: keyof SensorToggles; label: string }[] = [
-  { key: "cameraMotion", label: "카메라 모션" },
-  { key: "lid", label: "덮개 감지" },
-  { key: "microphone", label: "마이크" },
-  { key: "keyboard", label: "키보드" },
-  { key: "mouse", label: "마우스" },
-  { key: "usb", label: "USB" },
-  { key: "power", label: "전원 케이블" },
+const SENSOR_KEYS: (keyof SensorToggles)[] = [
+  "cameraMotion", "lid", "microphone", "keyboard", "mouse", "usb", "power",
 ];
 
 function CustomSoundUploader({ onSoundAdded }: { onSoundAdded: (sound: CustomAlarmSound) => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('audio/')) {
-      alert('오디오 파일만 업로드할 수 있습니다.');
+      alert(t("settings.audioOnly"));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('파일 크기는 5MB 이하여야 합니다.');
+      alert(t("settings.fileTooLarge"));
       return;
     }
     const reader = new FileReader();
@@ -76,7 +72,7 @@ function CustomSoundUploader({ onSoundAdded }: { onSoundAdded: (sound: CustomAla
       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 border border-dashed border-white/20 transition-all"
     >
       <Upload className="w-3 h-3 text-white/50" />
-      <span className="text-[10px] font-bold text-white/50">내 기기에서 경보음 선택...</span>
+      <span className="text-[10px] font-bold text-white/50">{t("settings.uploadSound")}</span>
       <input
         ref={fileInputRef}
         type="file"
@@ -103,9 +99,15 @@ export function SensorSettingsPanel({
   appLanguage,
   onLanguageChange,
 }: SensorSettingsPanelProps) {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
-  const deviceLabel = deviceType === "desktop" ? "데스크탑" : deviceType === "tablet" ? "태블릿" : "노트북";
+  const deviceTypeMap: Record<string, string> = {
+    desktop: t("settings.desktop"),
+    tablet: t("settings.tablet"),
+  };
+  const deviceLabel = deviceTypeMap[deviceType] || t("settings.laptop");
 
   const glassCard = "rounded-2xl border border-white/20 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]";
 
@@ -119,7 +121,7 @@ export function SensorSettingsPanel({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 shrink-0">
-        <h2 className="text-white font-extrabold text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">설정</h2>
+        <h2 className="text-white font-extrabold text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{t("settings.title")}</h2>
         <button
           onClick={onClose}
           className="w-6 h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
@@ -133,18 +135,22 @@ export function SensorSettingsPanel({
 
         {/* Device Type */}
         <section className={`${glassCard} px-3 py-2.5`}>
-          <p className="text-[10px] font-extrabold text-white/80 mb-1.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">기기 타입</p>
+          <p className="text-[10px] font-extrabold text-white/80 mb-1.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("settings.deviceType")}</p>
           <div className="flex gap-1.5">
-            {(["노트북", "데스크탑", "태블릿"] as const).map((type) => (
+            {([
+              { key: "laptop", label: t("settings.laptop") },
+              { key: "desktop", label: t("settings.desktop") },
+              { key: "tablet", label: t("settings.tablet") },
+            ]).map(({ key, label }) => (
               <span
-                key={type}
+                key={key}
                 className={`text-[10px] px-3 py-1 rounded-full font-bold transition-all ${
-                  type === deviceLabel
+                  key === deviceType
                     ? "bg-secondary text-secondary-foreground shadow-[0_0_12px_hsla(68,100%,64%,0.35)]"
                     : "bg-white/10 text-white/60"
                 }`}
               >
-                {type}
+                {label}
               </span>
             ))}
           </div>
@@ -153,7 +159,7 @@ export function SensorSettingsPanel({
         {/* Alarm Settings */}
         <section className={`${glassCard} px-3 py-2.5 space-y-2`}>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">경보음</p>
+            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("settings.alarmSound")}</p>
             <span className="text-[9px] font-bold text-secondary bg-secondary/15 px-2 py-0.5 rounded-full truncate max-w-[140px]">
               🔊 {getSelectedSoundName(selectedSoundId)}
             </span>
@@ -227,7 +233,6 @@ export function SensorSettingsPanel({
                         e.stopPropagation();
                         deleteCustomSound(sound.id);
                         if (isSelected) onSoundChange('police-siren');
-                        // Force re-render
                         onAlarmVolumeChange(alarmVolume);
                       }}
                       className="w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 hover:bg-red-500/40 transition-colors"
@@ -250,14 +255,15 @@ export function SensorSettingsPanel({
         {/* Sensor Toggles */}
         <section className={`${glassCard} px-3 py-2.5`}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">감지 센서</p>
-            <span className="text-[9px] text-secondary font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)]">스마트폰에서 변경</span>
+            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("sensor.title")}</p>
+            <span className="text-[9px] text-secondary font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)]">{t("sensor.changeFromPhone")}</span>
           </div>
 
           <div>
-            {SENSOR_ITEMS.map(({ key, label }, idx) => {
+            {SENSOR_KEYS.map((key, idx) => {
               const Icon = SENSOR_ICONS[key] || Camera;
               const active = sensorToggles[key];
+              const label = t(`sensor.${key}`);
               return (
                 <div key={key}>
                   <div className="flex items-center gap-2.5 py-1.5">
@@ -279,12 +285,12 @@ export function SensorSettingsPanel({
                       to="/motion-test"
                       className="flex items-center gap-0.5 ml-[34px] -mt-0.5 mb-1 text-[9px] text-secondary hover:text-secondary/80 font-semibold transition-colors"
                     >
-                      🔬 모션 테스트
+                      🔬 {t("sensor.motionTest")}
                       <ChevronRight className="w-2.5 h-2.5" />
                     </Link>
                   )}
 
-                  {idx < SENSOR_ITEMS.length - 1 && (
+                  {idx < SENSOR_KEYS.length - 1 && (
                     <div className="ml-[34px] border-b border-white/10" />
                   )}
                 </div>
@@ -297,7 +303,7 @@ export function SensorSettingsPanel({
         <section className={`${glassCard} px-3 py-2.5`}>
           <div className="flex items-center gap-1.5 mb-1.5">
             <Globe className="w-3 h-3 text-white/80" />
-            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">언어 / Language</p>
+            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("language.title")}</p>
           </div>
           <div className="flex gap-1.5">
             {([{ value: "ko" as const, label: "한국어" }, { value: "en" as const, label: "English" }]).map(({ value, label }) => (
@@ -314,7 +320,7 @@ export function SensorSettingsPanel({
               </button>
             ))}
           </div>
-          <p className="text-[9px] text-white/40 mt-1">스마트폰 앱에서도 변경 가능</p>
+          <p className="text-[9px] text-white/40 mt-1">{t("language.changeFromPhone")}</p>
         </section>
 
       </div>
