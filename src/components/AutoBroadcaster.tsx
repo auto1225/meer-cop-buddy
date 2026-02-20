@@ -112,8 +112,22 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
           frameRate: { ideal: 15, max: 30 },
           facingMode: "user",
         },
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
       });
+      
+      // Verify audio track was captured
+      const audioTracks = stream.getAudioTracks();
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎤 Audio tracks: ${audioTracks.length}`);
+      audioTracks.forEach(t => {
+        console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎤 Audio: "${t.label}" enabled=${t.enabled} muted=${t.muted}`);
+      });
+      if (audioTracks.length === 0) {
+        console.warn(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ No audio track captured! Check microphone permissions.`);
+      }
 
       streamRef.current = stream;
       retryCountRef.current = 0;
