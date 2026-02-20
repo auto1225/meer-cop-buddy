@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { X, User, HelpCircle, LogOut, Mail, Key, UserCircle } from "lucide-react";
+import { X, User, HelpCircle, LogOut, Key, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
 import meercopMascot from "@/assets/meercop-mascot.png";
 import { HelpModal } from "@/components/HelpModal";
+import { useTranslation } from "@/lib/i18n";
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const { signOut } = useAuth();
   const savedAuth = getSavedAuth();
   const [helpOpen, setHelpOpen] = useState(false);
+  const { t } = useTranslation();
 
   const handleSignOut = () => {
     signOut();
@@ -25,7 +27,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   if (!isOpen) return null;
 
   const serialKey = savedAuth?.serial_key || "—";
-  const deviceName = savedAuth?.device_name || "게스트";
+  const deviceName = savedAuth?.device_name || t("menu.guest");
 
   return (
     <>
@@ -74,15 +76,15 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
               <div className="flex items-center gap-2.5 bg-white/8 rounded-xl px-3 py-2.5 border border-white/10">
                 <Key className="w-4 h-4 text-accent/80 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[10px] text-white/50 font-bold uppercase tracking-wider">시리얼 넘버</p>
+                  <p className="text-[10px] text-white/50 font-bold uppercase tracking-wider">{t("menu.serialNumber")}</p>
                   <p className="text-xs font-bold truncate">{serialKey}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2.5 bg-white/8 rounded-xl px-3 py-2.5 border border-white/10">
                 <UserCircle className="w-4 h-4 text-accent/80 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[10px] text-white/50 font-bold uppercase tracking-wider">멤버십</p>
-                  <p className="text-xs font-bold">Normal Member</p>
+                  <p className="text-[10px] text-white/50 font-bold uppercase tracking-wider">{t("menu.membership")}</p>
+                  <p className="text-xs font-bold">{t("menu.normalMember")}</p>
                 </div>
               </div>
             </div>
@@ -99,14 +101,14 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"
           >
             <HelpCircle className="w-5 h-5 text-white/70" />
-            <span className="text-sm font-bold">Q&A / 도움말</span>
+            <span className="text-sm font-bold">{t("menu.help")}</span>
           </button>
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-500/20 rounded-xl transition-colors text-red-300"
           >
             <LogOut className="w-5 h-5" />
-            <span className="text-sm font-bold">로그아웃</span>
+            <span className="text-sm font-bold">{t("menu.logout")}</span>
           </button>
         </div>
       </div>

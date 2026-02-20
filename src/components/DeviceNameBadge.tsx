@@ -3,6 +3,7 @@ import { Pencil, Check, X } from "lucide-react";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { updateDeviceViaEdge, fetchDevicesViaEdge } from "@/lib/deviceApi";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/lib/i18n";
 
 interface DeviceNameBadgeProps {
   deviceName: string;
@@ -16,6 +17,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     setEditValue(deviceName);
@@ -40,25 +42,22 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     try {
       const saved = getSavedAuth();
 
-      // 중복 이름 검사
       if (saved?.user_id) {
         const allDevices = await fetchDevicesViaEdge(saved.user_id);
         const duplicate = allDevices.find(
           d => d.id !== deviceId && (d.device_name === trimmed || d.name === trimmed)
         );
         if (duplicate) {
-          toast({ title: "중복된 이름", description: `"${trimmed}" 이름은 이미 다른 기기에서 사용 중입니다.`, variant: "destructive" });
+          toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
           setIsSaving(false);
           return;
         }
       }
 
-      // Update DB via Edge Function
       if (deviceId) {
         await updateDeviceViaEdge(deviceId, { name: trimmed });
       }
 
-      // Update localStorage
       if (saved) {
         saved.device_name = trimmed;
         localStorage.setItem("meercop_serial_auth", JSON.stringify(saved));
@@ -66,9 +65,9 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
       onNameChanged?.(trimmed);
       setIsEditing(false);
-      toast({ title: "이름 변경 완료", description: `기기 이름이 "${trimmed}"(으)로 변경되었습니다.` });
+      toast({ title: t("device.nameChanged"), description: t("device.nameChangedDesc") });
     } catch (err: any) {
-      toast({ title: "변경 실패", description: err.message || "이름 변경에 실패했습니다.", variant: "destructive" });
+      toast({ title: t("device.changeFailed"), description: err.message || t("device.changeFailedDesc"), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -95,18 +94,10 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
             className="w-[100px] bg-transparent text-white font-extrabold text-[11px] outline-none text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
             maxLength={30}
           />
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="p-0.5 rounded hover:bg-white/20 transition-colors text-green-600"
-          >
+          <button onClick={handleSave} disabled={isSaving} className="p-0.5 rounded hover:bg-white/20 transition-colors text-green-600">
             <Check className="h-3 w-3" />
           </button>
-          <button
-            onClick={() => { setEditValue(deviceName); setIsEditing(false); }}
-            disabled={isSaving}
-            className="p-0.5 rounded hover:bg-white/20 transition-colors text-destructive"
-          >
+          <button onClick={() => { setEditValue(deviceName); setIsEditing(false); }} disabled={isSaving} className="p-0.5 rounded hover:bg-white/20 transition-colors text-destructive">
             <X className="h-3 w-3" />
           </button>
         </div>
