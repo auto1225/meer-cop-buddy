@@ -33,6 +33,7 @@ import { channelManager } from "@/lib/channelManager";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useAppStabilizer } from "@/hooks/useAppStabilizer";
+import { I18nProvider } from "@/lib/i18n";
 import mainBg from "@/assets/main-bg.png";
 
 const Index = () => {
@@ -626,12 +627,13 @@ const Index = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen sky-background flex items-center justify-center">
-        <div className="text-white text-lg">로딩 중...</div>
+        <div className="text-white text-lg">{appLanguage === "en" ? "Loading..." : "로딩 중..."}</div>
       </div>
     );
   }
 
   return (
+    <I18nProvider initialLang={appLanguage}>
     <ResizableContainer
       initialWidth={300}
       initialHeight={520}
@@ -764,6 +766,7 @@ const Index = () => {
 
       </div>
     </ResizableContainer>
+    </I18nProvider>
   );
 };
 
