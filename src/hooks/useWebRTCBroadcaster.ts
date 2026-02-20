@@ -198,7 +198,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
           session_id: sessionId,
           type: "ice-candidate",
           sender_type: "broadcaster",
-          data: { candidate: event.candidate.toJSON() },
+          data: { candidate: event.candidate.toJSON(), target_session: sessionId },
         });
       }
     };
@@ -294,7 +294,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         session_id: sessionId,
         type: "offer",
         sender_type: "broadcaster",
-        data: { sdp: { type: offer.type, sdp: offer.sdp } },
+        data: { sdp: { type: offer.type, sdp: offer.sdp }, target_session: sessionId },
       });
 
       console.log(`[Broadcaster] ✅ Sent offer to ${sessionId}`);
