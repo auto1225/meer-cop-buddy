@@ -179,7 +179,7 @@ export function useSecuritySurveillance({
   }, []);
 
   // ── 센서별 쿨다운 (동일 센서의 반복 트리거 방지) ──
-  const SENSOR_COOLDOWN_MS = 30_000; // 30초
+  const SENSOR_COOLDOWN_MS = 10_000; // 10초
   const lastSensorTriggerRef = useRef<Record<string, number>>({});
 
   const triggerEvent = useCallback(
