@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabaseShared } from "@/lib/supabase";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { getSavedAuth } from "@/lib/serialAuth";
+import { useTranslation } from "@/lib/i18n";
 
 interface LocationMapModalProps {
   isOpen: boolean;
@@ -21,7 +22,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const [error, setError] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [deviceName, setDeviceName] = useState<string>("스마트폰");
+  const [deviceName, setDeviceName] = useState<string>("Smartphone");
   const [locationSource, setLocationSource] = useState<string | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [addressLoading, setAddressLoading] = useState(false);
@@ -29,6 +30,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationReceivedRef = useRef(false);
   const mapInitializedRef = useRef(false);
+  const { t } = useTranslation();
 
   // Reverse geocode coordinates to address
   const fetchAddress = useCallback(async (lat: number, lng: number) => {
@@ -52,7 +54,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   // Send locate request to smartphone and wait for response
   const requestSmartphoneLocation = useCallback(async () => {
     if (!smartphoneDeviceId) {
-      setError("연결된 스마트폰이 없습니다.");
+      setError(t("location.noSmartphone"));
       setIsLoading(false);
       return;
     }
@@ -67,12 +69,10 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
       const savedAuth = getSavedAuth();
       const userId = savedAuth?.user_id;
       
-      // Get device info via Edge Function
       const deviceData = userId ? await fetchDeviceViaEdge(smartphoneDeviceId, userId) : null;
 
       if (deviceData?.device_name) setDeviceName(deviceData.device_name);
 
-      // Write locate_requested timestamp to smartphone's metadata
       const existingMeta = (deviceData?.metadata as Record<string, unknown>) || {};
       const requestTimestamp = new Date().toISOString();
 
@@ -82,7 +82,6 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
 
       console.log("[LocationMap] Sent locate request to smartphone:", requestTimestamp);
 
-      // Poll for location updates via Edge Function (Realtime blocked by RLS)
       const pollForLocation = async () => {
         if (locationReceivedRef.current || !userId) return;
         
@@ -114,12 +113,10 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           }
         }, 2000);
         
-        // Store interval for cleanup
         channelRef.current = { unsubscribe: () => clearInterval(pollId) } as any;
       };
       pollForLocation();
 
-      // Timeout: if no response in 20 seconds, show last known location or error
       timeoutRef.current = setTimeout(() => {
         if (deviceData?.latitude && deviceData?.longitude) {
           const meta = (deviceData?.metadata as Record<string, unknown>) || {};
@@ -127,28 +124,26 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           setUpdatedAt(deviceData.location_updated_at || null);
           setLocationSource((meta.location_source as string) || null);
           fetchAddress(deviceData.latitude, deviceData.longitude);
-          setError("스마트폰이 응답하지 않아 마지막 저장된 위치를 표시합니다.");
+          setError(t("location.lastKnown"));
         } else {
-          setError("스마트폰이 위치 요청에 응답하지 않습니다.\n스마트폰 앱이 실행 중인지 확인해주세요.");
+          setError(t("location.noResponse"));
         }
         setIsLoading(false);
       }, 20000);
 
     } catch (err) {
       console.error("[LocationMap] Error:", err);
-      setError("위치 요청 중 오류가 발생했습니다.");
+      setError(t("location.error"));
       setIsLoading(false);
     }
-  }, [smartphoneDeviceId]);
+  }, [smartphoneDeviceId, t]);
 
-  // Trigger on open
   useEffect(() => {
     if (!isOpen) return;
     requestSmartphoneLocation();
 
     return () => {
       if (channelRef.current) {
-        // Could be a poll interval cleanup or a channel
         try { (channelRef.current as any).unsubscribe?.(); } catch {}
         channelRef.current = null;
       }
@@ -159,11 +154,9 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     };
   }, [isOpen, requestSmartphoneLocation]);
 
-  // Initialize map — only once when coords first arrive
   useEffect(() => {
     if (!isOpen || !coords || !mapRef.current) return;
 
-    // If map already initialized for this session, just update marker
     if (mapInitializedRef.current && mapInstanceRef.current) {
       if (markerRef.current) {
         markerRef.current.setLatLng([coords.lat, coords.lng]);
@@ -172,7 +165,6 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
       return;
     }
 
-    // First time — create the map
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
@@ -201,12 +193,11 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     });
 
     markerRef.current = L.marker([coords.lat, coords.lng], { icon }).addTo(map);
-    markerRef.current.bindPopup(`📱 ${deviceName} 위치`).openPopup();
+    markerRef.current.bindPopup(`📱 ${deviceName} ${t("location.popup")}`).openPopup();
 
     setTimeout(() => map.invalidateSize(), 100);
-  }, [isOpen, coords, deviceName]);
+  }, [isOpen, coords, deviceName, t]);
 
-  // Cleanup map on close
   useEffect(() => {
     if (!isOpen && mapInstanceRef.current) {
       mapInstanceRef.current.remove();
@@ -222,10 +213,10 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     const d = new Date(iso);
     const now = new Date();
     const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
-    if (diffMin < 1) return "방금 전";
-    if (diffMin < 60) return `${diffMin}분 전`;
+    if (diffMin < 1) return t("location.justNow");
+    if (diffMin < 60) return `${diffMin}${t("location.minutesAgo")}`;
     const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}시간 전`;
+    if (diffHr < 24) return `${diffHr}${t("location.hoursAgo")}`;
     return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
@@ -239,9 +230,9 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
               <Smartphone className="h-4 w-4 text-accent" />
             </div>
             <div>
-              <span className="font-extrabold text-sm text-white drop-shadow">{deviceName} 위치</span>
+              <span className="font-extrabold text-sm text-white drop-shadow">{deviceName} {t("location.title")}</span>
               {updatedAt && (
-                <p className="text-[10px] text-white/60 font-semibold">업데이트: {formatTime(updatedAt)}</p>
+                <p className="text-[10px] text-white/60 font-semibold">{t("location.update")}: {formatTime(updatedAt)}</p>
               )}
             </div>
           </div>
@@ -271,8 +262,8 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/5 backdrop-blur-sm z-10">
               <Loader2 className="h-8 w-8 animate-spin text-accent mb-2" />
-              <span className="text-sm text-white/80 font-bold">스마트폰에 위치 요청 중...</span>
-              <span className="text-[10px] text-white/50 mt-1">스마트폰이 응답할 때까지 대기합니다</span>
+              <span className="text-sm text-white/80 font-bold">{t("location.requesting")}</span>
+              <span className="text-[10px] text-white/50 mt-1">{t("location.waiting")}</span>
             </div>
           )}
           {error && !isLoading && (
@@ -289,31 +280,26 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
         {/* Footer */}
         {coords && (
           <div className="px-4 py-2.5 border-t border-white/10 space-y-1.5">
-            {/* Address */}
             <div className="text-center">
               {addressLoading ? (
-                <p className="text-[11px] text-white/50 font-semibold">📍 주소 확인 중...</p>
+                <p className="text-[11px] text-white/50 font-semibold">{t("location.addressLoading")}</p>
               ) : address ? (
                 <p className="text-[11px] text-white/80 font-bold leading-tight">📍 {address}</p>
               ) : null}
             </div>
 
             <p className="text-xs text-white/70 font-bold text-center">
-              위도: {coords.lat.toFixed(6)} | 경도: {coords.lng.toFixed(6)}
+              {t("location.latitude")}: {coords.lat.toFixed(6)} | {t("location.longitude")}: {coords.lng.toFixed(6)}
             </p>
             <p className="text-[10px] font-semibold text-center">
               {locationSource === "wifi" ? (
-                <span className="text-orange-300">
-                  📶 Wi-Fi 기반 추정 위치 — 실제 위치와 수백 미터~수 킬로미터 오차가 있을 수 있습니다
-                </span>
+                <span className="text-orange-300">{t("location.wifiWarning")}</span>
               ) : locationSource === "ip" ? (
-                <span className="text-orange-300">
-                  🌐 IP 기반 추정 위치 — 실제 위치와 수 킬로미터 이상 차이가 날 수 있습니다
-                </span>
+                <span className="text-orange-300">{t("location.ipWarning")}</span>
               ) : locationSource === "gps" ? (
-                <span className="text-accent">📡 GPS 기반 실시간 위치 정보</span>
+                <span className="text-accent">{t("location.gpsInfo")}</span>
               ) : (
-                <span className="text-white/40">📡 위치 정보</span>
+                <span className="text-white/40">{t("location.info")}</span>
               )}
             </p>
           </div>

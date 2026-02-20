@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MotionDetector, captureFrameData } from "@/lib/motionDetection";
 import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, Camera, Activity, Settings, List } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
 
 const MotionTest = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const MotionTest = () => {
   const [cooldown, setCooldown] = useState(1);
   const [peakPercent, setPeakPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const glass = "rounded-2xl border border-white/20 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]";
 
@@ -48,7 +50,7 @@ const MotionTest = () => {
       prevFrameRef.current = null;
       setIsRunning(true);
       setError(null);
-      addLog("✅ 카메라 시작됨");
+      addLog(t("motion.cameraStarted"));
 
       intervalRef.current = setInterval(() => {
         if (!videoRef.current || !analysisCanvasRef.current || !detectorRef.current) return;
@@ -75,14 +77,14 @@ const MotionTest = () => {
         prevFrameRef.current = frameData;
 
         if (result.detected) {
-          addLog(`🚨 모션 감지! 변화율: ${result.changePercent.toFixed(1)}%`);
+          addLog(`${t("motion.detected")}: ${result.changePercent.toFixed(1)}%`);
         }
       }, 1000);
     } catch (err: any) {
-      setError(err.message || "카메라를 시작할 수 없습니다.");
-      addLog(`❌ 카메라 오류: ${err.message}`);
+      setError(err.message || t("motion.cameraError"));
+      addLog(`❌ ${err.message}`);
     }
-  }, [threshold, consecutiveRequired, cooldown, addLog]);
+  }, [threshold, consecutiveRequired, cooldown, addLog, t]);
 
   const stopCamera = useCallback(() => {
     if (intervalRef.current) {
@@ -99,17 +101,17 @@ const MotionTest = () => {
     setIsRunning(false);
     setChangePercent(0);
     setConsecutiveCount(0);
-    addLog("⏹ 카메라 중지됨");
-  }, [addLog]);
+    addLog(t("motion.cameraStopped"));
+  }, [addLog, t]);
 
   const resetPeak = () => setPeakPercent(0);
 
   useEffect(() => {
     if (isRunning && detectorRef.current) {
       detectorRef.current = new MotionDetector(threshold, consecutiveRequired, cooldown * 1000);
-      addLog(`⚙️ 설정 변경: 임계값=${threshold}%, 연속=${consecutiveRequired}회, 쿨다운=${cooldown}초`);
+      addLog(`${t("motion.settingsChanged")}: ${threshold}%, ${consecutiveRequired}${t("motion.times")}, ${cooldown}${t("motion.seconds")}`);
     }
-  }, [threshold, consecutiveRequired, cooldown, isRunning, addLog]);
+  }, [threshold, consecutiveRequired, cooldown, isRunning, addLog, t]);
 
   useEffect(() => {
     return () => {
@@ -168,7 +170,7 @@ const MotionTest = () => {
           <ArrowLeft className="h-4 w-4 text-white drop-shadow-sm" />
         </button>
         <h1 className="text-base font-extrabold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
-          🔬 모션 감지 테스트
+          {t("motion.title")}
         </h1>
       </div>
 
@@ -179,7 +181,7 @@ const MotionTest = () => {
           <section className={glass + " p-3"}>
             <h3 className="text-[11px] font-extrabold text-white/80 mb-2 flex items-center gap-1.5 drop-shadow-sm">
               <Camera className="w-3.5 h-3.5 text-secondary" />
-              카메라 피드
+              {t("motion.cameraFeed")}
             </h3>
             <video
               ref={videoRef}
@@ -195,7 +197,7 @@ const MotionTest = () => {
           {/* Diff Visualization */}
           <section className={glass + " p-3"}>
             <h3 className="text-[11px] font-extrabold text-white/80 mb-2 drop-shadow-sm">
-              🔴 변화 감지 시각화
+              {t("motion.diffVisualization")}
             </h3>
             <canvas
               ref={diffCanvasRef}
@@ -211,14 +213,14 @@ const MotionTest = () => {
                 onClick={startCamera}
                 className={`${glass} flex-1 py-3 text-sm font-extrabold text-white hover:bg-white/25 transition-all drop-shadow-sm`}
               >
-                ▶ 테스트 시작
+                {t("motion.startTest")}
               </button>
             ) : (
               <button
                 onClick={stopCamera}
                 className="flex-1 py-3 text-sm font-extrabold text-white rounded-2xl border border-destructive/40 bg-destructive/20 backdrop-blur-xl hover:bg-destructive/30 transition-all drop-shadow-sm"
               >
-                ⏹ 중지
+                {t("motion.stop")}
               </button>
             )}
           </div>
@@ -231,13 +233,13 @@ const MotionTest = () => {
           <section className={glass + " p-3"}>
             <h3 className="text-[11px] font-extrabold text-white/80 mb-2.5 flex items-center gap-1.5 drop-shadow-sm">
               <Activity className="w-3.5 h-3.5 text-secondary" />
-              실시간 감지 상태
+              {t("motion.realtimeStatus")}
             </h3>
 
             {/* Change Bar */}
             <div className="mb-3">
               <div className="flex justify-between text-xs mb-1">
-                <span className="font-bold text-white/80 drop-shadow-sm">변화율</span>
+                <span className="font-bold text-white/80 drop-shadow-sm">{t("motion.changeRate")}</span>
                 <span className={`font-extrabold drop-shadow-sm ${changePercent >= threshold ? "text-destructive-foreground" : "text-white"}`}>
                   {changePercent.toFixed(1)}%
                 </span>
@@ -263,15 +265,15 @@ const MotionTest = () => {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-white/10 backdrop-blur-sm p-2.5 text-center">
-                <div className="text-[10px] font-bold text-white/60">연속 감지</div>
+                <div className="text-[10px] font-bold text-white/60">{t("motion.consecutiveDetection")}</div>
                 <div className={`text-xl font-extrabold drop-shadow-sm ${consecutiveCount >= consecutiveRequired ? "text-destructive-foreground" : "text-white"}`}>
                   {consecutiveCount} / {consecutiveRequired}
                 </div>
               </div>
               <div className="rounded-xl bg-white/10 backdrop-blur-sm p-2.5 text-center">
-                <div className="text-[10px] font-bold text-white/60">최대 변화율</div>
+                <div className="text-[10px] font-bold text-white/60">{t("motion.maxChangeRate")}</div>
                 <div className="text-xl font-extrabold text-secondary drop-shadow-sm">{peakPercent.toFixed(1)}%</div>
-                <button onClick={resetPeak} className="text-[9px] text-white/50 underline font-semibold">리셋</button>
+                <button onClick={resetPeak} className="text-[9px] text-white/50 underline font-semibold">{t("motion.reset")}</button>
               </div>
             </div>
           </section>
@@ -280,16 +282,16 @@ const MotionTest = () => {
           <section className={glass + " p-3"}>
             <h3 className="text-[11px] font-extrabold text-white/80 mb-2.5 flex items-center gap-1.5 drop-shadow-sm">
               <Settings className="w-3.5 h-3.5 text-secondary" />
-              감도 설정
+              {t("motion.sensitivitySettings")}
             </h3>
 
             <div className="space-y-3">
               {/* Sensitivity Presets */}
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { label: "민감", value: 10, emoji: "🔴" },
-                  { label: "보통", value: 50, emoji: "🟡" },
-                  { label: "둔감", value: 80, emoji: "🟢" },
+                  { label: t("motion.sensitive"), value: 10, emoji: "🔴" },
+                  { label: t("motion.normal"), value: 50, emoji: "🟡" },
+                  { label: t("motion.insensitive"), value: 80, emoji: "🟢" },
                 ].map((opt) => (
                   <button
                     key={opt.value}
@@ -310,8 +312,8 @@ const MotionTest = () => {
               {/* Consecutive Frames */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-white/80 drop-shadow-sm">연속 프레임</span>
-                  <span className="font-extrabold text-secondary drop-shadow-sm">{consecutiveRequired}회</span>
+                  <span className="font-bold text-white/80 drop-shadow-sm">{t("motion.consecutiveFrames")}</span>
+                  <span className="font-extrabold text-secondary drop-shadow-sm">{consecutiveRequired}{t("motion.times")}</span>
                 </div>
                 <Slider
                   value={[consecutiveRequired]}
@@ -326,8 +328,8 @@ const MotionTest = () => {
               {/* Cooldown */}
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-white/80 drop-shadow-sm">쿨다운</span>
-                  <span className="font-extrabold text-secondary drop-shadow-sm">{cooldown}초</span>
+                  <span className="font-bold text-white/80 drop-shadow-sm">{t("motion.cooldown")}</span>
+                  <span className="font-extrabold text-secondary drop-shadow-sm">{cooldown}{t("motion.seconds")}</span>
                 </div>
                 <Slider
                   value={[cooldown]}
@@ -345,11 +347,11 @@ const MotionTest = () => {
           <section className={glass + " p-3"}>
             <h3 className="text-[11px] font-extrabold text-white/80 mb-2 flex items-center gap-1.5 drop-shadow-sm">
               <List className="w-3.5 h-3.5 text-secondary" />
-              이벤트 로그
+              {t("motion.eventLog")}
             </h3>
             <div className="h-40 overflow-y-auto styled-scrollbar text-[10px] font-mono space-y-0.5">
               {eventLog.length === 0 && (
-                <p className="text-white/40 font-sans text-xs">테스트를 시작하면 이벤트가 표시됩니다</p>
+                <p className="text-white/40 font-sans text-xs">{t("motion.emptyLog")}</p>
               )}
               {eventLog.map((log, i) => (
                 <div key={i} className={`drop-shadow-sm ${log.includes("🚨") ? "text-destructive-foreground font-bold" : "text-white/80"}`}>

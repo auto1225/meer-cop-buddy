@@ -147,8 +147,8 @@ const Index = () => {
     startAlarmRef.current();
 
     const alertMessage = event.type === "camera_motion"
-      ? `카메라 모션 감지 (변화율: ${event.changePercent?.toFixed(1)}%)`
-      : `${event.type} 이벤트 감지됨`;
+      ? `Camera motion (${event.changePercent?.toFixed(1)}%)`
+      : `${event.type} event detected`;
 
     // localStorage에 경보 상태 영속 저장 (도난 복구용)
     markAlertActive(`alert_${event.type}`, alertMessage);
