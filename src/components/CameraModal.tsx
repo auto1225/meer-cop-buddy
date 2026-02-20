@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Camera, Video, VideoOff, Loader2, Radio, Users, Volume2, VolumeX, Headphones, Circle, Pause, Play, RefreshCw } from "lucide-react";
+import { X, Camera, Video, VideoOff, Loader2, Radio, Users, Volume2, VolumeX, Circle, Pause, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCamera } from "@/hooks/useCamera";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
@@ -40,8 +40,8 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
     stopBroadcasting,
   } = useWebRTCBroadcaster({ deviceId: deviceId || "" });
 
-  const [isMuted, setIsMuted] = useState(false);
-  const [isAudioMonitoring, setIsAudioMonitoring] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isAudioMonitoring] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -92,8 +92,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
       broadcastStartedRef.current = false;
       stopAudioSystem();
       reset();
-      setIsMuted(false);
-      setIsAudioMonitoring(false);
+      setIsMuted(true);
       setIsRecording(false);
       setIsPaused(false);
       setAudioLevel(0);
@@ -115,6 +114,8 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
       // Capture audio separately for analysis & monitoring
       captureAudioStream().then((audioStream) => {
         if (audioStream) {
+          // Default mute: disable audio tracks initially
+          audioStream.getAudioTracks().forEach(t => { t.enabled = false; });
           // Merge video + audio for broadcasting
           const combinedStream = new MediaStream([
             ...stream.getVideoTracks(),
@@ -245,25 +246,11 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
       audioStreamRef.current.getTracks().forEach(t => t.stop());
       audioStreamRef.current = null;
     }
-    setIsAudioMonitoring(false);
+    // Audio monitoring state is now fixed to false
   }, []);
 
-  // Toggle speaker monitoring (loopback)
-  const toggleAudioMonitoring = useCallback(() => {
-    if (!audioCtxRef.current || !gainNodeRef.current) return;
-    
-    if (isAudioMonitoring) {
-      // Disconnect from speakers
-      try { gainNodeRef.current.disconnect(audioCtxRef.current.destination); } catch {}
-      console.log("[CameraModal] 🔇 Audio monitoring OFF");
-      setIsAudioMonitoring(false);
-    } else {
-      // Connect to speakers — user hears their own mic
-      gainNodeRef.current.connect(audioCtxRef.current.destination);
-      console.log("[CameraModal] 🔊 Audio monitoring ON");
-      setIsAudioMonitoring(true);
-    }
-  }, [isAudioMonitoring]);
+  // Audio monitoring removed — toggleAudioMonitoring kept as no-op for safety
+  const toggleAudioMonitoring = useCallback(() => {}, []);
 
   const toggleMute = useCallback(() => {
     if (!audioStreamRef.current) return;
@@ -534,18 +521,6 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
               ) : (
                 <Volume2 className="w-4 h-4 text-white" />
               )}
-            </button>
-
-            <button
-              onClick={toggleAudioMonitoring}
-              className={`w-10 h-10 rounded-full backdrop-blur-sm border flex items-center justify-center active:scale-95 transition-all ${
-                isAudioMonitoring
-                  ? "bg-emerald-500/30 border-emerald-400/40 ring-1 ring-emerald-400/30"
-                  : "bg-white/15 border-white/20 hover:bg-white/25"
-              }`}
-              title={isAudioMonitoring ? "스피커 모니터링 OFF" : "스피커 모니터링 ON"}
-            >
-              <Headphones className={`w-4 h-4 ${isAudioMonitoring ? "text-emerald-300" : "text-white"}`} />
             </button>
 
             <button
