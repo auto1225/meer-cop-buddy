@@ -178,9 +178,23 @@ export function useSecuritySurveillance({
     return Promise.all(blobs.map(blobToDataUrl));
   }, []);
 
+  // ── 센서별 쿨다운 (동일 센서의 반복 트리거 방지) ──
+  const SENSOR_COOLDOWN_MS = 30_000; // 30초
+  const lastSensorTriggerRef = useRef<Record<string, number>>({});
+
   const triggerEvent = useCallback(
     async (type: SecurityEvent["type"], changePercent?: number) => {
       if (!isMonitoringRef.current) return;
+
+      // 동일 센서 쿨다운 체크
+      const now = Date.now();
+      const lastTrigger = lastSensorTriggerRef.current[type] || 0;
+      if (now - lastTrigger < SENSOR_COOLDOWN_MS) {
+        console.log(`[Surveillance] ⏳ ${type} cooldown — skipping (${Math.ceil((SENSOR_COOLDOWN_MS - (now - lastTrigger)) / 1000)}s left)`);
+        return;
+      }
+      lastSensorTriggerRef.current[type] = now;
+
       const photos = await getBufferPhotos();
       const event: SecurityEvent = { type, timestamp: new Date(), photos, changePercent };
       onEventDetectedRef.current?.(event);
