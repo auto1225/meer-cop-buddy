@@ -1,6 +1,21 @@
 import { Volume2, Play, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type AlarmSoundConfig } from "@/lib/alarmSounds";
+import { useTranslation } from "@/lib/i18n";
+
+// Mapping from alarm sound id to i18n key
+const ALARM_I18N_MAP: Record<string, string> = {
+  "police-siren": "alarm.policeSiren",
+  "security-alarm": "alarm.securityAlarm",
+  "air-raid": "alarm.airRaid",
+  "intruder-alert": "alarm.intruderAlert",
+  "panic-alarm": "alarm.panicAlarm",
+  "car-alarm": "alarm.carAlarm",
+  "emergency-horn": "alarm.emergencyHorn",
+  "theft-deterrent": "alarm.theftDeterrent",
+  "loud-klaxon": "alarm.loudKlaxon",
+  "triple-threat": "alarm.tripleThreat",
+};
 
 interface AlarmSoundSelectorProps {
   sounds: AlarmSoundConfig[];
@@ -15,11 +30,13 @@ export function AlarmSoundSelector({
   onSelectSound,
   onPreviewSound,
 }: AlarmSoundSelectorProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="p-4">
       <h3 className="text-xs font-bold text-white/70 mb-2 flex items-center gap-1">
         <Volume2 className="w-4 h-4" />
-        경보음 선택
+        {t("alarmSelector.title")}
       </h3>
       <div className="space-y-1 max-h-[200px] overflow-y-auto">
         {sounds.map((sound) => (
@@ -40,7 +57,9 @@ export function AlarmSoundSelector({
               ) : (
                 <div className="w-4 h-4" />
               )}
-              <span className="text-sm font-medium">{sound.nameKo}</span>
+              <span className="text-sm font-medium">
+                {ALARM_I18N_MAP[sound.id] ? t(ALARM_I18N_MAP[sound.id]) : sound.nameKo}
+              </span>
             </button>
             <Button
               variant="ghost"

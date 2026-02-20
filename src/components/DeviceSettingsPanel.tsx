@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { getSavedAuth } from "@/lib/serialAuth";
+import { useTranslation } from "@/lib/i18n";
 
 interface Device {
   id: string;
@@ -27,6 +28,7 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
   const [deviceName, setDeviceName] = useState(device?.device_name || "");
   const [deviceType, setDeviceType] = useState(device?.device_type || "laptop");
   const [isSaving, setIsSaving] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (device) {
@@ -41,8 +43,8 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
   const handleSave = async () => {
     if (!deviceName.trim()) {
       toast({
-        title: "입력 오류",
-        description: "디바이스 이름을 입력해주세요.",
+        title: t("deviceSettings.inputError"),
+        description: t("deviceSettings.nameRequired"),
         variant: "destructive",
       });
       return;
@@ -52,7 +54,7 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     try {
       if (isNewDevice) {
         if (!savedAuth?.user_id) {
-          throw new Error("시리얼 인증이 필요합니다.");
+          throw new Error(t("deviceSettings.serialRequired"));
         }
         const { error } = await supabaseShared
           .from("devices")
@@ -64,21 +66,21 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
             is_monitoring: false,
           } as any);
         if (error) throw error;
-        toast({ title: "디바이스 등록 완료", description: "새 디바이스가 등록되었습니다." });
+        toast({ title: t("deviceSettings.registered"), description: t("deviceSettings.registeredDesc") });
       } else if (device) {
         const { error } = await supabaseShared
           .from("devices")
           .update({ name: deviceName, device_type: deviceType } as any)
           .eq("id", device.id);
         if (error) throw error;
-        toast({ title: "저장 완료", description: "디바이스 설정이 저장되었습니다." });
+        toast({ title: t("deviceSettings.saved"), description: t("deviceSettings.savedDesc") });
       }
       onUpdate();
       onClose();
     } catch (error: any) {
       toast({
-        title: "저장 실패",
-        description: error.message || "설정 저장에 실패했습니다.",
+        title: t("deviceSettings.saveFailed"),
+        description: error.message || t("deviceSettings.saveFailedDesc"),
         variant: "destructive",
       });
     } finally {
@@ -90,7 +92,7 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
     <div className="absolute inset-0 bg-primary z-60 overflow-y-auto">
       <div className="flex items-center justify-between p-4 border-b border-white/20">
         <h2 className="font-bold text-lg text-white">
-          {isNewDevice ? "디바이스 등록" : "디바이스 설정"}
+          {isNewDevice ? t("deviceSettings.register") : t("deviceSettings.title")}
         </h2>
         <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20">
           <X className="w-5 h-5" />
@@ -99,17 +101,17 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
 
       <div className="p-4 space-y-6">
         <div className="space-y-2">
-          <Label className="text-white text-sm font-bold">디바이스 이름</Label>
+          <Label className="text-white text-sm font-bold">{t("deviceSettings.deviceName")}</Label>
           <Input
             value={deviceName}
             onChange={(e) => setDeviceName(e.target.value)}
-            placeholder="예: 내 노트북"
+            placeholder={t("deviceSettings.namePlaceholder")}
             className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-white text-sm font-bold">디바이스 타입</Label>
+          <Label className="text-white text-sm font-bold">{t("deviceSettings.deviceType")}</Label>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setDeviceType("laptop")}
@@ -120,7 +122,7 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
               }`}
             >
               <Laptop className="w-5 h-5" />
-              <span className="font-bold text-sm">랩탑</span>
+              <span className="font-bold text-sm">{t("deviceSettings.laptop")}</span>
             </button>
             <button
               onClick={() => setDeviceType("desktop")}
@@ -131,14 +133,14 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
               }`}
             >
               <Monitor className="w-5 h-5" />
-              <span className="font-bold text-sm">데스크탑</span>
+              <span className="font-bold text-sm">{t("deviceSettings.desktop")}</span>
             </button>
           </div>
         </div>
 
         <div className="p-3 bg-white/5 rounded-xl border border-white/10">
           <p className="text-white/60 text-xs">
-            💡 감지 센서 설정(카메라, 키보드, 마우스, USB 등)은 스마트폰 앱에서 관리합니다.
+            {t("deviceSettings.sensorHint")}
           </p>
         </div>
 
@@ -148,7 +150,7 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
           className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold"
         >
           {isNewDevice ? <Plus className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-          {isSaving ? "저장 중..." : isNewDevice ? "디바이스 등록" : "저장하기"}
+          {isSaving ? t("deviceSettings.saving") : isNewDevice ? t("deviceSettings.register") : t("deviceSettings.save")}
         </Button>
       </div>
     </div>

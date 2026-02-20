@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X, Wifi, Loader2, Globe, Signal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
+import { useTranslation } from "@/lib/i18n";
 
 interface NetworkInfoModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface NetworkInfo {
 export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModalProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -89,7 +91,7 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
             <div className="w-7 h-7 rounded-lg bg-accent/20 flex items-center justify-center">
               <Wifi className="h-4 w-4 text-accent" />
             </div>
-            <span className="font-extrabold text-sm text-white drop-shadow">네트워크 정보</span>
+            <span className="font-extrabold text-sm text-white drop-shadow">{t("network.title")}</span>
           </div>
           <Button
             variant="ghost"
@@ -106,7 +108,7 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-accent mb-2" />
-              <span className="text-sm text-white/70 font-bold">네트워크 정보를 가져오는 중...</span>
+              <span className="text-sm text-white/70 font-bold">{t("network.loading")}</span>
             </div>
           ) : networkInfo ? (
             <div className="space-y-2">
@@ -114,8 +116,8 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/10 border border-white/10">
                 <div className={`w-3 h-3 rounded-full ${networkInfo.online ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]" : "bg-red-400"}`} />
                 <div>
-                  <p className="text-[10px] text-white/50 font-semibold">연결 상태</p>
-                  <p className="text-sm font-bold text-white">{networkInfo.online ? "온라인" : "오프라인"}</p>
+                  <p className="text-[10px] text-white/50 font-semibold">{t("network.status")}</p>
+                  <p className="text-sm font-bold text-white">{networkInfo.online ? t("network.online") : t("network.offline")}</p>
                 </div>
               </div>
 
@@ -123,8 +125,8 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/10 border border-white/10">
                 <Globe className="h-5 w-5 text-accent" />
                 <div>
-                  <p className="text-[10px] text-white/50 font-semibold">IP 주소</p>
-                  <p className="text-sm font-bold text-white font-mono">{networkInfo.ip || "확인 불가"}</p>
+                  <p className="text-[10px] text-white/50 font-semibold">{t("network.ip")}</p>
+                  <p className="text-sm font-bold text-white font-mono">{networkInfo.ip || t("network.ipUnavailable")}</p>
                 </div>
               </div>
 
@@ -132,21 +134,21 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/10 border border-white/10">
                 <Signal className="h-5 w-5 text-accent" />
                 <div>
-                  <p className="text-[10px] text-white/50 font-semibold">연결 유형</p>
-                  <p className="text-sm font-bold text-white">{networkInfo.type === "unknown" ? "알 수 없음" : networkInfo.type}</p>
+                  <p className="text-[10px] text-white/50 font-semibold">{t("network.connectionType")}</p>
+                  <p className="text-sm font-bold text-white">{networkInfo.type === "unknown" ? t("network.unknown") : networkInfo.type}</p>
                 </div>
               </div>
 
               {/* Speed Info */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-3 rounded-xl bg-white/10 border border-white/10 text-center">
-                  <p className="text-[10px] text-white/50 font-semibold">속도</p>
+                  <p className="text-[10px] text-white/50 font-semibold">{t("network.speed")}</p>
                   <p className="text-sm font-bold text-white">
                     {networkInfo.downlink !== null ? `${networkInfo.downlink} Mbps` : "—"}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/10 border border-white/10 text-center">
-                  <p className="text-[10px] text-white/50 font-semibold">지연시간 (RTT)</p>
+                  <p className="text-[10px] text-white/50 font-semibold">{t("network.latency")}</p>
                   <p className="text-sm font-bold text-white">
                     {networkInfo.rtt !== null ? `${networkInfo.rtt} ms` : "—"}
                   </p>
@@ -155,7 +157,7 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
 
               {/* Effective Type */}
               <div className="p-3 rounded-xl bg-white/10 border border-white/10 text-center">
-                <p className="text-[10px] text-white/50 font-semibold">유효 연결 등급</p>
+                <p className="text-[10px] text-white/50 font-semibold">{t("network.effectiveGrade")}</p>
                 <p className="text-sm font-bold text-white uppercase">{networkInfo.effectiveType}</p>
               </div>
             </div>
@@ -165,7 +167,7 @@ export function NetworkInfoModal({ isOpen, onClose, deviceId }: NetworkInfoModal
         {/* Footer */}
         <div className="px-4 py-2 border-t border-white/10 text-center">
           <p className="text-[10px] text-white/40 font-semibold">
-            📡 브라우저 Network Information API 기반
+            {t("network.footer")}
           </p>
         </div>
       </div>

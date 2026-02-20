@@ -3,6 +3,13 @@ import { X, Camera, Video, VideoOff, Loader2, Radio, Users, Volume2, VolumeX, Ci
 import { Button } from "@/components/ui/button";
 import { useCamera } from "@/hooks/useCamera";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
+import { useTranslation } from "@/lib/i18n";
+
+interface CameraSettings {
+  deviceId: string;
+  groupId: string;
+  label: string;
+}
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -48,152 +55,146 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
   const pauseCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const broadcastStartedRef = useRef(false);
   const [isCameraLost, setIsCameraLost] = useState(false);
+  const cameraRecoveryRef = useRef(false);
+
+  const { t } = useTranslation();
 
   // Auto-start camera when modal opens
   useEffect(() => {
     if (isOpen && !isStarted && !isLoading) {
       startCamera();
     }
-  }, [isOpen, isStarted, isLoading, startCamera]);
-
-  // Start WebRTC broadcasting when camera is active
-  useEffect(() => {
-    if (stream && deviceId && !isBroadcasting && !broadcastStartedRef.current) {
-      broadcastStartedRef.current = true;
-      setIsCameraLost(false);
-      startBroadcasting(stream);
-    }
-  }, [stream, deviceId, isBroadcasting, startBroadcasting]);
-
-  useEffect(() => {
-    if (!isOpen || !stream) {
-      if (broadcastStartedRef.current) {
-        broadcastStartedRef.current = false;
-        stopBroadcasting();
-      }
-    }
-  }, [isOpen, stream, stopBroadcasting]);
-
-  // Detect camera disconnect during streaming via track state
-  useEffect(() => {
-    if (!stream || !isOpen) return;
-    
-    const videoTrack = stream.getVideoTracks()[0];
-    if (!videoTrack) return;
-
-    const handleTrackEnded = () => {
-      console.log("[CameraModal] ⚠️ Video track ended — camera lost");
-      setIsCameraLost(true);
-    };
-
-    videoTrack.addEventListener("ended", handleTrackEnded);
-    return () => videoTrack.removeEventListener("ended", handleTrackEnded);
-  }, [stream, isOpen]);
-
-  // Listen for camera reconnection via camera-status-changed event
-  useEffect(() => {
-    if (!isCameraLost || !isOpen) return;
-
-    const handleCameraReconnect = async (e: Event) => {
-      const { isConnected } = (e as CustomEvent).detail;
-      if (isConnected) {
-        console.log("[CameraModal] 🔄 Camera reconnected — restarting...");
-        setIsCameraLost(false);
-        broadcastStartedRef.current = false;
-        // Stop old broadcast, then restart camera
-        await stopBroadcasting();
-        reset();
-        // Small delay for hardware readiness
-        setTimeout(() => startCamera(), 500);
-      }
-    };
-
-    window.addEventListener("camera-status-changed", handleCameraReconnect);
-    return () => window.removeEventListener("camera-status-changed", handleCameraReconnect);
-  }, [isCameraLost, isOpen, stopBroadcasting, reset, startCamera]);
-
-  useEffect(() => {
     if (!isOpen) {
+      if (isBroadcasting) stopBroadcasting();
       broadcastStartedRef.current = false;
+      stopAudioAnalysis();
       reset();
+      setIsMuted(false);
       setIsRecording(false);
       setIsPaused(false);
-      setIsMuted(false);
+      setAudioLevel(0);
+      setSnapshotPreview(null);
+      setRecordingTime(0);
+      setIsCameraLost(false);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
     }
-  }, [isOpen, reset]);
+  }, [isOpen]);
 
-  // Audio level analysis
+  // Auto-broadcast when stream is ready
+  useEffect(() => {
+    if (stream && deviceId && !broadcastStartedRef.current && !isCameraLost) {
+      broadcastStartedRef.current = true;
+      startBroadcasting(stream);
+      startAudioAnalysis(stream);
+    }
+  }, [stream, deviceId, isCameraLost]);
+
+  // Camera lost detection
   useEffect(() => {
     if (!stream) return;
-    if (!stream.getAudioTracks().length) {
-      console.warn("[CameraModal] No audio track in stream, skipping audio analysis");
-      return;
-    }
+    const tracks = stream.getVideoTracks();
+    if (tracks.length === 0) return;
 
-    const audioCtx = new AudioContext();
-    const source = audioCtx.createMediaStreamSource(stream);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    audioCtxRef.current = audioCtx;
-    analyserRef.current = analyser;
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    const tick = () => {
-      analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      setAudioLevel(Math.min(avg / 80, 1));
-      animFrameRef.current = requestAnimationFrame(tick);
+    const onEnded = () => {
+      console.warn("[CameraModal] Camera track ended - camera disconnected");
+      setIsCameraLost(true);
+      stopBroadcasting();
+      broadcastStartedRef.current = false;
     };
-    tick();
 
+    tracks.forEach(track => track.addEventListener("ended", onEnded));
     return () => {
-      cancelAnimationFrame(animFrameRef.current);
-      audioCtx.close();
+      tracks.forEach(track => track.removeEventListener("ended", onEnded));
     };
   }, [stream]);
 
-  const handleClose = () => {
-    stopBroadcasting();
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+  // Auto-recovery when camera comes back
+  useEffect(() => {
+    if (!isCameraLost || !isOpen) return;
+    
+    const checkCamera = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasCamera = devices.some(d => d.kind === "videoinput");
+        if (hasCamera && !cameraRecoveryRef.current) {
+          cameraRecoveryRef.current = true;
+          console.log("[CameraModal] Camera re-detected, attempting recovery...");
+          setIsCameraLost(false);
+          broadcastStartedRef.current = false;
+          reset();
+          setTimeout(() => {
+            startCamera();
+            cameraRecoveryRef.current = false;
+          }, 500);
+        }
+      } catch { /* silent */ }
+    };
+
+    const interval = setInterval(checkCamera, 3000);
+    return () => clearInterval(interval);
+  }, [isCameraLost, isOpen]);
+
+  const startAudioAnalysis = useCallback((mediaStream: MediaStream) => {
+    try {
+      const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(mediaStream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const update = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        setAudioLevel(Math.min(avg / 128, 1));
+        animFrameRef.current = requestAnimationFrame(update);
+      };
+      update();
+    } catch { /* audio analysis not supported */ }
+  }, []);
+
+  const stopAudioAnalysis = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
     }
-    reset();
-    onClose();
-  };
+    analyserRef.current = null;
+  }, []);
 
   const toggleMute = useCallback(() => {
     if (!stream) return;
     const audioTracks = stream.getAudioTracks();
-    audioTracks.forEach(t => { t.enabled = isMuted; });
-    setIsMuted(!isMuted);
-  }, [stream, isMuted]);
+    audioTracks.forEach(track => {
+      track.enabled = !track.enabled;
+    });
+    setIsMuted(prev => !prev);
+  }, [stream]);
 
   const toggleRecording = useCallback(() => {
-    if (!stream) return;
-
     if (isRecording) {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       setIsRecording(false);
-      setIsPaused(false);
       setRecordingTime(0);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-    } else {
+    } else if (stream) {
       recordedChunksRef.current = [];
-      const recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp9,opus" });
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : "video/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) recordedChunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -204,13 +205,29 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
-      setIsPaused(false);
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
+        setRecordingTime(prev => prev + 1);
       }, 1000);
     }
-  }, [stream, isRecording]);
+  }, [isRecording, stream]);
+
+  const togglePause = useCallback(() => {
+    if (!videoRef.current || !stream) return;
+    if (isPaused) {
+      videoRef.current.play();
+      setIsPaused(false);
+    } else {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth || 640;
+      canvas.height = videoRef.current.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.drawImage(videoRef.current, 0, 0);
+      pauseCanvasRef.current = canvas;
+      videoRef.current.pause();
+      setIsPaused(true);
+    }
+  }, [isPaused, stream, videoRef]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -218,45 +235,26 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
     return `${m}:${s}`;
   };
 
-  const togglePause = useCallback(() => {
-    if (!stream || !videoRef.current) return;
-    const videoTrack = stream.getVideoTracks()[0];
-    if (!videoTrack) return;
-
-    if (isPaused) {
-      // Resume: remove frozen frame overlay
-      videoTrack.enabled = true;
-      if (mediaRecorderRef.current?.state === "paused") {
-        mediaRecorderRef.current.resume();
+  const handleClose = useCallback(() => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
       }
-    } else {
-      // Pause: capture current frame as overlay, then disable track
-      const video = videoRef.current;
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        pauseCanvasRef.current = canvas;
-      }
-      videoTrack.enabled = false;
-      if (mediaRecorderRef.current?.state === "recording") {
-        mediaRecorderRef.current.pause();
-      }
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      setIsRecording(false);
+      setRecordingTime(0);
     }
-    setIsPaused(!isPaused);
-  }, [stream, isPaused, videoRef]);
+    onClose();
+  }, [isRecording, onClose]);
 
   const handleSnapshot = useCallback(() => {
     if (!stream || !videoRef.current) return;
-    const video = videoRef.current;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = videoRef.current.videoWidth || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.drawImage(video, 0, 0);
+      ctx.drawImage(videoRef.current, 0, 0);
       setSnapshotPreview(canvas.toDataURL("image/png"));
     }
   }, [stream, videoRef]);
@@ -290,7 +288,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
             <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
               <Video className="h-4 w-4 text-white" />
             </div>
-            <span className="font-extrabold text-base text-white drop-shadow">카메라</span>
+            <span className="font-extrabold text-base text-white drop-shadow">{t("camera.title")}</span>
           </div>
           <Button
             variant="ghost"
@@ -307,7 +305,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
           {isLoading && !stream ? (
             <div className="aspect-video rounded-xl bg-black/40 flex flex-col items-center justify-center gap-3">
               <Loader2 className="w-10 h-10 text-white animate-spin" />
-              <p className="text-white/80 text-sm font-bold">카메라 연결 중...</p>
+              <p className="text-white/80 text-sm font-bold">{t("camera.connecting")}</p>
             </div>
           ) : error && !stream ? (
             <div className="aspect-video rounded-xl bg-black/40 flex flex-col items-center justify-center gap-3 p-4">
@@ -318,7 +316,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
                 className="bg-white/15 border border-white/20 text-white hover:bg-white/25 font-bold text-xs backdrop-blur-sm"
               >
                 {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
-                다시 시도
+                {t("camera.retry")}
               </Button>
             </div>
           ) : (
@@ -335,8 +333,8 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
               {isCameraLost && (
                 <div className="absolute inset-0 rounded-xl bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10">
                   <VideoOff className="w-10 h-10 text-white/60" />
-                  <p className="text-white/80 text-sm font-bold">카메라가 인식되지 않습니다</p>
-                  <p className="text-white/50 text-xs">카메라를 다시 연결하면 자동으로 재생됩니다</p>
+                  <p className="text-white/80 text-sm font-bold">{t("camera.notDetected")}</p>
+                  <p className="text-white/50 text-xs">{t("camera.reconnectHint")}</p>
                   <Button
                     onClick={() => {
                       setIsCameraLost(false);
@@ -348,7 +346,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
                     className="mt-1 bg-white/15 border border-white/20 text-white hover:bg-white/25 font-bold text-xs backdrop-blur-sm"
                   >
                     <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                    다시 시도
+                    {t("camera.retry")}
                   </Button>
                 </div>
               )}
@@ -482,7 +480,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
           }}
         >
           <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="font-extrabold text-base text-white drop-shadow">스냅샷</span>
+            <span className="font-extrabold text-base text-white drop-shadow">{t("camera.snapshot")}</span>
             <Button
               variant="ghost"
               size="icon"
@@ -500,13 +498,13 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
               onClick={downloadSnapshotPreview}
               className="flex-1 bg-white/20 border border-white/25 text-white hover:bg-white/30 font-bold text-xs backdrop-blur-sm"
             >
-              저장하기
+              {t("camera.save")}
             </Button>
             <Button
               onClick={() => setSnapshotPreview(null)}
               className="flex-1 bg-white/10 border border-white/15 text-white/80 hover:bg-white/20 font-bold text-xs backdrop-blur-sm"
             >
-              닫기
+              {t("camera.close")}
             </Button>
           </div>
         </div>
