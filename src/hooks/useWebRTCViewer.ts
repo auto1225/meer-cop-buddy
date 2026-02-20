@@ -67,7 +67,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       }
     } catch (err) {
       console.error("[WebRTC Viewer] Error setting remote description:", err);
-      setError("연결에 실패했습니다");
+      setError("VIEWER_CONNECTION_FAILED");
     }
   }, []);
 
@@ -184,7 +184,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
         setIsConnected(false);
         isConnectedRef.current = false;
-        setError("연결이 끊어졌습니다");
+        setError("VIEWER_DISCONNECTED");
       }
     };
 
@@ -239,7 +239,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       // Timeout for connection
       setTimeout(() => {
         if (!isConnectedRef.current && isConnectingRef.current) {
-          setError("노트북 카메라가 켜져 있지 않습니다");
+          setError("VIEWER_CAMERA_NOT_ON");
           setIsConnecting(false);
           isConnectingRef.current = false;
           // Inline cleanup instead of calling disconnect to avoid circular dep
@@ -254,7 +254,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       }, 15000);
     } catch (err) {
       console.error("[WebRTC Viewer] Error creating offer:", err);
-      setError("연결에 실패했습니다");
+      setError("VIEWER_CONNECTION_FAILED");
       setIsConnecting(false);
       isConnectingRef.current = false;
     }

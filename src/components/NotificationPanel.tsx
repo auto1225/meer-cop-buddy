@@ -1,6 +1,7 @@
 import { X, ShieldAlert, Laptop, Wifi, WifiOff, BatteryLow, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslation } from "@/lib/i18n";
 import type { Alert } from "@/hooks/useAlerts";
 
 interface ActivityLog {
@@ -31,29 +32,18 @@ const eventTypeIcons: Record<string, React.ReactNode> = {
   low_battery: <BatteryLow className="w-4 h-4 text-warning" />,
 };
 
-const eventTypeLabels: Record<string, string> = {
-  connected: "연결됨",
-  disconnected: "연결 해제",
-  alert_shock: "충격 감지",
-  alert_mouse: "마우스 움직임",
-  alert_keyboard: "키보드 입력",
-  alert_movement: "이동 감지",
-  alert_stopped: "경보 해제",
-  dark_mode_on: "다크 모드 ON",
-  dark_mode_off: "다크 모드 OFF",
-  low_battery: "배터리 부족",
+const eventTypeI18nKeys: Record<string, string> = {
+  connected: "notification.connected",
+  disconnected: "notification.disconnected",
+  alert_shock: "notification.alertShock",
+  alert_mouse: "notification.alertMouse",
+  alert_keyboard: "notification.alertKeyboard",
+  alert_movement: "notification.alertMovement",
+  alert_stopped: "notification.alertStopped",
+  dark_mode_on: "notification.darkModeOn",
+  dark_mode_off: "notification.darkModeOff",
+  low_battery: "notification.lowBattery",
 };
-
-function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleString("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
 
 export function NotificationPanel({
   isOpen,
@@ -61,7 +51,20 @@ export function NotificationPanel({
   logs,
   deviceName = "Laptop1",
 }: NotificationPanelProps) {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
+
+  const formatTime = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return date.toLocaleString(undefined, {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
 
   return (
     <>
@@ -77,7 +80,7 @@ export function NotificationPanel({
         <div className="flex items-center justify-between p-4 bg-primary text-primary-foreground">
           <div className="flex items-center gap-2">
             <Laptop className="w-5 h-5" />
-            <h2 className="font-bold text-sm">{deviceName} 알림</h2>
+            <h2 className="font-bold text-sm">{deviceName} {t("notification.title")}</h2>
           </div>
           <Button 
             variant="ghost" 
@@ -94,7 +97,7 @@ export function NotificationPanel({
           <div className="p-2">
             {logs.length === 0 ? (
               <p className="text-center text-muted-foreground text-sm py-8">
-                알림이 없습니다.
+                {t("notification.empty")}
               </p>
             ) : (
               logs.map((log) => (
@@ -107,7 +110,7 @@ export function NotificationPanel({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-foreground">
-                      {eventTypeLabels[log.event_type] || log.event_type}
+                      {eventTypeI18nKeys[log.event_type] ? t(eventTypeI18nKeys[log.event_type]) : log.event_type}
                     </p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       {formatTime(log.created_at)}

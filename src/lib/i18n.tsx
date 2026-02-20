@@ -166,6 +166,48 @@ const translations: Record<string, Record<"ko" | "en", string>> = {
   "camera.save": { ko: "저장하기", en: "Save" },
   "camera.close": { ko: "닫기", en: "Close" },
 
+  // ── Camera Error Messages ──
+  "camera.error.timeout": { ko: "카메라 연결 시간이 초과되었습니다.\n\n브라우저 권한 팝업이 표시되지 않았다면 주소창의 카메라 아이콘을 클릭하여 권한을 허용해주세요.", en: "Camera connection timed out.\n\nIf no permission popup appeared, click the camera icon in the address bar to allow access." },
+  "camera.error.notAllowed": { ko: "카메라 권한이 거부되었습니다.\n\n브라우저 주소창 옆 자물쇠 아이콘을 클릭하여 카메라 권한을 허용해주세요.", en: "Camera permission denied.\n\nClick the lock icon next to the address bar to allow camera access." },
+  "camera.error.notFound": { ko: "카메라를 찾을 수 없습니다.\n\n• 카메라가 연결되어 있는지 확인하세요\n• 다른 앱에서 카메라를 사용 중인지 확인하세요\n• 브라우저를 재시작해보세요", en: "Camera not found.\n\n• Check if the camera is connected\n• Check if another app is using the camera\n• Try restarting the browser" },
+  "camera.error.notReadable": { ko: "카메라에 접근할 수 없습니다.\n\n• 다른 앱이나 탭에서 카메라를 종료해주세요\n• 카메라 연결을 확인해주세요", en: "Cannot access camera.\n\n• Close the camera in other apps or tabs\n• Check the camera connection" },
+  "camera.error.overconstrained": { ko: "카메라 설정을 적용할 수 없습니다.\n\n다른 카메라를 사용해보세요.", en: "Cannot apply camera settings.\n\nTry using a different camera." },
+  "camera.error.abort": { ko: "카메라 연결이 중단되었습니다.\n\n다시 시도해주세요.", en: "Camera connection was interrupted.\n\nPlease try again." },
+  "camera.error.security": { ko: "보안 설정으로 인해 카메라를 사용할 수 없습니다.\n\nHTTPS 연결이 필요합니다.", en: "Cannot use camera due to security settings.\n\nHTTPS connection is required." },
+  "camera.error.disconnected": { ko: "카메라 연결이 끊어졌습니다.\n\n카메라를 다시 연결하고 재시도해주세요.", en: "Camera disconnected.\n\nPlease reconnect the camera and try again." },
+  "camera.error.notSupported": { ko: "이 브라우저는 카메라를 지원하지 않습니다.", en: "This browser does not support camera." },
+  "camera.error.default": { ko: "카메라를 시작할 수 없습니다.\n\n다시 시도해주세요.", en: "Cannot start camera.\n\nPlease try again." },
+
+  // ── Notification / Activity Log ──
+  "notification.title": { ko: "알림", en: "Notifications" },
+  "notification.empty": { ko: "알림이 없습니다.", en: "No notifications." },
+  "notification.connected": { ko: "연결됨", en: "Connected" },
+  "notification.disconnected": { ko: "연결 해제", en: "Disconnected" },
+  "notification.alertShock": { ko: "충격 감지", en: "Shock detected" },
+  "notification.alertMouse": { ko: "마우스 움직임", en: "Mouse movement" },
+  "notification.alertKeyboard": { ko: "키보드 입력", en: "Keyboard input" },
+  "notification.alertMovement": { ko: "이동 감지", en: "Movement detected" },
+  "notification.alertStopped": { ko: "경보 해제", en: "Alarm dismissed" },
+  "notification.darkModeOn": { ko: "다크 모드 ON", en: "Dark mode ON" },
+  "notification.darkModeOff": { ko: "다크 모드 OFF", en: "Dark mode OFF" },
+  "notification.lowBattery": { ko: "배터리 부족", en: "Low battery" },
+
+  // ── Alert Screen (Smartphone viewer) ──
+  "alertScreen.alertOccurred": { ko: "경보 발생", en: "Alert occurred" },
+  "alertScreen.suspiciousActivity": { ko: "노트북에서 의심스러운 활동이 감지되었습니다.", en: "Suspicious activity detected on laptop." },
+  "alertScreen.confirmed": { ko: "되었습니다. 확인해주세요.", en: " Please check." },
+  "alertScreen.dismiss": { ko: "경보 해제", en: "Dismiss Alert" },
+  "alertScreen.capture": { ko: "캡처", en: "Capture" },
+
+  // ── WebRTC Viewer Errors ──
+  "viewer.error.connectionFailed": { ko: "연결에 실패했습니다", en: "Connection failed" },
+  "viewer.error.disconnected": { ko: "연결이 끊어졌습니다", en: "Disconnected" },
+  "viewer.error.cameraNotOn": { ko: "노트북 카메라가 켜져 있지 않습니다", en: "Laptop camera is not on" },
+
+  // ── Misc Errors ──
+  "error.loadActivityLogs": { ko: "활동 로그를 불러오는데 실패했습니다.", en: "Failed to load activity logs." },
+  "error.loadDevices": { ko: "디바이스 목록을 불러오는데 실패했습니다.", en: "Failed to load device list." },
+
   // ── Network Info Modal ──
   "network.title": { ko: "네트워크 정보", en: "Network Info" },
   "network.loading": { ko: "네트워크 정보를 가져오는 중...", en: "Fetching network info..." },

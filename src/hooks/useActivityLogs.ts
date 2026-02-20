@@ -20,7 +20,7 @@ export function useActivityLogs(deviceId?: string, limit = 50) {
       setError(null);
     } catch (err) {
       console.error("Error fetching activity logs:", err);
-      setError("활동 로그를 불러오는데 실패했습니다.");
+      setError("LOAD_ACTIVITY_LOGS_FAILED");
     } finally {
       setIsLoading(false);
     }

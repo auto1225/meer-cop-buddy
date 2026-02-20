@@ -1,5 +1,6 @@
 import { X, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/lib/i18n";
 import type { Alert } from "@/hooks/useAlerts";
 
 interface AlertScreenProps {
@@ -7,17 +8,20 @@ interface AlertScreenProps {
   onStop: () => void;
 }
 
-const alertTypeLabels: Record<string, string> = {
-  alert_shock: "충격 감지",
-  alert_mouse: "마우스 움직임 감지",
-  alert_keyboard: "키보드 입력 감지",
-  alert_movement: "이동 감지",
+const alertTypeI18nKeys: Record<string, string> = {
+  alert_shock: "notification.alertShock",
+  alert_mouse: "notification.alertMouse",
+  alert_keyboard: "notification.alertKeyboard",
+  alert_movement: "notification.alertMovement",
 };
 
 export function AlertScreen({ alert, onStop }: AlertScreenProps) {
-  const alertLabel = alertTypeLabels[alert.event_type] || "경보 발생";
+  const { t } = useTranslation();
+  const alertLabel = alertTypeI18nKeys[alert.event_type]
+    ? t(alertTypeI18nKeys[alert.event_type])
+    : t("alertScreen.alertOccurred");
   const images = (alert.event_data?.images as string[]) || [];
-  const message = alert.event_data?.message || "노트북에서 의심스러운 활동이 감지되었습니다.";
+  const message = alert.event_data?.message || t("alertScreen.suspiciousActivity");
 
   return (
     <div className="absolute inset-0 z-50 bg-destructive flex flex-col items-center justify-center animate-pulse-alert">
@@ -31,11 +35,11 @@ export function AlertScreen({ alert, onStop }: AlertScreenProps) {
             >
               <img 
                 src={img} 
-                alt={`캡처 ${idx + 1}`} 
+                alt={`${t("alertScreen.capture")} ${idx + 1}`} 
                 className="w-full h-full object-cover"
               />
               <span className="absolute bottom-0 left-0 text-[8px] text-white bg-black/50 px-1">
-                -{idx + 2}초
+                -{idx + 2}s
               </span>
             </div>
           ))}
@@ -50,7 +54,7 @@ export function AlertScreen({ alert, onStop }: AlertScreenProps) {
       {/* Alert message */}
       <div className="bg-white/90 rounded-xl px-6 py-3 mx-4 mb-6 text-center">
         <p className="text-destructive font-bold text-sm">
-          {alertLabel}되었습니다. 확인해주세요.
+          {alertLabel}{t("alertScreen.confirmed")}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           {message}
@@ -63,7 +67,7 @@ export function AlertScreen({ alert, onStop }: AlertScreenProps) {
         className="bg-destructive-foreground text-destructive hover:bg-white/90 font-bold px-8 py-3 rounded-full text-sm"
       >
         <X className="w-4 h-4 mr-2" />
-        경보 해제
+        {t("alertScreen.dismiss")}
       </Button>
 
       <style>{`

@@ -63,6 +63,25 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
 
   const { t } = useTranslation();
 
+  // Map error codes from useCamera to i18n keys
+  const cameraErrorMap: Record<string, string> = {
+    CAMERA_TIMEOUT: "camera.error.timeout",
+    CAMERA_NOT_ALLOWED: "camera.error.notAllowed",
+    CAMERA_NOT_FOUND: "camera.error.notFound",
+    CAMERA_NOT_READABLE: "camera.error.notReadable",
+    CAMERA_OVERCONSTRAINED: "camera.error.overconstrained",
+    CAMERA_ABORT: "camera.error.abort",
+    CAMERA_SECURITY: "camera.error.security",
+    CAMERA_DISCONNECTED: "camera.error.disconnected",
+    CAMERA_NOT_SUPPORTED: "camera.error.notSupported",
+    CAMERA_DEFAULT: "camera.error.default",
+  };
+
+  const translateCameraError = (errorCode: string) => {
+    const key = cameraErrorMap[errorCode];
+    return key ? t(key) : errorCode;
+  };
+
   // Auto-start camera when modal opens
   useEffect(() => {
     if (isOpen && !isStarted && !isLoading) {
@@ -388,7 +407,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
             </div>
           ) : error && !stream ? (
             <div className="aspect-video rounded-xl bg-black/40 flex flex-col items-center justify-center gap-3 p-4">
-              <p className="text-white/80 text-center whitespace-pre-line text-sm font-semibold">{error}</p>
+              <p className="text-white/80 text-center whitespace-pre-line text-sm font-semibold">{translateCameraError(error)}</p>
               <Button
                 onClick={startCamera}
                 disabled={isLoading}
