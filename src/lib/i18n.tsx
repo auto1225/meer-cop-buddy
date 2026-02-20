@@ -107,6 +107,54 @@ const translations: Record<string, Record<"ko" | "en", string>> = {
   "lock.desc": { ko: "스마트폰에서 원격 잠금이 활성화되었습니다.", en: "Remote lock activated from smartphone." },
   "message.default": { ko: "메시지가 도착했습니다.", en: "Message received." },
   "message.title": { ko: "📩 원격 메시지", en: "📩 Remote Message" },
+
+  // ── Status Icons ──
+  "status.smartphone": { ko: "스마트폰", en: "Smartphone" },
+  "status.network": { ko: "네트워크", en: "Network" },
+  "status.camera": { ko: "카메라", en: "Camera" },
+  "status.settings": { ko: "설정", en: "Settings" },
+
+  // ── Side Menu ──
+  "menu.serialNumber": { ko: "시리얼 넘버", en: "Serial Number" },
+  "menu.membership": { ko: "멤버십", en: "Membership" },
+  "menu.normalMember": { ko: "Normal Member", en: "Normal Member" },
+  "menu.help": { ko: "Q&A / 도움말", en: "Q&A / Help" },
+  "menu.logout": { ko: "로그아웃", en: "Logout" },
+  "menu.guest": { ko: "게스트", en: "Guest" },
+
+  // ── Serial Auth ──
+  "auth.checkSerial": { ko: "스마트폰 앱 → 설정에서 시리얼 넘버를 확인하세요", en: "Check serial number in Smartphone App → Settings" },
+  "auth.deviceName": { ko: "기기 이름 (예: 안방 노트북)", en: "Device name (e.g. My Laptop)" },
+  "auth.rememberMe": { ko: "기억하기", en: "Remember me" },
+  "auth.connect": { ko: "연결하기", en: "Connect" },
+  "auth.connecting": { ko: "확인 중...", en: "Connecting..." },
+  "auth.exit": { ko: "종료", en: "Exit" },
+  "auth.exitConfirm": { ko: "종료하시겠습니까?", en: "Do you want to exit?" },
+  "auth.exitDesc": { ko: "종료하면 저장된 컴퓨터 이름과 시리얼 넘버가 모두 삭제됩니다.", en: "All saved device name and serial number will be deleted." },
+  "auth.cancel": { ko: "취소", en: "Cancel" },
+  "auth.exitBtn": { ko: "종료", en: "Exit" },
+  "auth.serialError": { ko: "시리얼 넘버를 모두 입력해주세요.", en: "Please enter the full serial number." },
+  "auth.nameError": { ko: "기기 이름을 입력해주세요.", en: "Please enter a device name." },
+  "auth.authFailed": { ko: "인증에 실패했습니다.", en: "Authentication failed." },
+
+  // ── Help Modal ──
+  "help.title": { ko: "사용 설명서", en: "User Manual" },
+  "help.subtitle": { ko: "노트북 도난 방지 & 원격 감시 앱", en: "Laptop Anti-theft & Remote Monitoring App" },
+  "help.appIntro": { ko: "앱 소개", en: "App Introduction" },
+  "help.appIntroContent": { ko: "MeerCOP은 노트북(컴퓨터)의 도난 · 무단 사용을 방지하기 위한 실시간 감시 앱입니다. 스마트폰에서 감시를 켜면, 노트북에 움직임 · 터치 · 덮개 열림 등이 감지될 때 즉시 경보가 울리고 사진 · 위치 · 실시간 스트리밍을 통해 상황을 파악할 수 있습니다.", en: "MeerCOP is a real-time monitoring app to prevent theft and unauthorized use of your laptop. When monitoring is turned on from your smartphone, any movement, touch, or lid opening detected on the laptop triggers an immediate alarm with photos, location, and live streaming." },
+  "help.gettingStarted": { ko: "시작하기", en: "Getting Started" },
+  "help.mainScreen": { ko: "메인 화면", en: "Main Screen" },
+  "help.monitoring": { ko: "감시 시작/중지", en: "Start/Stop Monitoring" },
+  "help.liveCamera": { ko: "실시간 카메라", en: "Live Camera" },
+  "help.location": { ko: "위치 확인", en: "Location" },
+  "help.networkInfo": { ko: "네트워크 정보", en: "Network Info" },
+  "help.settings": { ko: "설정", en: "Settings" },
+  "help.deviceManagement": { ko: "기기 관리", en: "Device Management" },
+  "help.alertsNotifications": { ko: "경보 및 알림", en: "Alerts & Notifications" },
+  "help.camouflageMode": { ko: "위장 모드", en: "Camouflage Mode" },
+  "help.stealRecovery": { ko: "도난 복구 모드", en: "Theft Recovery Mode" },
+  "help.faq": { ko: "자주 묻는 질문 (FAQ)", en: "FAQ" },
+  "help.contact": { ko: "문의", en: "Contact" },
 };
 
 // Get all translation keys (for AI translation)

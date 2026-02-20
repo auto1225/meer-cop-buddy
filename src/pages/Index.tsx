@@ -577,15 +577,15 @@ const Index = () => {
       setShowPinKeypad(true);
       setIsCamouflageMode(true);
       toast({
-        title: "🔒 기기 잠금",
-        description: "스마트폰에서 원격 잠금이 활성화되었습니다.",
+        title: appLanguage === "en" ? "🔒 Device Locked" : "🔒 기기 잠금",
+        description: appLanguage === "en" ? "Remote lock activated from smartphone." : "스마트폰에서 원격 잠금이 활성화되었습니다.",
       });
     });
 
     // 메시지 명령: 토스트 알림으로 메시지 표시
     channel.on('broadcast', { event: 'message_command' }, (payload) => {
-      const message = payload.payload?.message || "메시지가 도착했습니다.";
-      const title = payload.payload?.title || "📩 원격 메시지";
+      const message = payload.payload?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.");
+      const title = payload.payload?.title || (appLanguage === "en" ? "📩 Remote Message" : "📩 원격 메시지");
       console.log("[Index] 💬 Broadcast message_command received:", message);
       toast({
         title,
