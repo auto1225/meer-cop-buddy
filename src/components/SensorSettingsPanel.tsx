@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { type SensorToggles } from "@/hooks/useSecuritySurveillance";
 import { type AlarmSoundConfig, getSelectedSoundName, getCustomSounds, saveCustomSound, deleteCustomSound, isCustomSound, type CustomAlarmSound } from "@/lib/alarmSounds";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation, type Lang, getLanguageNativeLabel } from "@/lib/i18n";
 
 interface SensorSettingsPanelProps {
   isOpen: boolean;
@@ -19,8 +19,8 @@ interface SensorSettingsPanelProps {
   selectedSoundId: string;
   onSoundChange: (id: string) => void;
   onPreviewSound: (id: string) => void;
-  appLanguage: "ko" | "en";
-  onLanguageChange: (lang: "ko" | "en") => void;
+  appLanguage: string;
+  onLanguageChange: (lang: string) => void;
 }
 
 const SENSOR_ICONS: Record<string, React.ElementType> = {
@@ -299,26 +299,16 @@ export function SensorSettingsPanel({
           </div>
         </section>
 
-        {/* Language Setting */}
+        {/* Language Setting - Display only (set from smartphone) */}
         <section className={`${glassCard} px-3 py-2.5`}>
           <div className="flex items-center gap-1.5 mb-1.5">
             <Globe className="w-3 h-3 text-white/80" />
             <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("language.title")}</p>
           </div>
           <div className="flex gap-1.5">
-            {([{ value: "ko" as const, label: "한국어" }, { value: "en" as const, label: "English" }]).map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => onLanguageChange(value)}
-                className={`flex-1 text-[11px] px-3 py-1.5 rounded-xl font-bold transition-all ${
-                  appLanguage === value
-                    ? "bg-secondary text-secondary-foreground shadow-[0_0_12px_hsla(68,100%,64%,0.35)]"
-                    : "bg-white/10 text-white/60 hover:bg-white/20"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            <span className="flex-1 text-[11px] px-3 py-1.5 rounded-xl font-bold bg-secondary text-secondary-foreground shadow-[0_0_12px_hsla(68,100%,64%,0.35)] text-center">
+              {getLanguageNativeLabel(appLanguage)}
+            </span>
           </div>
           <p className="text-[9px] text-white/40 mt-1">{t("language.changeFromPhone")}</p>
         </section>

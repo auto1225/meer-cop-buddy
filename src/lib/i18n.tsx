@@ -1,14 +1,45 @@
 /**
  * MeerCOP 다국어 번역 시스템
  * - ko/en 정적 매핑
+ * - 17개 언어 지원 (AI 동적 번역)
  * - React Context 기반 전역 언어 관리
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 
-type Lang = "ko" | "en";
+// 17개 지원 언어
+export type Lang = "ko" | "en" | "ja" | "zh" | "es" | "fr" | "de" | "pt" | "ru" | "vi" | "th" | "id" | "ms" | "hi" | "tr" | "ar" | "it";
 
-const translations: Record<string, Record<Lang, string>> = {
+export const SUPPORTED_LANGUAGES: { code: Lang; label: string; nativeLabel: string; rtl?: boolean }[] = [
+  { code: "ko", label: "Korean", nativeLabel: "한국어" },
+  { code: "en", label: "English", nativeLabel: "English" },
+  { code: "ja", label: "Japanese", nativeLabel: "日本語" },
+  { code: "zh", label: "Chinese", nativeLabel: "中文" },
+  { code: "es", label: "Spanish", nativeLabel: "Español" },
+  { code: "fr", label: "French", nativeLabel: "Français" },
+  { code: "de", label: "German", nativeLabel: "Deutsch" },
+  { code: "pt", label: "Portuguese", nativeLabel: "Português" },
+  { code: "ru", label: "Russian", nativeLabel: "Русский" },
+  { code: "vi", label: "Vietnamese", nativeLabel: "Tiếng Việt" },
+  { code: "th", label: "Thai", nativeLabel: "ไทย" },
+  { code: "id", label: "Indonesian", nativeLabel: "Bahasa Indonesia" },
+  { code: "ms", label: "Malay", nativeLabel: "Bahasa Melayu" },
+  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी" },
+  { code: "tr", label: "Turkish", nativeLabel: "Türkçe" },
+  { code: "ar", label: "Arabic", nativeLabel: "العربية", rtl: true },
+  { code: "it", label: "Italian", nativeLabel: "Italiano" },
+];
+
+export function getLanguageNativeLabel(code: string): string {
+  return SUPPORTED_LANGUAGES.find(l => l.code === code)?.nativeLabel || code;
+}
+
+export function isRtlLanguage(code: string): boolean {
+  return SUPPORTED_LANGUAGES.find(l => l.code === code)?.rtl === true;
+}
+
+// Static translations for ko/en
+const translations: Record<string, Record<"ko" | "en", string>> = {
   // ── Header / Common ──
   "alarm.on": { ko: "경보음 켜짐", en: "Alarm On" },
   "alarm.off": { ko: "경보음 꺼짐", en: "Alarm Off" },
@@ -46,7 +77,8 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // ── Language Section ──
   "language.title": { ko: "언어 / Language", en: "Language" },
-  "language.changeFromPhone": { ko: "스마트폰 앱에서도 변경 가능", en: "Also changeable from smartphone app" },
+  "language.changeFromPhone": { ko: "스마트폰 앱에서 변경 가능", en: "Changeable from smartphone app" },
+  "language.current": { ko: "현재 언어", en: "Current Language" },
 
   // ── Alert Overlay ──
   "alert.title": { ko: "⚠️ 경보 발생! ⚠️", en: "⚠️ ALERT! ⚠️" },
@@ -77,33 +109,155 @@ const translations: Record<string, Record<Lang, string>> = {
   "message.title": { ko: "📩 원격 메시지", en: "📩 Remote Message" },
 };
 
+// Get all translation keys (for AI translation)
+const ALL_KEYS = Object.keys(translations);
+
+// ── AI Translation Cache (localStorage) ──
+const CACHE_PREFIX = "meercop-translations-";
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function getCachedTranslations(lang: string): Record<string, string> | null {
+  try {
+    const raw = localStorage.getItem(`${CACHE_PREFIX}${lang}`);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (Date.now() - (cached._timestamp || 0) > CACHE_TTL_MS) {
+      localStorage.removeItem(`${CACHE_PREFIX}${lang}`);
+      return null;
+    }
+    return cached;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedTranslations(lang: string, data: Record<string, string>) {
+  try {
+    localStorage.setItem(`${CACHE_PREFIX}${lang}`, JSON.stringify({ ...data, _timestamp: Date.now() }));
+  } catch {
+    // localStorage full, ignore
+  }
+}
+
+// ── AI Translation via Lovable AI Gateway ──
+async function fetchAITranslation(targetLang: Lang): Promise<Record<string, string>> {
+  const langInfo = SUPPORTED_LANGUAGES.find(l => l.code === targetLang);
+  const langName = langInfo?.label || targetLang;
+
+  // Build source strings from Korean
+  const sourceMap: Record<string, string> = {};
+  for (const key of ALL_KEYS) {
+    sourceMap[key] = translations[key].ko;
+  }
+
+  const prompt = `Translate the following JSON object values from Korean to ${langName} (${langInfo?.nativeLabel || targetLang}). 
+Keep the JSON keys exactly the same. Only translate the values.
+Return ONLY valid JSON, no markdown, no explanation.
+
+${JSON.stringify(sourceMap, null, 2)}`;
+
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/ai-translate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ targetLang, langName: langInfo?.nativeLabel || langName, sourceMap }),
+    });
+
+    if (!response.ok) throw new Error(`Translation API failed: ${response.status}`);
+    
+    const data = await response.json();
+    return data.translations || {};
+  } catch (e) {
+    console.error("[i18n] AI translation failed:", e);
+    // Fallback to English
+    const fallback: Record<string, string> = {};
+    for (const key of ALL_KEYS) {
+      fallback[key] = translations[key].en;
+    }
+    return fallback;
+  }
+}
+
 interface I18nContextValue {
   lang: Lang;
   setLang: (lang: Lang) => void;
   t: (key: string, fallback?: string) => string;
+  isTranslating: boolean;
 }
 
 const I18nContext = createContext<I18nContextValue>({
   lang: "ko",
   setLang: () => {},
   t: (key) => key,
+  isTranslating: false,
 });
 
 export function I18nProvider({ children, initialLang }: { children: React.ReactNode; initialLang?: Lang }) {
   const [lang, setLang] = useState<Lang>(initialLang || (localStorage.getItem("meercop-language") as Lang) || "ko");
+  const [dynamicTranslations, setDynamicTranslations] = useState<Record<string, string>>({});
+  const [isTranslating, setIsTranslating] = useState(false);
+  const loadingLangRef = useRef<string | null>(null);
 
+  // Update lang when initialLang changes (from smartphone sync)
   useEffect(() => {
     if (initialLang && initialLang !== lang) {
+      console.log("[i18n] Language changed from external:", initialLang);
       setLang(initialLang);
     }
   }, [initialLang]);
 
-  const t = useCallback((key: string, fallback?: string): string => {
-    return translations[key]?.[lang] ?? fallback ?? key;
+  // Load dynamic translations for non-ko/en languages
+  useEffect(() => {
+    if (lang === "ko" || lang === "en") {
+      setDynamicTranslations({});
+      return;
+    }
+
+    // Check cache first
+    const cached = getCachedTranslations(lang);
+    if (cached) {
+      console.log("[i18n] Using cached translations for:", lang);
+      setDynamicTranslations(cached);
+      return;
+    }
+
+    // Fetch AI translation
+    if (loadingLangRef.current === lang) return;
+    loadingLangRef.current = lang;
+    setIsTranslating(true);
+    
+    fetchAITranslation(lang).then(result => {
+      setDynamicTranslations(result);
+      setCachedTranslations(lang, result);
+      console.log("[i18n] AI translation loaded for:", lang);
+    }).finally(() => {
+      setIsTranslating(false);
+      loadingLangRef.current = null;
+    });
   }, [lang]);
 
+  // RTL support
+  useEffect(() => {
+    document.documentElement.dir = isRtlLanguage(lang) ? "rtl" : "ltr";
+  }, [lang]);
+
+  const t = useCallback((key: string, fallback?: string): string => {
+    // For ko/en, use static translations
+    if (lang === "ko" || lang === "en") {
+      return translations[key]?.[lang] ?? fallback ?? key;
+    }
+    // For other languages, use dynamic translations
+    return dynamicTranslations[key] ?? translations[key]?.en ?? fallback ?? key;
+  }, [lang, dynamicTranslations]);
+
   return (
-    <I18nContext.Provider value={{ lang, setLang, t }}>
+    <I18nContext.Provider value={{ lang, setLang, t, isTranslating }}>
       {children}
     </I18nContext.Provider>
   );
@@ -112,5 +266,3 @@ export function I18nProvider({ children, initialLang }: { children: React.ReactN
 export function useTranslation() {
   return useContext(I18nContext);
 }
-
-export type { Lang };
