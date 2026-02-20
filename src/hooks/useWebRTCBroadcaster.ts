@@ -173,10 +173,23 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     const tracks = streamRef.current.getTracks();
-    console.log(`[Broadcaster] 📹 Adding ${tracks.length} tracks`);
+    const audioTracks = streamRef.current.getAudioTracks();
+    const videoTracks = streamRef.current.getVideoTracks();
+    console.log(`[Broadcaster] 📹 Adding ${tracks.length} tracks (video: ${videoTracks.length}, audio: ${audioTracks.length})`);
+    
+    // Ensure all tracks are enabled (especially audio)
     tracks.forEach((track) => {
+      if (!track.enabled) {
+        console.warn(`[Broadcaster] ⚠️ Track ${track.kind} was disabled — enabling`);
+        track.enabled = true;
+      }
+      console.log(`[Broadcaster] 🎵 Track: ${track.kind} label="${track.label}" enabled=${track.enabled} muted=${track.muted} readyState=${track.readyState}`);
       pc.addTrack(track, streamRef.current!);
     });
+    
+    if (audioTracks.length === 0) {
+      console.error("[Broadcaster] ❌ NO AUDIO TRACKS in stream! Microphone may not be available.");
+    }
 
     pc.onicecandidate = async (event) => {
       if (event.candidate) {
