@@ -138,7 +138,16 @@ const Index = () => {
   const startAlarmRef = useRef(startAlarm);
   startAlarmRef.current = startAlarm;
 
+  const isAlertActiveRef = useRef(false);
+
   const handleSecurityEvent = useCallback(async (event: SecurityEvent) => {
+    // 이미 경보 중이면 중복 전송 방지
+    if (isAlertActiveRef.current) {
+      console.log("[Security] ⏭️ Alert already active — ignoring duplicate:", event.type);
+      return;
+    }
+    isAlertActiveRef.current = true;
+
     console.log("[Security] Event detected:", event.type, "Photos:", event.photos.length, 
       event.changePercent ? `Change: ${event.changePercent.toFixed(1)}%` : "");
     
@@ -283,6 +292,7 @@ const Index = () => {
     setCurrentEventType(undefined);
     setShowPinKeypad(false);
     markAlertCleared(); // 도난 복구 상태 해제
+    isAlertActiveRef.current = false; // 다음 감지 허용
   }, [stopAlarm, stopAlert]);
 
   // When AlertOverlay dismiss is clicked, show PIN keypad or dismiss directly
@@ -303,6 +313,7 @@ const Index = () => {
       setCurrentEventType(undefined);
       setShowPinKeypad(false);
       markAlertCleared(); // 스마트폰 해제 → 도난 복구 비활성화
+      isAlertActiveRef.current = false; // 다음 감지 허용
     }
   }, [dismissedBySmartphone, stopAlarm]);
 
