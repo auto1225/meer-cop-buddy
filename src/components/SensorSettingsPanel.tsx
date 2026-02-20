@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { X, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music } from "lucide-react";
+import { X, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -18,6 +18,8 @@ interface SensorSettingsPanelProps {
   selectedSoundId: string;
   onSoundChange: (id: string) => void;
   onPreviewSound: (id: string) => void;
+  appLanguage: "ko" | "en";
+  onLanguageChange: (lang: "ko" | "en") => void;
 }
 
 const SENSOR_ICONS: Record<string, React.ElementType> = {
@@ -98,6 +100,8 @@ export function SensorSettingsPanel({
   selectedSoundId,
   onSoundChange,
   onPreviewSound,
+  appLanguage,
+  onLanguageChange,
 }: SensorSettingsPanelProps) {
   if (!isOpen) return null;
 
@@ -287,6 +291,30 @@ export function SensorSettingsPanel({
               );
             })}
           </div>
+        </section>
+
+        {/* Language Setting */}
+        <section className={`${glassCard} px-3 py-2.5`}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Globe className="w-3 h-3 text-white/80" />
+            <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">언어 / Language</p>
+          </div>
+          <div className="flex gap-1.5">
+            {([{ value: "ko" as const, label: "한국어" }, { value: "en" as const, label: "English" }]).map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => onLanguageChange(value)}
+                className={`flex-1 text-[11px] px-3 py-1.5 rounded-xl font-bold transition-all ${
+                  appLanguage === value
+                    ? "bg-secondary text-secondary-foreground shadow-[0_0_12px_hsla(68,100%,64%,0.35)]"
+                    : "bg-white/10 text-white/60 hover:bg-white/20"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[9px] text-white/40 mt-1">스마트폰 앱에서도 변경 가능</p>
         </section>
 
       </div>

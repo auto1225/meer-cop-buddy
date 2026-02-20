@@ -101,6 +101,10 @@ const Index = () => {
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
   const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
+  // Language setting from smartphone
+  const [appLanguage, setAppLanguage] = useState<"ko" | "en">(() => {
+    return (localStorage.getItem('meercop-language') as "ko" | "en") || "ko";
+  });
   // Alarm system
   const { 
     isAlarmEnabled, 
@@ -318,6 +322,7 @@ const Index = () => {
       alarm_sound_id?: string;
       require_pc_pin?: boolean;
       camouflage_mode?: boolean;
+      language?: string;
       sensorSettings?: {
         camera?: boolean;
         lidClosed?: boolean;
@@ -347,6 +352,12 @@ const Index = () => {
     if (meta?.camouflage_mode !== undefined) {
       setIsCamouflageMode(meta.camouflage_mode);
       console.log("[Index] ✅ camouflage_mode applied:", meta.camouflage_mode);
+    }
+
+    if (meta?.language && (meta.language === "ko" || meta.language === "en")) {
+      setAppLanguage(meta.language);
+      localStorage.setItem('meercop-language', meta.language);
+      console.log("[Index] ✅ language applied from DB:", meta.language);
     }
 
     // alarm_sound_id는 컴퓨터 자체 localStorage에서 관리 (DB 동기화하지 않음)
@@ -533,6 +544,11 @@ const Index = () => {
         if (settings.camouflage_mode !== undefined) {
           setIsCamouflageMode(settings.camouflage_mode);
         }
+        if (settings.language && (settings.language === "ko" || settings.language === "en")) {
+          setAppLanguage(settings.language);
+          localStorage.setItem('meercop-language', settings.language);
+          console.log("[Index] ✅ Language updated via broadcast:", settings.language);
+        }
       }
       // DB도 함께 갱신
       refetch();
@@ -696,6 +712,20 @@ const Index = () => {
           selectedSoundId={selectedSoundId}
           onSoundChange={setSelectedSoundId}
           onPreviewSound={previewSound}
+          appLanguage={appLanguage}
+          onLanguageChange={(lang) => {
+            setAppLanguage(lang);
+            localStorage.setItem('meercop-language', lang);
+            // DB metadata에도 저장
+            if (currentDevice?.id && savedAuth?.user_id) {
+              fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id).then(device => {
+                const existingMeta = (device?.metadata as Record<string, unknown>) || {};
+                updateDeviceViaEdge(currentDevice.id, {
+                  metadata: { ...existingMeta, language: lang },
+                });
+              }).catch(e => console.error("[Index] Failed to save language:", e));
+            }
+          }}
         />
 
         {/* Camera Modal */}
