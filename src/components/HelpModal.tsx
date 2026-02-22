@@ -24,25 +24,18 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
   const sections = [
     { icon: "🛡️", titleKey: "help.appIntro", contentKey: "help.appIntroContent" },
-    { icon: "📥", titleKey: "help.gettingStarted", contentKey: "help.gettingStarted" },
-    { icon: "🖥️", titleKey: "help.mainScreen", contentKey: "help.mainScreen" },
-    { icon: "👁️", titleKey: "help.monitoring", contentKey: "help.monitoring" },
-    { icon: "📷", titleKey: "help.liveCamera", contentKey: "help.liveCamera" },
-    { icon: "📍", titleKey: "help.location", contentKey: "help.location" },
-    { icon: "📶", titleKey: "help.networkInfo", contentKey: "help.networkInfo" },
-    { icon: "⚙️", titleKey: "help.settings", contentKey: "help.settings" },
-    { icon: "👥", titleKey: "help.deviceManagement", contentKey: "help.deviceManagement" },
-    { icon: "🚨", titleKey: "help.alertsNotifications", contentKey: "help.alertsNotifications" },
-    { icon: "🔇", titleKey: "help.camouflageMode", contentKey: "help.camouflageMode" },
-    { icon: "🔍", titleKey: "help.stealRecovery", contentKey: "help.stealRecovery" },
+    { icon: "📥", titleKey: "help.gettingStarted", contentKey: "help.gettingStartedContent" },
+    { icon: "🖥️", titleKey: "help.mainScreen", contentKey: "help.mainScreenContent" },
+    { icon: "👁️", titleKey: "help.monitoring", contentKey: "help.monitoringContent" },
+    { icon: "📷", titleKey: "help.liveCamera", contentKey: "help.liveCameraContent" },
+    { icon: "📍", titleKey: "help.location", contentKey: "help.locationContent" },
+    { icon: "📶", titleKey: "help.networkInfo", contentKey: "help.networkInfoContent" },
+    { icon: "⚙️", titleKey: "help.settings", contentKey: "help.settingsContent" },
+    { icon: "👥", titleKey: "help.deviceManagement", contentKey: "help.deviceManagementContent" },
+    { icon: "🚨", titleKey: "help.alertsNotifications", contentKey: "help.alertsNotificationsContent" },
+    { icon: "🔇", titleKey: "help.camouflageMode", contentKey: "help.camouflageModeContent" },
+    { icon: "🔍", titleKey: "help.stealRecovery", contentKey: "help.stealRecoveryContent" },
   ];
-
-  // For the intro section, use the translated content; for others use the title as placeholder
-  const getContent = (sec: typeof sections[0]) => {
-    if (sec.contentKey === "help.appIntroContent") return t(sec.contentKey);
-    // Other sections - use translated title as content header
-    return t(sec.contentKey);
-  };
 
   return (
     <>
@@ -79,7 +72,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               </div>
               <div className="bg-white/12 backdrop-blur-md rounded-2xl border border-white/15 px-4 py-3.5">
                 <p className="text-white/80 text-[13px] leading-relaxed whitespace-pre-line">
-                  {renderBold(getContent(sec))}
+                  {renderBold(t(sec.contentKey))}
                 </p>
               </div>
             </div>
