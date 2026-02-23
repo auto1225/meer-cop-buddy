@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { supabaseShared } from "@/lib/supabase";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { getIceServers } from "@/lib/iceServers";
 
 interface UseWebRTCBroadcasterOptions {
   deviceId: string;
@@ -11,17 +12,6 @@ interface PeerConnection {
   sessionId: string;
   pc: RTCPeerConnection;
 }
-
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
-  ],
-  iceCandidatePoolSize: 10,
-};
 
 // ── Direct Supabase signaling helpers (no Edge Function dependency) ──
 
@@ -170,7 +160,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       disconnectTimersRef.current.delete(sessionId);
     }
 
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const iceConfig = await getIceServers();
+    const pc = new RTCPeerConnection(iceConfig);
 
     const tracks = streamRef.current.getTracks();
     const audioTracks = streamRef.current.getAudioTracks();
