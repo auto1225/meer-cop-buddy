@@ -1,22 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabaseShared } from "@/lib/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { getIceServers } from "@/lib/iceServers";
 
 interface UseWebRTCViewerOptions {
   deviceId: string;
   onStream?: (stream: MediaStream) => void;
 }
-
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
-  ],
-  iceCandidatePoolSize: 10,
-};
 
 export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) {
   const [isConnecting, setIsConnecting] = useState(false);
@@ -104,8 +94,9 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
     console.log(`[WebRTC Viewer] Connecting with session ${sessionId}`);
 
-    // Create peer connection
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    // Create peer connection with TURN support
+    const iceConfig = await getIceServers();
+    const pc = new RTCPeerConnection(iceConfig);
     pcRef.current = pc;
 
     // Add transceiver for receiving video

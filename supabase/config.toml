@@ -2,3 +2,6 @@ project_id = "dmvbwyfzueywuwxkjuuy"
 
 [functions.monitor-heartbeat]
 verify_jwt = false
+
+[functions.get-turn-credentials]
+verify_jwt = false
