@@ -105,18 +105,22 @@ export function useDevices(userId?: string) {
       if (!res || !res.ok) {
         // Fallback: 직접 쿼리 시도 (RLS 허용 시)
         console.warn("[useDevices] All Edge Function attempts failed, trying direct query...");
-        const { data: fallbackData } = await supabaseShared
-          .from("devices")
-          .select("*");
-        if (fallbackData && fallbackData.length > 0) {
-          console.log("[useDevices] Fallback fetched:", fallbackData.length, "devices");
-          setDevices(fallbackData as Device[]);
-          setError(null);
-          return;
+        try {
+          const { data: fallbackData } = await supabaseShared
+            .from("devices")
+            .select("*");
+          if (fallbackData && fallbackData.length > 0) {
+            console.log("[useDevices] Fallback fetched:", fallbackData.length, "devices");
+            setDevices(fallbackData as Device[]);
+            setError(null);
+            return;
+          }
+        } catch (fallbackErr) {
+          console.warn("[useDevices] Fallback query also failed:", fallbackErr);
         }
-        throw new Error(
-          (lastError as Record<string, string>)?.error || "get-devices failed after retries"
-        );
+        // 모든 시도 실패 시에도 기존 devices 유지, 에러만 표시
+        setError("LOAD_DEVICES_FAILED");
+        return;
       }
 
       const data = await res.json();
