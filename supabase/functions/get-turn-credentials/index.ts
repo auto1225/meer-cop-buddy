@@ -12,30 +12,61 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get("METERED_API_KEY");
-    if (!apiKey) {
+    const secretKey = Deno.env.get("METERED_API_KEY");
+    if (!secretKey) {
       return new Response(
         JSON.stringify({ error: "METERED_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const res = await fetch(
-      `https://meercop.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`
+    // Create a temporary TURN credential (expires in 1 hour)
+    const createRes = await fetch(
+      `https://meercop.metered.live/api/v1/turn/credential?secretKey=${secretKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiryInSeconds: 3600 }),
+      }
     );
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("[get-turn-credentials] Metered API error:", res.status, text);
+    if (!createRes.ok) {
+      const text = await createRes.text();
+      console.error("[get-turn-credentials] Create credential error:", createRes.status, text);
       return new Response(
-        JSON.stringify({ error: "Failed to fetch TURN credentials", status: res.status }),
+        JSON.stringify({ error: "Failed to create TURN credential", status: createRes.status }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const credentials = await res.json();
+    const cred = await createRes.json();
+    console.log("[get-turn-credentials] Created credential for user:", cred.username);
 
-    return new Response(JSON.stringify(credentials), {
+    // Return ICE servers in RTCPeerConnection format
+    const iceServers = [
+      {
+        urls: "turn:standard.relay.metered.ca:80",
+        username: cred.username,
+        credential: cred.password,
+      },
+      {
+        urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+        username: cred.username,
+        credential: cred.password,
+      },
+      {
+        urls: "turn:standard.relay.metered.ca:443",
+        username: cred.username,
+        credential: cred.password,
+      },
+      {
+        urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+        username: cred.username,
+        credential: cred.password,
+      },
+    ];
+
+    return new Response(JSON.stringify(iceServers), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
