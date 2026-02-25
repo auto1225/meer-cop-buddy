@@ -74,13 +74,9 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
         console.warn("[Camera] ⚠️ Track ended but stream active — auto re-acquiring camera...");
         isReacquiringRef.current = true;
         try {
-          const newStream = await navigator.mediaDevices.getUserMedia(
-            { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
-          );
-          if (newStream.getVideoTracks().length > 0) {
-            console.log("[Camera] ✅ Camera re-acquired successfully");
-            setStream(newStream);
-          }
+          const newStream = await tryGetUserMedia();
+          console.log("[Camera] ✅ Camera re-acquired successfully");
+          setStream(newStream);
         } catch (err) {
           console.error("[Camera] ❌ Re-acquire failed:", err);
           setError("CAMERA_DISCONNECTED");
