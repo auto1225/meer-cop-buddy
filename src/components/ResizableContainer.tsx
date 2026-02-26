@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Maximize, Minimize } from "lucide-react";
 
 interface ResizableContainerProps {
   children: React.ReactNode;
@@ -24,6 +24,9 @@ export function ResizableContainer({
   baseWidth = 480,
   baseHeight = 320,
 }: ResizableContainerProps) {
+  const [isFullscreen, setIsFullscreen] = useState(() => {
+    return localStorage.getItem('meercop-fullscreen') === 'true';
+  });
   const [size, setSize] = useState(() => {
     const saved = localStorage.getItem('meercop-container-size');
     if (saved) {
@@ -37,10 +40,32 @@ export function ResizableContainer({
   const containerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
 
-  // Calculate scale based on container size
-  const scale = Math.min(size.width / baseWidth, size.height / baseHeight);
+  // In fullscreen, use viewport dimensions
+  const effectiveWidth = isFullscreen ? window.innerWidth : size.width;
+  const effectiveHeight = isFullscreen ? window.innerHeight : size.height;
+  const scale = Math.min(effectiveWidth / baseWidth, effectiveHeight / baseHeight);
+
+  // Update on window resize when fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handler = () => {
+      // Force re-render
+      setSize(prev => ({ ...prev }));
+    };
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [isFullscreen]);
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => {
+      const next = !prev;
+      localStorage.setItem('meercop-fullscreen', String(next));
+      return next;
+    });
+  }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (isFullscreen) return;
     e.preventDefault();
     isResizing.current = true;
 
@@ -55,12 +80,10 @@ export function ResizableContainer({
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
 
-      // Maintain aspect ratio
       const aspectRatio = baseWidth / baseHeight;
       let newWidth = startWidth + deltaX;
       let newHeight = startHeight + deltaY;
 
-      // Use the larger delta to determine size, maintaining aspect ratio
       if (Math.abs(deltaX) > Math.abs(deltaY)) {
         newWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + deltaX));
         newHeight = newWidth / aspectRatio;
@@ -69,11 +92,10 @@ export function ResizableContainer({
         newWidth = newHeight * aspectRatio;
       }
 
-      // Clamp values
       newWidth = Math.min(maxWidth, Math.max(minWidth, newWidth));
       newHeight = Math.min(maxHeight, Math.max(minHeight, newHeight));
 
-      setSize(newSize => {
+      setSize(() => {
         const s = { width: newWidth, height: newHeight };
         localStorage.setItem('meercop-container-size', JSON.stringify(s));
         return s;
@@ -88,14 +110,14 @@ export function ResizableContainer({
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [size, minWidth, minHeight, maxWidth, maxHeight, baseWidth, baseHeight]);
+  }, [isFullscreen, size, minWidth, minHeight, maxWidth, maxHeight, baseWidth, baseHeight]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-transparent p-0">
+    <div className={`flex items-center justify-center bg-transparent ${isFullscreen ? 'fixed inset-0 z-[100]' : 'min-h-screen p-0'}`}>
       <div
         ref={containerRef}
         className="relative overflow-hidden"
-        style={{ width: size.width, height: size.height }}
+        style={isFullscreen ? { width: '100vw', height: '100vh' } : { width: size.width, height: size.height }}
       >
         {/* Scaled Content */}
         <div 
@@ -109,13 +131,28 @@ export function ResizableContainer({
           {children}
         </div>
         
-        {/* Resize Handle */}
-        <div
-          onMouseDown={handleMouseDown}
-          className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center bg-foreground/20 hover:bg-foreground/40 rounded-tl-lg transition-colors z-50"
+        {/* Fullscreen Toggle */}
+        <button
+          onClick={toggleFullscreen}
+          className="absolute top-1 right-1 w-7 h-7 flex items-center justify-center bg-foreground/20 hover:bg-foreground/40 rounded-lg transition-colors z-50"
+          title={isFullscreen ? "창 모드" : "전체화면"}
         >
-          <GripVertical className="h-3 w-3 text-white rotate-[-45deg]" />
-        </div>
+          {isFullscreen ? (
+            <Minimize className="h-3.5 w-3.5 text-white" />
+          ) : (
+            <Maximize className="h-3.5 w-3.5 text-white" />
+          )}
+        </button>
+
+        {/* Resize Handle (hidden in fullscreen) */}
+        {!isFullscreen && (
+          <div
+            onMouseDown={handleMouseDown}
+            className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center bg-foreground/20 hover:bg-foreground/40 rounded-tl-lg transition-colors z-50"
+          >
+            <GripVertical className="h-3 w-3 text-white rotate-[-45deg]" />
+          </div>
+        )}
       </div>
     </div>
   );
