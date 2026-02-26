@@ -114,9 +114,21 @@ export function ResizableContainer({
 
   if (isFullscreen) {
     return (
-      <div className="fixed inset-0 z-[100] overflow-auto bg-transparent">
-        {/* Full width, natural height - no scale transform */}
-        <div className="w-full min-h-screen">
+      <div 
+        className="fixed inset-0 z-[100] flex items-center justify-center"
+        style={{ background: 'linear-gradient(180deg, hsl(199 85% 60%) 0%, hsl(199 80% 55%) 50%, hsl(199 75% 50%) 100%)' }}
+      >
+        {/* App container - maintain aspect ratio, scale to fit viewport height */}
+        <div
+          ref={containerRef}
+          className="relative overflow-hidden"
+          style={{ 
+            width: baseWidth, 
+            height: baseHeight,
+            transform: `scale(${Math.min(window.innerWidth / baseWidth, window.innerHeight / baseHeight)})`,
+            transformOrigin: 'center center',
+          }}
+        >
           {children}
         </div>
 
