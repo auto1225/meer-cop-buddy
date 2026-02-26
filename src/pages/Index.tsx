@@ -645,6 +645,8 @@ const Index = () => {
 
   return (
     <I18nProvider initialLang={appLanguage as Lang}>
+    {/* Camouflage Overlay - OUTSIDE ResizableContainer to cover entire viewport */}
+    <CamouflageOverlay isActive={isCamouflageMode} />
     <ResizableContainer
       initialWidth={300}
       initialHeight={520}
@@ -663,8 +665,6 @@ const Index = () => {
           backgroundPosition: 'center bottom',
         }}
       >
-        {/* Camouflage Overlay - fullscreen black screen, smartphone-only dismiss */}
-        <CamouflageOverlay isActive={isCamouflageMode} />
 
         {/* Auto Broadcaster - listens for streaming requests from smartphone */}
         <AutoBroadcaster deviceId={currentDevice?.id} userId={savedAuth?.user_id} />
