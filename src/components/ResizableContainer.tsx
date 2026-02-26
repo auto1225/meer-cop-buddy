@@ -112,12 +112,32 @@ export function ResizableContainer({
     document.addEventListener("mouseup", handleMouseUp);
   }, [isFullscreen, size, minWidth, minHeight, maxWidth, maxHeight, baseWidth, baseHeight]);
 
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-[100] overflow-auto bg-transparent">
+        {/* Full width, natural height - no scale transform */}
+        <div className="w-full min-h-screen">
+          {children}
+        </div>
+
+        {/* Fullscreen Toggle */}
+        <button
+          onClick={toggleFullscreen}
+          className="fixed top-2 right-2 w-8 h-8 flex items-center justify-center bg-foreground/30 hover:bg-foreground/50 rounded-lg transition-colors z-[200]"
+          title="창 모드"
+        >
+          <Minimize className="h-4 w-4 text-white" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex items-center justify-center bg-transparent ${isFullscreen ? 'fixed inset-0 z-[100]' : 'min-h-screen p-0'}`}>
+    <div className="flex items-center justify-center bg-transparent min-h-screen p-0">
       <div
         ref={containerRef}
         className="relative overflow-hidden"
-        style={isFullscreen ? { width: '100vw', height: '100vh' } : { width: size.width, height: size.height }}
+        style={{ width: size.width, height: size.height }}
       >
         {/* Scaled Content */}
         <div 
@@ -135,24 +155,18 @@ export function ResizableContainer({
         <button
           onClick={toggleFullscreen}
           className="absolute top-1 right-1 w-7 h-7 flex items-center justify-center bg-foreground/20 hover:bg-foreground/40 rounded-lg transition-colors z-50"
-          title={isFullscreen ? "창 모드" : "전체화면"}
+          title="전체화면"
         >
-          {isFullscreen ? (
-            <Minimize className="h-3.5 w-3.5 text-white" />
-          ) : (
-            <Maximize className="h-3.5 w-3.5 text-white" />
-          )}
+          <Maximize className="h-3.5 w-3.5 text-white" />
         </button>
 
-        {/* Resize Handle (hidden in fullscreen) */}
-        {!isFullscreen && (
-          <div
-            onMouseDown={handleMouseDown}
-            className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center bg-foreground/20 hover:bg-foreground/40 rounded-tl-lg transition-colors z-50"
-          >
-            <GripVertical className="h-3 w-3 text-white rotate-[-45deg]" />
-          </div>
-        )}
+        {/* Resize Handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center bg-foreground/20 hover:bg-foreground/40 rounded-tl-lg transition-colors z-50"
+        >
+          <GripVertical className="h-3 w-3 text-white rotate-[-45deg]" />
+        </div>
       </div>
     </div>
   );
