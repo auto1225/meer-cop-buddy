@@ -56,11 +56,14 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
         if (!savedAuth?.user_id) {
           throw new Error(t("deviceSettings.serialRequired"));
         }
-        await registerDeviceViaEdge({
+        const registered = await registerDeviceViaEdge({
           user_id: savedAuth.user_id,
           device_name: deviceName,
           device_type: deviceType,
         });
+        if (!registered) {
+          throw new Error(t("deviceSettings.saveFailedDesc"));
+        }
         toast({ title: t("deviceSettings.registered"), description: t("deviceSettings.registeredDesc") });
       } else if (device) {
         await updateDeviceViaEdge(device.id, {
