@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.get-turn-credentials]
 verify_jwt = false
+
+[functions.register-device]
+verify_jwt = false
