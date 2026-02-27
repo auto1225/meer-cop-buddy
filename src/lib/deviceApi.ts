@@ -135,6 +135,17 @@ export async function registerDeviceViaEdge(
     device_type: string;
   }
 ): Promise<DeviceRow> {
+  // device_id 생성 (crypto.randomUUID 또는 폴백)
+  const deviceId = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  const body = {
+    ...params,
+    device_id: deviceId,
+    status: "offline",
+  };
+
   const res = await fetch(
     `${SHARED_SUPABASE_URL}/functions/v1/register-device`,
     {
@@ -143,7 +154,7 @@ export async function registerDeviceViaEdge(
         "Content-Type": "application/json",
         "apikey": SHARED_SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify(params),
+      body: JSON.stringify(body),
     }
   );
 
