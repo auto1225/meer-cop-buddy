@@ -138,14 +138,17 @@ async function ensureSharedDeviceRegistration(
       return exists.id || currentDeviceId;
     }
 
-    const registered = await registerDeviceViaEdge({
-      user_id: userId,
-      device_name: deviceName || "My Laptop",
-      device_type: "laptop",
-    });
+    const registered = await registerDeviceViaEdge(
+      {
+        user_id: userId,
+        device_name: deviceName || "My Laptop",
+        device_type: "laptop",
+      },
+      { throwOnFailure: false }
+    );
 
-    console.log("[serialAuth] ✅ 재검증 중 공유 DB 기기 등록 완료:", registered);
-    return registered.id || registered.device_id || currentDeviceId;
+    console.log("[serialAuth] ✅ 재검증 중 공유 DB 기기 등록 결과:", registered);
+    return registered?.id || registered?.device_id || currentDeviceId;
   } catch (err) {
     console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 보정 실패 (계속 진행):", err);
     return currentDeviceId;
