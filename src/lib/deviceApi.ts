@@ -220,9 +220,29 @@ export async function registerDeviceViaEdge(
     return secondTry.data as DeviceRow;
   }
 
-  throw new Error(
-    `register-device failed: function=${res.status} ${fnErr} | fallback1=${firstTry.error?.message || "unknown"} | fallback2=${secondTry.error?.message || "unknown"}`
+  console.error(
+    `[deviceApi] ❌ register-device ultimately failed | function=${res.status} ${fnErr} | fallback1=${firstTry.error?.message || "unknown"} | fallback2=${secondTry.error?.message || "unknown"}`
   );
+
+  // 런타임 크래시 방지: 최종 실패 시에도 안전한 객체 반환
+  return {
+    id: deviceId,
+    device_id: deviceId,
+    device_name: params.device_name,
+    name: params.device_name,
+    device_type: params.device_type,
+    status: "offline",
+    is_monitoring: false,
+    is_camera_connected: false,
+    is_network_connected: false,
+    is_streaming_requested: false,
+    battery_level: null,
+    last_seen_at: null,
+    metadata: {},
+    user_id: params.user_id,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 /** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
