@@ -15,36 +15,37 @@ export interface SerialAuthData {
   remaining_days: number | null;
 }
 
-const SERIAL_VERIFY_ENDPOINTS = ["validate-serial", "verify-serial"] as const;
+async function callVerifySerial(serialKey: string) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/verify-serial`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ action: "verify", serial_key: serialKey }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any)?.error || "시리얼 검증 실패");
+  return data;
+}
 
-async function callSerialVerify(payload: {
-  serial_key: string;
-  device_name: string;
-  device_type: "laptop";
-}) {
-  let lastError = "시리얼 검증 실패";
-
-  for (const endpoint of SERIAL_VERIFY_ENDPOINTS) {
-    try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) return data;
-      lastError = (data as any)?.error || lastError;
-    } catch {
-      // 네트워크/함수 미배포 오류 시 다음 엔드포인트로 폴백
-    }
-  }
-
-  throw new Error(lastError);
+async function callRegisterDevice(serialKey: string, deviceName: string) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/verify-serial`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      action: "register_device",
+      serial_key: serialKey,
+      device_name: deviceName,
+      device_type: "laptop",
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any)?.error || "기기 등록 실패");
+  return data;
 }
 
 // 시리얼 넘버 검증 & 기기 등록
@@ -52,19 +53,23 @@ export async function validateSerial(
   serialKey: string,
   deviceName: string = "My Laptop"
 ): Promise<SerialAuthData> {
-  const data = await callSerialVerify({
-    serial_key: serialKey.trim().toUpperCase(),
-    device_name: deviceName,
-    device_type: "laptop",
-  });
+  const key = serialKey.trim().toUpperCase();
 
-  // validate-serial은 flat 구조, verify-serial은 data.serial.* 구조
+  // 1) 시리얼 검증
+  const data = await callVerifySerial(key);
+  if (!data.valid) {
+    throw new Error(data.error || "유효하지 않은 시리얼입니다.");
+  }
+
+  // 2) 기기 등록
+  await callRegisterDevice(key, deviceName);
+
   const s = data.serial || data;
 
   const authData: SerialAuthData = {
-    serial_key: s.serial_key || serialKey.trim().toUpperCase(),
-    device_id: s.device_id || data.device_id,
-    user_id: s.user_id || data.user_id,
+    serial_key: s.serial_key || key,
+    device_id: s.id || s.device_id || "",
+    user_id: s.user_id || "",
     device_name: s.device_name || deviceName,
     authenticated_at: new Date().toISOString(),
     plan_type: s.plan_type || "free",
@@ -73,7 +78,6 @@ export async function validateSerial(
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-
   return authData;
 }
 
@@ -103,13 +107,7 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
   if (!saved) return null;
 
   try {
-    const data = await callSerialVerify({
-      serial_key: saved.serial_key,
-      device_name: saved.device_name,
-      device_type: "laptop",
-    });
-
-    // validate-serial은 flat, verify-serial은 data.serial.* 구조
+    const data = await callVerifySerial(saved.serial_key);
     const s = data.serial || data;
 
     const updated: SerialAuthData = {
@@ -117,8 +115,8 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       plan_type: s.plan_type || saved.plan_type,
       expires_at: s.expires_at ?? saved.expires_at,
       remaining_days: s.remaining_days ?? saved.remaining_days,
-      device_id: s.device_id || data.device_id || saved.device_id,
-      user_id: s.user_id || data.user_id || saved.user_id,
+      device_id: s.id || s.device_id || saved.device_id,
+      user_id: s.user_id || saved.user_id,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
