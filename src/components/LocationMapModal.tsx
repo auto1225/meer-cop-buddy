@@ -3,8 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { X, MapPin, Loader2, Smartphone, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabaseShared } from "@/lib/supabase";
-import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { useTranslation } from "@/lib/i18n";
 
@@ -26,11 +25,22 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const [locationSource, setLocationSource] = useState<string | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [addressLoading, setAddressLoading] = useState(false);
-  const channelRef = useRef<ReturnType<typeof supabaseShared.channel> | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationReceivedRef = useRef(false);
   const mapInitializedRef = useRef(false);
   const { t } = useTranslation();
+
+  // ── 공유 DB 직접 호출 헬퍼 (검증된 방식 복구) ──
+  const sharedFetch = useCallback(async (fnName: string, body: Record<string, unknown>) => {
+    const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/${fnName}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${fnName} failed: ${res.status}`);
+    return res.json();
+  }, []);
 
   // Reverse geocode coordinates to address
   const fetchAddress = useCallback(async (lat: number, lng: number) => {
@@ -51,7 +61,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     setAddressLoading(false);
   }, []);
 
-  // Send locate request to smartphone and wait for response
+  // Send locate request to smartphone via SHARED DB and wait for response
   const requestSmartphoneLocation = useCallback(async () => {
     if (!smartphoneDeviceId) {
       setError(t("location.noSmartphone"));
@@ -68,62 +78,71 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     try {
       const savedAuth = getSavedAuth();
       const userId = savedAuth?.user_id;
-      
-      const deviceData = userId ? await fetchDeviceViaEdge(smartphoneDeviceId, userId) : null;
 
-      if (deviceData?.device_name) setDeviceName(deviceData.device_name);
+      // 공유 DB에서 스마트폰 기기 조회
+      let sharedDevice: any = null;
+      if (userId) {
+        const data = await sharedFetch("get-devices", { user_id: userId });
+        const devices = data.devices || data || [];
+        sharedDevice = devices.find((d: any) => d.device_type === "smartphone");
+      }
 
-      const existingMeta = (deviceData?.metadata as Record<string, unknown>) || {};
+      const sharedDeviceId = sharedDevice?.id || smartphoneDeviceId;
+      if (sharedDevice?.device_name) setDeviceName(sharedDevice.device_name);
+
+      const existingMeta = (sharedDevice?.metadata as Record<string, unknown>) || {};
       const requestTimestamp = new Date().toISOString();
 
-      await updateDeviceViaEdge(smartphoneDeviceId, {
-        metadata: { ...existingMeta, locate_requested: requestTimestamp },
+      // 공유 DB에 locate_requested 기록
+      await sharedFetch("update-device", {
+        device_id: sharedDeviceId,
+        updates: {
+          metadata: { ...existingMeta, locate_requested: requestTimestamp },
+        },
       });
 
-      console.log("[LocationMap] Sent locate request to smartphone:", requestTimestamp);
+      console.log("[LocationMap] Sent locate request via SHARED DB:", requestTimestamp, "deviceId:", sharedDeviceId);
 
-      const pollForLocation = async () => {
-        if (locationReceivedRef.current || !userId) return;
-        
-        const pollId = setInterval(async () => {
-          if (locationReceivedRef.current) {
-            clearInterval(pollId);
-            return;
-          }
-          try {
-            const updated = await fetchDeviceViaEdge(smartphoneDeviceId, userId);
-            if (!updated) return;
-            const meta = updated.metadata as Record<string, unknown> | null;
-            
-            if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
-              locationReceivedRef.current = true;
-              setCoords({ lat: updated.latitude, lng: updated.longitude });
-              setUpdatedAt(updated.location_updated_at || null);
-              setLocationSource((meta.location_source as string) || null);
-              setIsLoading(false);
-              fetchAddress(updated.latitude, updated.longitude);
-              clearInterval(pollId);
-              if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-                timeoutRef.current = null;
-              }
+      // 공유 DB 폴링으로 위치 응답 대기
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = setInterval(async () => {
+        if (locationReceivedRef.current || !userId) {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          return;
+        }
+        try {
+          const data = await sharedFetch("get-devices", { user_id: userId });
+          const devices = data.devices || data || [];
+          const updated = devices.find((d: any) => d.id === sharedDeviceId);
+          if (!updated) return;
+          const meta = updated.metadata as Record<string, unknown> | null;
+
+          if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
+            locationReceivedRef.current = true;
+            setCoords({ lat: updated.latitude, lng: updated.longitude });
+            setUpdatedAt(updated.location_updated_at || null);
+            setLocationSource((meta.location_source as string) || null);
+            setIsLoading(false);
+            fetchAddress(updated.latitude, updated.longitude);
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
             }
-          } catch {
-            // silent
           }
-        }, 2000);
-        
-        channelRef.current = { unsubscribe: () => clearInterval(pollId) } as any;
-      };
-      pollForLocation();
+        } catch {
+          // silent
+        }
+      }, 2000);
 
+      // 20초 타임아웃: 마지막 알려진 위치 표시
       timeoutRef.current = setTimeout(() => {
-        if (deviceData?.latitude && deviceData?.longitude) {
-          const meta = (deviceData?.metadata as Record<string, unknown>) || {};
-          setCoords({ lat: deviceData.latitude, lng: deviceData.longitude });
-          setUpdatedAt(deviceData.location_updated_at || null);
+        if (sharedDevice?.latitude && sharedDevice?.longitude) {
+          const meta = (sharedDevice?.metadata as Record<string, unknown>) || {};
+          setCoords({ lat: sharedDevice.latitude, lng: sharedDevice.longitude });
+          setUpdatedAt(sharedDevice.location_updated_at || null);
           setLocationSource((meta.location_source as string) || null);
-          fetchAddress(deviceData.latitude, deviceData.longitude);
+          fetchAddress(sharedDevice.latitude, sharedDevice.longitude);
           setError(t("location.lastKnown"));
         } else {
           setError(t("location.noResponse"));
@@ -136,16 +155,16 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
       setError(t("location.error"));
       setIsLoading(false);
     }
-  }, [smartphoneDeviceId, t]);
+  }, [smartphoneDeviceId, t, sharedFetch, fetchAddress]);
 
   useEffect(() => {
     if (!isOpen) return;
     requestSmartphoneLocation();
 
     return () => {
-      if (channelRef.current) {
-        try { (channelRef.current as any).unsubscribe?.(); } catch {}
-        channelRef.current = null;
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
