@@ -87,6 +87,7 @@ export type Database = {
           ip_address: string | null
           is_camera_connected: boolean | null
           is_charging: boolean | null
+          is_monitoring: boolean | null
           is_network_connected: boolean | null
           is_streaming_requested: boolean | null
           last_seen_at: string | null
@@ -94,9 +95,11 @@ export type Database = {
           location_updated_at: string | null
           longitude: number | null
           metadata: Json | null
+          name: string | null
           os_info: string | null
           status: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           app_version?: string | null
@@ -109,6 +112,7 @@ export type Database = {
           ip_address?: string | null
           is_camera_connected?: boolean | null
           is_charging?: boolean | null
+          is_monitoring?: boolean | null
           is_network_connected?: boolean | null
           is_streaming_requested?: boolean | null
           last_seen_at?: string | null
@@ -116,9 +120,11 @@ export type Database = {
           location_updated_at?: string | null
           longitude?: number | null
           metadata?: Json | null
+          name?: string | null
           os_info?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           app_version?: string | null
@@ -131,6 +137,7 @@ export type Database = {
           ip_address?: string | null
           is_camera_connected?: boolean | null
           is_charging?: boolean | null
+          is_monitoring?: boolean | null
           is_network_connected?: boolean | null
           is_streaming_requested?: boolean | null
           last_seen_at?: string | null
@@ -138,9 +145,11 @@ export type Database = {
           location_updated_at?: string | null
           longitude?: number | null
           metadata?: Json | null
+          name?: string | null
           os_info?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
