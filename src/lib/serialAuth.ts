@@ -1,4 +1,4 @@
-import { registerDeviceViaEdge } from "./deviceApi";
+import { fetchDevicesViaEdge, registerDeviceViaEdge } from "./deviceApi";
 
 // 시리얼 검증은 웹사이트 프로젝트(peqgmuicrorjvvburqly)의 Edge Function을 사용
 const SUPABASE_URL = "https://peqgmuicrorjvvburqly.supabase.co";
@@ -116,6 +116,38 @@ export function isSerialAuthenticated(): boolean {
   return getSavedAuth() !== null;
 }
 
+// 공유 DB 기기 등록 보정
+async function ensureSharedDeviceRegistration(
+  userId: string,
+  deviceName: string,
+  currentDeviceId: string
+): Promise<string> {
+  if (!userId) return currentDeviceId;
+
+  try {
+    const devices = await fetchDevicesViaEdge(userId);
+    const exists = devices.find(
+      (d) => d.id === currentDeviceId || d.device_id === currentDeviceId
+    );
+
+    if (exists) {
+      return exists.id || currentDeviceId;
+    }
+
+    const registered = await registerDeviceViaEdge({
+      user_id: userId,
+      device_name: deviceName || "My Laptop",
+      device_type: "laptop",
+    });
+
+    console.log("[serialAuth] ✅ 재검증 중 공유 DB 기기 등록 완료:", registered);
+    return registered.id || registered.device_id || currentDeviceId;
+  } catch (err) {
+    console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 보정 실패 (계속 진행):", err);
+    return currentDeviceId;
+  }
+}
+
 // 시리얼 재검증 (플랜 정보 갱신)
 export async function revalidateSerial(): Promise<SerialAuthData | null> {
   const saved = getSavedAuth();
@@ -125,13 +157,20 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
     const data = await callVerifySerial(saved.serial_key);
     const s = data.serial || data;
 
+    const ensuredDeviceId = await ensureSharedDeviceRegistration(
+      s.user_id || saved.user_id,
+      s.device_name || saved.device_name || "My Laptop",
+      s.id || s.device_id || saved.device_id
+    );
+
     const updated: SerialAuthData = {
       ...saved,
       plan_type: s.plan_type || saved.plan_type,
       expires_at: s.expires_at ?? saved.expires_at,
       remaining_days: s.remaining_days ?? saved.remaining_days,
-      device_id: s.id || s.device_id || saved.device_id,
+      device_id: ensuredDeviceId,
       user_id: s.user_id || saved.user_id,
+      device_name: s.device_name || saved.device_name,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
