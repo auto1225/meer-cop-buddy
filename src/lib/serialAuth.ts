@@ -167,12 +167,19 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       s.id || s.device_id || saved.device_id
     );
 
+    const normalizedDeviceId =
+      typeof ensuredDeviceId === "string" && ensuredDeviceId.startsWith("local-")
+        ? (saved.device_id && !saved.device_id.startsWith("local-")
+            ? saved.device_id
+            : (s.id || s.device_id || ""))
+        : ensuredDeviceId;
+
     const updated: SerialAuthData = {
       ...saved,
       plan_type: s.plan_type || saved.plan_type,
       expires_at: s.expires_at ?? saved.expires_at,
       remaining_days: s.remaining_days ?? saved.remaining_days,
-      device_id: ensuredDeviceId,
+      device_id: normalizedDeviceId,
       user_id: s.user_id || saved.user_id,
       device_name: s.device_name || saved.device_name,
     };
