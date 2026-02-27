@@ -16,29 +16,48 @@ export interface SerialAuthData {
   remaining_days: number | null;
 }
 
+const SERIAL_VERIFY_ENDPOINTS = ["validate-serial", "verify-serial"] as const;
+
+async function callSerialVerify(payload: {
+  serial_key: string;
+  device_name: string;
+  device_type: "laptop";
+}) {
+  let lastError = "시리얼 검증 실패";
+
+  for (const endpoint of SERIAL_VERIFY_ENDPOINTS) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) return data;
+      lastError = (data as any)?.error || lastError;
+    } catch {
+      // 네트워크/함수 미배포 오류 시 다음 엔드포인트로 폴백
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 // 시리얼 넘버 검증 & 기기 등록
 export async function validateSerial(
   serialKey: string,
   deviceName: string = "My Laptop"
 ): Promise<SerialAuthData> {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/validate-serial`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({
-      serial_key: serialKey.trim().toUpperCase(),
-      device_name: deviceName,
-      device_type: "laptop",
-    }),
+  const data = await callSerialVerify({
+    serial_key: serialKey.trim().toUpperCase(),
+    device_name: deviceName,
+    device_type: "laptop",
   });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.error || "시리얼 검증 실패");
-  }
 
   // validate-serial은 flat 구조, verify-serial은 data.serial.* 구조
   const s = data.serial || data;
@@ -85,24 +104,11 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
   if (!saved) return null;
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/validate-serial`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({
-        serial_key: saved.serial_key,
-        device_name: saved.device_name,
-        device_type: "laptop",
-      }),
+    const data = await callSerialVerify({
+      serial_key: saved.serial_key,
+      device_name: saved.device_name,
+      device_type: "laptop",
     });
-
-    const data = await res.json();
-    if (!res.ok) {
-      console.warn("[revalidateSerial] Failed:", data.error);
-      return null;
-    }
 
     // validate-serial은 flat, verify-serial은 data.serial.* 구조
     const s = data.serial || data;
