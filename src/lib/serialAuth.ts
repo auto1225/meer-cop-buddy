@@ -11,7 +11,7 @@ export interface SerialAuthData {
   user_id: string;
   device_name: string;
   authenticated_at: string;
-  plan_type: "trial" | "basic" | "premium";
+  plan_type: "free" | "basic" | "premium";
   expires_at: string | null;
   remaining_days: number | null;
 }
@@ -49,7 +49,7 @@ export async function validateSerial(
     user_id: s.user_id || data.user_id,
     device_name: s.device_name || deviceName,
     authenticated_at: new Date().toISOString(),
-    plan_type: s.plan_type || "trial",
+    plan_type: s.plan_type || "free",
     expires_at: s.expires_at || null,
     remaining_days: s.remaining_days ?? null,
   };

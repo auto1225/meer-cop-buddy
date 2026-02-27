@@ -84,7 +84,7 @@ export function useAuth() {
     deviceId: authData?.device_id ?? null,
     userId: authData?.user_id ?? null,
     serialKey: authData?.serial_key ?? null,
-    planType: authData?.plan_type ?? "trial",
+    planType: authData?.plan_type ?? "free",
     expiresAt: authData?.expires_at ?? null,
     remainingDays: authData?.remaining_days ?? null,
   };
