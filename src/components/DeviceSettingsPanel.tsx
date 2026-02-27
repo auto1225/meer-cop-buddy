@@ -3,9 +3,9 @@ import { Laptop, Monitor, Save, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabaseShared } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { getSavedAuth } from "@/lib/serialAuth";
+import { registerDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { useTranslation } from "@/lib/i18n";
 
 interface Device {
@@ -56,23 +56,17 @@ export function DeviceSettingsPanel({ device, isNewDevice = false, onClose, onUp
         if (!savedAuth?.user_id) {
           throw new Error(t("deviceSettings.serialRequired"));
         }
-        const { error } = await supabaseShared
-          .from("devices")
-          .insert({
-            user_id: savedAuth.user_id,
-            name: deviceName,
-            device_type: deviceType,
-            status: "offline",
-            is_monitoring: false,
-          } as any);
-        if (error) throw error;
+        await registerDeviceViaEdge({
+          user_id: savedAuth.user_id,
+          device_name: deviceName,
+          device_type: deviceType,
+        });
         toast({ title: t("deviceSettings.registered"), description: t("deviceSettings.registeredDesc") });
       } else if (device) {
-        const { error } = await supabaseShared
-          .from("devices")
-          .update({ name: deviceName, device_type: deviceType } as any)
-          .eq("id", device.id);
-        if (error) throw error;
+        await updateDeviceViaEdge(device.id, {
+          device_name: deviceName,
+          device_type: deviceType,
+        });
         toast({ title: t("deviceSettings.saved"), description: t("deviceSettings.savedDesc") });
       }
       onUpdate();
