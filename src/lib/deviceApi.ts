@@ -224,6 +224,12 @@ export async function updateDeviceViaEdge(
   deviceId: string,
   updates: Record<string, unknown>
 ): Promise<void> {
+  // Skip virtual/synthetic devices (non-UUID IDs from Presence fallback)
+  if (deviceId.startsWith("presence-")) {
+    console.log(`[deviceApi] ⏭️ Skipping update for virtual device: ${deviceId}`);
+    return;
+  }
+
   // 1) 로컬 우선
   let localOk = false;
   try {
