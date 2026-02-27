@@ -1,4 +1,4 @@
-import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "./supabase";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
 
 /**
  * Edge Function을 통한 디바이스 API (RLS 우회)
@@ -128,9 +128,8 @@ export async function deleteSignalingViaEdge(
 }
 
 /**
- * 기기 등록
- * - 외부 register-device 함수가 500을 반환해도 앱이 중단되지 않도록
- *   직접 insert 기반으로 등록 처리
+ * 기기 등록 (공유 프로젝트의 register-device 함수 호출)
+ * NOTE: direct insert는 RLS로 차단되므로 사용하지 않음
  */
 export async function registerDeviceViaEdge(
   params: {
@@ -139,90 +138,44 @@ export async function registerDeviceViaEdge(
     device_type: string;
   }
 ): Promise<DeviceRow> {
-  const now = new Date().toISOString();
-
-  const payloadCandidates: Record<string, unknown>[] = [
-    // schema variant A: name + user_id
-    {
-      user_id: params.user_id,
-      name: params.device_name,
-      device_type: params.device_type,
-      status: "offline",
-      is_monitoring: false,
-      is_camera_connected: false,
-      is_network_connected: false,
-      metadata: {},
-    },
-    // schema variant B: device_name + user_id
-    {
-      user_id: params.user_id,
-      device_name: params.device_name,
-      device_type: params.device_type,
-      status: "offline",
-      is_monitoring: false,
-      is_camera_connected: false,
-      is_network_connected: false,
-      metadata: {},
-    },
-    // schema variant C: name only (no user_id)
-    {
-      name: params.device_name,
-      device_type: params.device_type,
-      status: "offline",
-      is_monitoring: false,
-      is_camera_connected: false,
-      is_network_connected: false,
-      metadata: {},
-    },
-    // schema variant D: device_name only (no user_id)
-    {
-      device_name: params.device_name,
-      device_type: params.device_type,
-      status: "offline",
-      is_monitoring: false,
-      is_camera_connected: false,
-      is_network_connected: false,
-      metadata: {},
-    },
-  ];
-
-  let lastError = "unknown";
-
-  for (const payload of payloadCandidates) {
-    const attempt = await supabaseShared
-      .from("devices")
-      .insert(payload as any)
-      .select("*")
-      .single();
-
-    if (!attempt.error && attempt.data) {
-      console.log("[deviceApi] ✅ Device registered via direct insert:", attempt.data);
-      return attempt.data as DeviceRow;
-    }
-
-    lastError = attempt.error?.message || lastError;
-    console.warn("[deviceApi] register direct insert attempt failed:", payload, attempt.error);
-  }
-
-  // 최종 실패 시에도 런타임 크래시 방지
-  console.error(`[deviceApi] ❌ Device registration failed after all insert attempts: ${lastError}`);
-  return {
-    id: `local-${Date.now()}`,
-    device_name: params.device_name,
+  const body = {
+    user_id: params.user_id,
+    // 공유 스키마 호환: name 사용
     name: params.device_name,
     device_type: params.device_type,
     status: "offline",
     is_monitoring: false,
     is_camera_connected: false,
     is_network_connected: false,
-    is_streaming_requested: false,
-    battery_level: null,
-    last_seen_at: null,
     metadata: {},
-    user_id: params.user_id,
-    created_at: now,
-    updated_at: now,
   };
+
+  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SHARED_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await res.text();
+  const parsed = (() => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!res.ok) {
+    const message = (parsed as any)?.error || text || `register-device failed: ${res.status}`;
+    throw new Error(message);
+  }
+
+  const data = parsed ?? {};
+  console.log("[deviceApi] ✅ Device registered via function:", data);
+  return (data as any).device || (data as any);
 }
 
 /** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
