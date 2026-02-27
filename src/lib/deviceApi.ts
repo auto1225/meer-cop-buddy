@@ -175,13 +175,13 @@ export async function registerDeviceViaEdge(
   const fnErr = await res.text();
   console.warn(`[deviceApi] ⚠️ register-device function failed (${res.status}), fallback to direct insert`, fnErr);
 
-  // 폴백 1: user_id 포함 시도
+  // 폴백 1: shared schema 호환 (device_id/device_name 컬럼 미사용)
   const payloadWithUser = {
     user_id: params.user_id,
-    device_id: deviceId,
-    device_name: params.device_name,
+    name: params.device_name,
     device_type: params.device_type,
     status: "offline",
+    is_monitoring: false,
     is_camera_connected: false,
     is_network_connected: false,
     metadata: {},
@@ -198,12 +198,12 @@ export async function registerDeviceViaEdge(
     return firstTry.data as DeviceRow;
   }
 
-  // 폴백 2: 일부 스키마에 user_id 컬럼이 없을 수 있어 제외 후 재시도
+  // 폴백 2: user_id 컬럼/제약 불일치 환경 대응
   const payloadWithoutUser = {
-    device_id: deviceId,
-    device_name: params.device_name,
+    name: params.device_name,
     device_type: params.device_type,
     status: "offline",
+    is_monitoring: false,
     is_camera_connected: false,
     is_network_connected: false,
     metadata: {},
