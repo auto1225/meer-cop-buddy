@@ -40,15 +40,18 @@ export async function validateSerial(
     throw new Error(data.error || "시리얼 검증 실패");
   }
 
+  // validate-serial은 flat 구조, verify-serial은 data.serial.* 구조
+  const s = data.serial || data;
+
   const authData: SerialAuthData = {
-    serial_key: data.serial_key,
-    device_id: data.device_id,
-    user_id: data.user_id,
-    device_name: data.device_name || deviceName,
+    serial_key: s.serial_key || serialKey.trim().toUpperCase(),
+    device_id: s.device_id || data.device_id,
+    user_id: s.user_id || data.user_id,
+    device_name: s.device_name || deviceName,
     authenticated_at: new Date().toISOString(),
-    plan_type: data.plan_type || "trial",
-    expires_at: data.expires_at || null,
-    remaining_days: data.remaining_days ?? null,
+    plan_type: s.plan_type || "trial",
+    expires_at: s.expires_at || null,
+    remaining_days: s.remaining_days ?? null,
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
@@ -101,13 +104,16 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       return null;
     }
 
+    // validate-serial은 flat, verify-serial은 data.serial.* 구조
+    const s = data.serial || data;
+
     const updated: SerialAuthData = {
       ...saved,
-      plan_type: data.plan_type || saved.plan_type,
-      expires_at: data.expires_at ?? saved.expires_at,
-      remaining_days: data.remaining_days ?? saved.remaining_days,
-      device_id: data.device_id || saved.device_id,
-      user_id: data.user_id || saved.user_id,
+      plan_type: s.plan_type || saved.plan_type,
+      expires_at: s.expires_at ?? saved.expires_at,
+      remaining_days: s.remaining_days ?? saved.remaining_days,
+      device_id: s.device_id || data.device_id || saved.device_id,
+      user_id: s.user_id || data.user_id || saved.user_id,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
