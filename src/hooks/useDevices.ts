@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
-// Using shared Supabase client (same as MeerCOP mobile app)
+import { supabase } from "@/integrations/supabase/client";
 
-// Shared DB schema (sltxwkdvaapyeosikegj.supabase.co)
+// Shared DB schema
 interface Device {
   id: string;
   device_id?: string;
   device_name?: string;
-  name?: string; // Edge Function returns "name" instead of "device_name"
+  name?: string;
   device_type: string;
   status: string;
   is_monitoring?: boolean;
@@ -42,7 +42,6 @@ export interface DeviceCompat {
 
 // Convert device to compatible format for components
 function toCompatDevice(d: Device): DeviceCompat {
-  // is_monitoring이 true여도 status가 offline이면 실제로 꺼진 것
   const effectiveOnline = d.status === "online" || (d.is_monitoring === true && d.status !== "offline");
   return {
     id: d.id,
@@ -62,13 +61,22 @@ function toCompatDevice(d: Device): DeviceCompat {
   };
 }
 
+// ── 로컬 Lovable Cloud Edge Function URL 헬퍼 ──
+function getLocalFunctionUrl(fnName: string): string {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";
+  return `https://${projectId}.supabase.co/functions/v1/${fnName}`;
+}
+
+function getLocalAnonKey(): string {
+  return import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdmJ3eWZ6dWV5d3V3eGtqdXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTI2ODMsImV4cCI6MjA4NTg2ODY4M30.0lDX72JHWonW5fRRPve_cdfJrNVyDMzz5nzshJ0cEuI";
+}
+
 export function useDevices(userId?: string) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Presence로 감지한 스마트폰 온라인 상태를 DB 폴링이 덮어쓰지 않도록 보존
   const phoneOnlineByPresenceRef = useRef(false);
-
   const isFirstLoad = useRef(true);
 
   const fetchDevices = useCallback(async () => {
@@ -76,58 +84,78 @@ export function useDevices(userId?: string) {
     try {
       if (isFirstLoad.current) setIsLoading(true);
       
-      // 공유 Supabase Edge Function 호출 (최대 2회 재시도)
-      let res: Response | null = null;
-      let lastError: unknown = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      // 1) 로컬 Lovable Cloud get-devices 우선 시도
+      let deviceList: Device[] = [];
+      let fetched = false;
+
+      try {
+        const res = await fetch(getLocalFunctionUrl("get-devices"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: getLocalAnonKey(),
+          },
+          body: JSON.stringify({ user_id: userId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          deviceList = data.devices || data || [];
+          fetched = true;
+          console.log("[useDevices] ✅ Local get-devices fetched:", deviceList.length, "devices");
+        } else {
+          console.warn("[useDevices] Local get-devices failed:", res.status);
+        }
+      } catch (e) {
+        console.warn("[useDevices] Local get-devices network error:", e);
+      }
+
+      // 2) 로컬 실패 시 공유 프로젝트 폴백
+      if (!fetched) {
         try {
-          res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+          const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "apikey": SHARED_SUPABASE_ANON_KEY,
+              apikey: SHARED_SUPABASE_ANON_KEY,
             },
             body: JSON.stringify({ user_id: userId }),
           });
-          if (res.ok) break;
-          lastError = await res.json().catch(() => ({}));
-          console.warn(`[useDevices] Edge Function attempt ${attempt + 1} failed:`, res.status, lastError);
-          res = null;
-          // 짧은 대기 후 재시도
-          if (attempt < 1) await new Promise(r => setTimeout(r, 1500));
+          if (res.ok) {
+            const data = await res.json();
+            deviceList = data.devices || data || [];
+            fetched = true;
+            console.log("[useDevices] ✅ Shared get-devices fetched:", deviceList.length, "devices");
+          }
         } catch (e) {
-          lastError = e;
-          console.warn(`[useDevices] Edge Function attempt ${attempt + 1} network error:`, e);
-          if (attempt < 1) await new Promise(r => setTimeout(r, 1500));
+          console.warn("[useDevices] Shared get-devices failed:", e);
         }
       }
 
-      if (!res || !res.ok) {
-        // Fallback: 직접 쿼리 시도 (RLS 허용 시)
-        console.warn("[useDevices] All Edge Function attempts failed, trying direct query...");
+      // 3) 모두 실패 시 직접 쿼리 시도
+      if (!fetched) {
         try {
-          const { data: fallbackData } = await supabaseShared
+          const { data: fallbackData } = await supabase
             .from("devices")
-            .select("*");
+            .select("*")
+            .or(`device_id.eq.${userId},user_id.eq.${userId}`)
+            .order("created_at", { ascending: true });
           if (fallbackData && fallbackData.length > 0) {
-            console.log("[useDevices] Fallback fetched:", fallbackData.length, "devices");
-            setDevices(fallbackData as Device[]);
-            setError(null);
-            return;
+            deviceList = fallbackData as unknown as Device[];
+            fetched = true;
+            console.log("[useDevices] ✅ Direct query fetched:", deviceList.length, "devices");
           }
-        } catch (fallbackErr) {
-          console.warn("[useDevices] Fallback query also failed:", fallbackErr);
+        } catch (e) {
+          console.warn("[useDevices] Direct query failed:", e);
         }
-        // 모든 시도 실패 시에도 기존 devices 유지, 에러만 표시
+      }
+
+      if (!fetched) {
         setError("LOAD_DEVICES_FAILED");
         return;
       }
 
-      const data = await res.json();
-      const deviceList = data.devices || data || [];
       console.log("[useDevices] Edge Function fetched:", deviceList.length, "devices");
-      // Presence로 감지한 스마트폰 online 상태를 DB 데이터가 덮어쓰지 않도록 보정
-      const correctedList = (deviceList as Device[]).map((d) => {
+      const correctedList = deviceList.map((d) => {
         if (d.device_type === "smartphone" && phoneOnlineByPresenceRef.current && d.status !== "online") {
           return { ...d, status: "online" };
         }
@@ -148,12 +176,10 @@ export function useDevices(userId?: string) {
     let isMounted = true;
     let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let realtimeWorking = false;
-    // Presence + Realtime이 동작하므로 폴링은 드문 안전장치로만 사용
     let pollInterval = 60000;
 
     fetchDevices();
 
-    // 폴링: Realtime/Presence 실패 시 안전장치 (Realtime 정상 시 120초, 실패 시 15초)
     const schedulePoll = () => {
       if (!isMounted) return;
       pollTimeoutId = setTimeout(async () => {
@@ -168,20 +194,14 @@ export function useDevices(userId?: string) {
       ? `devices-changes-${userId}` 
       : "devices-changes";
 
-    // Subscribe to realtime updates (postgres_changes)
-    const channel = supabaseShared
+    // 로컬 DB Realtime 구독 (Lovable Cloud)
+    const channel = supabase
       .channel(channelName)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "devices",
-        },
+        { event: "*", schema: "public", table: "devices" },
         (payload) => {
           realtimeWorking = true;
-          // Realtime이 동작하므로 폴링 간격을 넉넉하게 설정
-
           if (payload.eventType === "INSERT") {
             setDevices((prev) => [payload.new as Device, ...prev]);
           } else if (payload.eventType === "UPDATE") {
@@ -189,7 +209,6 @@ export function useDevices(userId?: string) {
               prev.map((d) => {
                 if (d.id !== (payload.new as Device).id) return d;
                 const updated = payload.new as Device;
-                // Presence가 smartphone을 offline으로 감지했으면 DB UPDATE가 덮어쓰지 않도록 보정
                 if (updated.device_type === "smartphone" && !phoneOnlineByPresenceRef.current && updated.status === "online") {
                   return { ...updated, status: "offline" };
                 }
@@ -207,31 +226,26 @@ export function useDevices(userId?: string) {
         console.log(`[useDevices] Channel status: ${status}`);
         if (status === "SUBSCRIBED") {
           realtimeWorking = true;
-          pollInterval = 120000; // Realtime 정상 → 120초 폴링
+          pollInterval = 120000;
         } else if (status === "CHANNEL_ERROR") {
           realtimeWorking = false;
-          pollInterval = 15000; // Realtime 실패 → 15초 폴링
-          console.error("[useDevices] Channel error");
+          pollInterval = 15000;
         }
       });
 
-    // Presence channel: detect smartphone online/offline instantly
-    // Presence 상태를 직접 로컬에 반영하여 DB 폴링 대기 없이 즉시 UI 업데이트
-    let presenceChannel: ReturnType<typeof supabaseShared.channel> | null = null;
+    // Presence channel for instant online/offline detection
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
     let phonePresenceHandler: ((e: Event) => void) | null = null;
     if (userId) {
-      presenceChannel = supabaseShared.channel(`user-presence-${userId}-devices`, {
+      presenceChannel = supabase.channel(`user-presence-${userId}-devices`, {
         config: { presence: { key: "device-watcher" } },
       });
 
-      // Presence 상태에서 온라인 device_id 목록 추출
       const getOnlineDeviceIdsFromPresence = (state: Record<string, unknown[]>): Set<string> => {
         const onlineIds = new Set<string>();
         for (const [key, presences] of Object.entries(state)) {
-          if (key === "device-watcher") continue; // 자기 자신 스킵
-          // key 자체가 device_id인 경우
+          if (key === "device-watcher") continue;
           onlineIds.add(key);
-          // presence payload에 device_id가 있는 경우도 처리
           for (const p of presences as Record<string, unknown>[]) {
             if (p.device_id && typeof p.device_id === "string") {
               onlineIds.add(p.device_id);
@@ -241,7 +255,6 @@ export function useDevices(userId?: string) {
         return onlineIds;
       };
 
-      // Presence 변경 시 로컬 devices 상태 즉시 업데이트
       const applyPresenceToDevices = (state: Record<string, unknown[]>) => {
         const onlineIds = getOnlineDeviceIdsFromPresence(state);
         console.log("[useDevices] 📡 Presence online devices:", [...onlineIds]);
@@ -256,8 +269,6 @@ export function useDevices(userId?: string) {
               changed = true;
               return { ...d, status: "online" };
             } else if (!isPresenceOnline && currentlyOnline && d.device_type === "smartphone") {
-              // 스마트폰만 Presence LEAVE로 즉시 offline 처리
-              // 랩탑은 자체 heartbeat가 있으므로 DB 기준 유지
               changed = true;
               return { ...d, status: "offline" };
             }
@@ -285,8 +296,6 @@ export function useDevices(userId?: string) {
         })
         .subscribe();
 
-      // 스마트폰 Presence는 useAlerts가 관리하는 채널에서 감지됨
-      // useAlerts에서 발생시키는 커스텀 이벤트를 수신하여 즉시 반영
       const handlePhonePresence = (e: Event) => {
         const { online } = (e as CustomEvent<{ online: boolean }>).detail;
         phoneOnlineByPresenceRef.current = online;
@@ -315,13 +324,12 @@ export function useDevices(userId?: string) {
     return () => {
       isMounted = false;
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
-      supabaseShared.removeChannel(channel);
-      if (presenceChannel) supabaseShared.removeChannel(presenceChannel);
+      supabase.removeChannel(channel);
+      if (presenceChannel) supabase.removeChannel(presenceChannel);
       if (phonePresenceHandler) window.removeEventListener("phone-presence-changed", phonePresenceHandler);
     };
   }, [fetchDevices, userId]);
 
-  // Convert to compatible format for components
   const compatDevices = devices.map(toCompatDevice);
 
   const stats = {
