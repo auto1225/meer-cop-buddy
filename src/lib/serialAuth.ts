@@ -1,7 +1,9 @@
-import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
+// 시리얼 검증은 웹사이트 프로젝트(peqgmuicrorjvvburqly)의 Edge Function을 사용
+const SERIAL_SUPABASE_URL = "https://peqgmuicrorjvvburqly.supabase.co";
+const SERIAL_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcWdtdWljcm9yanZ2YnVycWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNjg4MjQsImV4cCI6MjA4NTg0NDgyNH0.placeholder";
 
-const SUPABASE_URL = SHARED_SUPABASE_URL;
-const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
+// 공유 프로젝트도 폴백용으로 유지
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
 
 const STORAGE_KEY = "meercop_serial_auth";
 
