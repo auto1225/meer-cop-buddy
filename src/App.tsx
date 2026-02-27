@@ -9,7 +9,7 @@ import Index from "./pages/Index";
 import SerialAuth from "./pages/SerialAuth";
 import MotionTest from "./pages/MotionTest";
 import NotFound from "./pages/NotFound";
-import { getSavedAuth } from "@/lib/serialAuth";
+import { getSavedAuth, clearAuth } from "@/lib/serialAuth";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +29,11 @@ const App = () => {
       window.removeEventListener("unhandledrejection", handleRejection);
     };
   }, []);
+
+  const handleSignOut = () => {
+    clearAuth();
+    setIsAuthenticated(false);
+  };
 
   if (!isAuthenticated) {
     return (
@@ -56,7 +61,7 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<Index onExpired={handleSignOut} />} />
               <Route path="/motion-test" element={<MotionTest />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
