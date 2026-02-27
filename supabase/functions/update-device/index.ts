@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       .update(fieldsToUpdate)
       .eq("id", id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("update-device error:", error);
