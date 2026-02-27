@@ -1,4 +1,4 @@
-import { fetchDevicesViaEdge, registerDeviceViaEdge } from "./deviceApi";
+import { fetchDevicesViaEdge } from "./deviceApi";
 
 // 시리얼 검증은 웹사이트 프로젝트(peqgmuicrorjvvburqly)의 Edge Function을 사용
 const SUPABASE_URL = "https://peqgmuicrorjvvburqly.supabase.co";
@@ -70,20 +70,8 @@ export async function validateSerial(
     console.warn("[serialAuth] ⚠️ 웹사이트 DB 기기 등록 실패 (계속 진행):", err);
   }
 
-  // 3) 공유 Supabase에도 기기 등록 (RLS 우회 Edge Function)
+  // 3) 공유 DB 자동 등록은 외부 register-device 500 이슈로 일시 비활성화
   const s = data.serial || data;
-  const userId = s.user_id || "";
-  
-  try {
-    const registered = await registerDeviceViaEdge({
-      user_id: userId,
-      device_name: deviceName,
-      device_type: "laptop",
-    });
-    console.log("[serialAuth] ✅ 공유 DB 기기 등록 완료:", registered);
-  } catch (err) {
-    console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 실패 (계속 진행):", err);
-  }
 
   const authData: SerialAuthData = {
     serial_key: s.serial_key || key,
@@ -120,10 +108,10 @@ export function isSerialAuthenticated(): boolean {
   return getSavedAuth() !== null;
 }
 
-// 공유 DB 기기 등록 보정
+// 공유 DB 기기 등록 보정 (자동 등록 비활성화 상태)
 async function ensureSharedDeviceRegistration(
   userId: string,
-  deviceName: string,
+  _deviceName: string,
   currentDeviceId: string
 ): Promise<string> {
   if (!userId) return currentDeviceId;
@@ -138,19 +126,10 @@ async function ensureSharedDeviceRegistration(
       return exists.id || currentDeviceId;
     }
 
-    const registered = await registerDeviceViaEdge(
-      {
-        user_id: userId,
-        device_name: deviceName || "My Laptop",
-        device_type: "laptop",
-      },
-      { throwOnFailure: false }
-    );
-
-    console.log("[serialAuth] ✅ 재검증 중 공유 DB 기기 등록 결과:", registered);
-    return registered?.id || registered?.device_id || currentDeviceId;
+    console.warn("[serialAuth] ⚠️ 공유 DB에 기기가 없어도 자동 등록은 건너뜀 (register-device 500)");
+    return currentDeviceId;
   } catch (err) {
-    console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 보정 실패 (계속 진행):", err);
+    console.warn("[serialAuth] ⚠️ 공유 DB 기기 조회 실패 (계속 진행):", err);
     return currentDeviceId;
   }
 }
