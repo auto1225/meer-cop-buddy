@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.register-device]
 verify_jwt = false
+
+[functions.get-devices]
+verify_jwt = false
+
+[functions.update-device]
+verify_jwt = false

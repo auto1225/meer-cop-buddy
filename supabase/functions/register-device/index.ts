@@ -16,8 +16,9 @@ Deno.serve(async (req) => {
       await req.json();
 
     const finalName = device_name || name || "My Laptop";
+    const finalUserId = user_id;
 
-    if (!user_id) {
+    if (!finalUserId) {
       return new Response(
         JSON.stringify({ error: "user_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -29,24 +30,29 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if device already exists for this user
+    // Check if device already exists for this user + type
     const { data: existing } = await supabase
       .from("devices")
       .select("*")
-      .eq("device_id", user_id)
+      .eq("device_id", finalUserId)
       .eq("device_type", device_type || "laptop")
       .limit(1)
       .maybeSingle();
 
     if (existing) {
-      // Update last_seen
+      // Update last_seen and name
       await supabase
         .from("devices")
-        .update({ last_seen_at: new Date().toISOString(), device_name: finalName })
+        .update({
+          last_seen_at: new Date().toISOString(),
+          device_name: finalName,
+          name: finalName,
+          user_id: finalUserId,
+        })
         .eq("id", existing.id);
 
       return new Response(
-        JSON.stringify({ device: existing }),
+        JSON.stringify({ device: { ...existing, device_name: finalName, name: finalName, user_id: finalUserId } }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -55,10 +61,13 @@ Deno.serve(async (req) => {
     const { data: inserted, error } = await supabase
       .from("devices")
       .insert({
-        device_id: user_id,
+        device_id: finalUserId,
+        user_id: finalUserId,
         device_name: finalName,
+        name: finalName,
         device_type: device_type || "laptop",
         status: status || "offline",
+        is_monitoring: false,
         is_camera_connected: false,
         is_network_connected: false,
         is_streaming_requested: false,
