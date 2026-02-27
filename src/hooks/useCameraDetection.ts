@@ -51,7 +51,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   }, []);
 
   const updateCameraStatus = useCallback(async (isConnected: boolean) => {
-    if (lastStatusRef.current === isConnected || !deviceId) return;
+    if (lastStatusRef.current === isConnected) return;
     
     // 로컬 상태를 먼저 반영 (DB 실패와 무관하게 UI 업데이트)
     lastStatusRef.current = isConnected;
@@ -61,14 +61,16 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       detail: { isConnected } 
     }));
 
-    // DB 업데이트는 비동기로 시도 (실패해도 로컬 상태에 영향 없음)
-    try {
-      await updateDeviceViaEdge(deviceId, { 
-        is_camera_connected: isConnected,
-        updated_at: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error("[CameraDetection] ⚠️ DB update failed (local status OK):", error);
+    // DB 업데이트는 deviceId가 있을 때만 시도
+    if (deviceId) {
+      try {
+        await updateDeviceViaEdge(deviceId, { 
+          is_camera_connected: isConnected,
+          updated_at: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("[CameraDetection] ⚠️ DB update failed (local status OK):", error);
+      }
     }
   }, [deviceId]);
 
@@ -137,9 +139,8 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   }, [checkAndUpdate]);
 
   useEffect(() => {
-    if (!deviceId) return;
-
-    console.log("[CameraDetection] 🚀 Initializing for device:", deviceId);
+    // deviceId 없이도 로컬 카메라 감지는 실행
+    console.log("[CameraDetection] 🚀 Initializing (device:", deviceId || "none", ")");
     lastStatusRef.current = null;
     consecutiveFalseRef.current = 0;
     checkIdRef.current = 0;
