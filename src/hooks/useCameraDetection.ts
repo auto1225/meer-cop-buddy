@@ -53,20 +53,22 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const updateCameraStatus = useCallback(async (isConnected: boolean) => {
     if (lastStatusRef.current === isConnected || !deviceId) return;
     
+    // 로컬 상태를 먼저 반영 (DB 실패와 무관하게 UI 업데이트)
+    lastStatusRef.current = isConnected;
+    console.log("[CameraDetection] ✅ Camera status:", isConnected);
+    
+    window.dispatchEvent(new CustomEvent("camera-status-changed", { 
+      detail: { isConnected } 
+    }));
+
+    // DB 업데이트는 비동기로 시도 (실패해도 로컬 상태에 영향 없음)
     try {
       await updateDeviceViaEdge(deviceId, { 
         is_camera_connected: isConnected,
         updated_at: new Date().toISOString()
       });
-      
-      lastStatusRef.current = isConnected;
-      console.log("[CameraDetection] ✅ Updated is_camera_connected:", isConnected);
-      
-      window.dispatchEvent(new CustomEvent("camera-status-changed", { 
-        detail: { isConnected } 
-      }));
     } catch (error) {
-      console.error("[CameraDetection] ❌ Update error:", error);
+      console.error("[CameraDetection] ⚠️ DB update failed (local status OK):", error);
     }
   }, [deviceId]);
 
