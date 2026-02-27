@@ -63,8 +63,12 @@ export async function validateSerial(
     throw new Error(data.error || "유효하지 않은 시리얼입니다.");
   }
 
-  // 2) 웹사이트 DB에 기기 등록
-  await callRegisterDevice(key, deviceName);
+  // 2) 웹사이트 DB에 기기 등록 (실패해도 공유 DB 등록으로 계속 진행)
+  try {
+    await callRegisterDevice(key, deviceName);
+  } catch (err) {
+    console.warn("[serialAuth] ⚠️ 웹사이트 DB 기기 등록 실패 (계속 진행):", err);
+  }
 
   // 3) 공유 Supabase에도 기기 등록 (RLS 우회 Edge Function)
   const s = data.serial || data;
