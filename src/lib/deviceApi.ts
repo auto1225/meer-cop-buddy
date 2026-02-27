@@ -171,9 +171,6 @@ export async function registerDeviceViaEdge(
 
   if (!res.ok) {
     const message = (parsed as any)?.error || text || `register-device failed: ${res.status}`;
-    if (options?.throwOnFailure ?? true) {
-      throw new Error(message);
-    }
     console.warn("[deviceApi] ⚠️ register-device failed (suppressed):", message);
     return null;
   }
