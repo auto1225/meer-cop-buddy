@@ -128,8 +128,7 @@ export async function deleteSignalingViaEdge(
 }
 
 /**
- * 기기 등록 (공유 프로젝트의 register-device 함수 호출)
- * NOTE: direct insert는 RLS로 차단되므로 사용하지 않음
+ * 기기 등록 — 로컬(Lovable Cloud) register-device 우선, 실패 시 외부 공유 프로젝트 폴백
  */
 export async function registerDeviceViaEdge(
   params: {
@@ -141,43 +140,61 @@ export async function registerDeviceViaEdge(
 ): Promise<DeviceRow | null> {
   const body = {
     user_id: params.user_id,
-    // 공유 스키마 호환: name 사용
     name: params.device_name,
+    device_name: params.device_name,
     device_type: params.device_type,
     status: "offline",
-    is_monitoring: false,
-    is_camera_connected: false,
-    is_network_connected: false,
     metadata: {},
   };
 
-  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SHARED_SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(body),
-  });
+  // 1) 로컬 Lovable Cloud Edge Function 시도
+  const localUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy"}.supabase.co/functions/v1/register-device`;
+  const localAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdmJ3eWZ6dWV5d3V3eGtqdXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTI2ODMsImV4cCI6MjA4NTg2ODY4M30.0lDX72JHWonW5fRRPve_cdfJrNVyDMzz5nzshJ0cEuI";
 
-  const text = await res.text();
-  const parsed = (() => {
-    try {
-      return JSON.parse(text);
-    } catch {
-      return null;
+  try {
+    const res = await fetch(localUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: localAnonKey,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log("[deviceApi] ✅ Device registered via local function:", data);
+      return (data as any).device || (data as any);
     }
-  })();
-
-  if (!res.ok) {
-    const message = (parsed as any)?.error || text || `register-device failed: ${res.status}`;
-    console.warn("[deviceApi] ⚠️ register-device failed (suppressed):", message);
-    return null;
+    const errText = await res.text();
+    console.warn("[deviceApi] ⚠️ Local register-device failed:", res.status, errText);
+  } catch (err) {
+    console.warn("[deviceApi] ⚠️ Local register-device network error:", err);
   }
 
-  const data = parsed ?? {};
-  console.log("[deviceApi] ✅ Device registered via function:", data);
-  return (data as any).device || (data as any);
+  // 2) 외부 공유 프로젝트 폴백
+  try {
+    const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SHARED_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log("[deviceApi] ✅ Device registered via shared function:", data);
+      return (data as any).device || (data as any);
+    }
+    const errText = await res.text();
+    console.warn("[deviceApi] ⚠️ Shared register-device failed:", res.status, errText);
+  } catch (err) {
+    console.warn("[deviceApi] ⚠️ Shared register-device network error:", err);
+  }
+
+  return null;
 }
 
 /** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
