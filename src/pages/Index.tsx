@@ -36,9 +36,13 @@ import { useAppStabilizer } from "@/hooks/useAppStabilizer";
 import { I18nProvider, type Lang } from "@/lib/i18n";
 import mainBg from "@/assets/main-bg.png";
 
-const Index = () => {
+interface IndexProps {
+  onExpired?: () => void;
+}
+
+const Index = ({ onExpired }: IndexProps) => {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, isExpired, planType, remainingDays } = useAuth();
   const savedAuth = getSavedAuth();
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
@@ -80,6 +84,19 @@ const Index = () => {
   
   console.log("[Index] 📱 smartphoneDevice:", smartphoneDevice?.id, "status:", smartphoneDevice?.status, "online:", smartphoneOnline);
   
+  // 시리얼 만료 시 로그아웃 처리
+  useEffect(() => {
+    if (isExpired && onExpired) {
+      console.warn("[Index] 시리얼 만료됨. 재인증 필요.");
+      toast({
+        title: "시리얼 만료",
+        description: "사용 기간이 만료되었습니다. 웹사이트에서 플랜을 갱신해주세요.",
+        variant: "destructive",
+      });
+      setTimeout(() => onExpired(), 2000);
+    }
+  }, [isExpired, onExpired, toast]);
+
   const { isNetworkConnected, isCameraAvailable } = useDeviceStatus(currentDevice?.id, isAuthenticated, savedAuth?.user_id);
 
   // Camera detection - auto-sync to DB
