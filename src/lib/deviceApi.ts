@@ -142,8 +142,16 @@ export async function registerDeviceViaEdge(
 
   const body = {
     ...params,
+    // 호환성: 일부 백엔드가 name 컬럼을 기대함
+    name: params.device_name,
+    device_name: params.device_name,
     device_id: deviceId,
+    device_type: params.device_type,
     status: "offline",
+    is_monitoring: false,
+    is_camera_connected: false,
+    is_network_connected: false,
+    metadata: {},
   };
 
   const res = await fetch(
