@@ -1,3 +1,5 @@
+import { registerDeviceViaEdge } from "./deviceApi";
+
 // 시리얼 검증은 웹사이트 프로젝트(peqgmuicrorjvvburqly)의 Edge Function을 사용
 const SUPABASE_URL = "https://peqgmuicrorjvvburqly.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcWdtdWljcm9yanZ2YnVycWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDA1NzQsImV4cCI6MjA4NzUxNjU3NH0.e5HYG3dSMqhm4ahT-en-nNX2mD95KM_TdKIlfuzdMc4";
@@ -61,10 +63,23 @@ export async function validateSerial(
     throw new Error(data.error || "유효하지 않은 시리얼입니다.");
   }
 
-  // 2) 기기 등록
+  // 2) 웹사이트 DB에 기기 등록
   await callRegisterDevice(key, deviceName);
 
+  // 3) 공유 Supabase에도 기기 등록 (RLS 우회 Edge Function)
   const s = data.serial || data;
+  const userId = s.user_id || "";
+  
+  try {
+    const registered = await registerDeviceViaEdge({
+      user_id: userId,
+      device_name: deviceName,
+      device_type: "laptop",
+    });
+    console.log("[serialAuth] ✅ 공유 DB 기기 등록 완료:", registered);
+  } catch (err) {
+    console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 실패 (계속 진행):", err);
+  }
 
   const authData: SerialAuthData = {
     serial_key: s.serial_key || key,

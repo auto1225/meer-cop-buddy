@@ -127,6 +127,36 @@ export async function deleteSignalingViaEdge(
   }
 }
 
+/** 기기 등록 (공유 Supabase register-device Edge Function, RLS 우회) */
+export async function registerDeviceViaEdge(
+  params: {
+    user_id: string;
+    device_name: string;
+    device_type: string;
+  }
+): Promise<DeviceRow> {
+  const res = await fetch(
+    `${SHARED_SUPABASE_URL}/functions/v1/register-device`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SHARED_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(params),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`register-device failed: ${res.status} ${err}`);
+  }
+
+  const data = await res.json();
+  console.log(`[deviceApi] ✅ Device registered:`, data);
+  return data.device || data;
+}
+
 /** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
 export async function updateDeviceViaEdge(
   deviceId: string,
