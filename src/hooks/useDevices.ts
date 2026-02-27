@@ -72,6 +72,43 @@ function getLocalAnonKey(): string {
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdmJ3eWZ6dWV5d3V3eGtqdXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyOTI2ODMsImV4cCI6MjA4NTg2ODY4M30.0lDX72JHWonW5fRRPve_cdfJrNVyDMzz5nzshJ0cEuI";
 }
 
+function applyPhonePresenceFallback(deviceList: Device[], userId?: string, phoneOnline?: boolean): Device[] {
+  const hasSmartphone = deviceList.some((d) => d.device_type === "smartphone");
+  const syntheticId = userId ? `presence-smartphone-${userId}` : "presence-smartphone";
+
+  // Presence상 온라인인데 DB에 smartphone row가 없으면 가상 엔트리 추가
+  if (phoneOnline && !hasSmartphone) {
+    return [
+      ...deviceList,
+      {
+        id: syntheticId,
+        device_id: syntheticId,
+        device_name: "My Smartphone",
+        name: "My Smartphone",
+        device_type: "smartphone",
+        status: "online",
+        is_monitoring: false,
+        is_camera_connected: null,
+        is_network_connected: null,
+        is_streaming_requested: null,
+        battery_level: null,
+        last_seen_at: new Date().toISOString(),
+        metadata: null,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ];
+  }
+
+  // 오프라인일 때 가상 엔트리는 제거
+  if (!phoneOnline) {
+    return deviceList.filter((d) => d.id !== syntheticId);
+  }
+
+  return deviceList;
+}
+
 export function useDevices(userId?: string) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -155,12 +192,16 @@ export function useDevices(userId?: string) {
       }
 
       console.log("[useDevices] Edge Function fetched:", deviceList.length, "devices");
-      const correctedList = deviceList.map((d) => {
-        if (d.device_type === "smartphone" && phoneOnlineByPresenceRef.current && d.status !== "online") {
-          return { ...d, status: "online" };
-        }
-        return d;
-      });
+      const correctedList = applyPhonePresenceFallback(
+        deviceList.map((d) => {
+          if (d.device_type === "smartphone" && phoneOnlineByPresenceRef.current && d.status !== "online") {
+            return { ...d, status: "online" };
+          }
+          return d;
+        }),
+        userId,
+        phoneOnlineByPresenceRef.current
+      );
       setDevices(correctedList);
       setError(null);
     } catch (err) {
@@ -314,7 +355,8 @@ export function useDevices(userId?: string) {
             }
             return d;
           });
-          return changed ? updated : prev;
+          const withFallback = applyPhonePresenceFallback(updated, userId, online);
+          return changed || withFallback.length !== prev.length ? withFallback : prev;
         });
       };
       phonePresenceHandler = handlePhonePresence;
