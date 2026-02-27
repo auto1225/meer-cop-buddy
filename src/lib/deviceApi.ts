@@ -1,4 +1,4 @@
-import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "./supabase";
 
 /**
  * Edge Function을 통한 디바이스 API (RLS 우회)
@@ -166,14 +166,63 @@ export async function registerDeviceViaEdge(
     }
   );
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`register-device failed: ${res.status} ${err}`);
+  if (res.ok) {
+    const data = await res.json();
+    console.log(`[deviceApi] ✅ Device registered via function:`, data);
+    return data.device || data;
   }
 
-  const data = await res.json();
-  console.log(`[deviceApi] ✅ Device registered:`, data);
-  return data.device || data;
+  const fnErr = await res.text();
+  console.warn(`[deviceApi] ⚠️ register-device function failed (${res.status}), fallback to direct insert`, fnErr);
+
+  // 폴백 1: user_id 포함 시도
+  const payloadWithUser = {
+    user_id: params.user_id,
+    device_id: deviceId,
+    device_name: params.device_name,
+    device_type: params.device_type,
+    status: "offline",
+    is_camera_connected: false,
+    is_network_connected: false,
+    metadata: {},
+  };
+
+  const firstTry = await supabaseShared
+    .from("devices")
+    .insert(payloadWithUser as any)
+    .select("*")
+    .single();
+
+  if (!firstTry.error && firstTry.data) {
+    console.log(`[deviceApi] ✅ Device registered via direct insert (with user_id):`, firstTry.data);
+    return firstTry.data as DeviceRow;
+  }
+
+  // 폴백 2: 일부 스키마에 user_id 컬럼이 없을 수 있어 제외 후 재시도
+  const payloadWithoutUser = {
+    device_id: deviceId,
+    device_name: params.device_name,
+    device_type: params.device_type,
+    status: "offline",
+    is_camera_connected: false,
+    is_network_connected: false,
+    metadata: {},
+  };
+
+  const secondTry = await supabaseShared
+    .from("devices")
+    .insert(payloadWithoutUser as any)
+    .select("*")
+    .single();
+
+  if (!secondTry.error && secondTry.data) {
+    console.log(`[deviceApi] ✅ Device registered via direct insert (without user_id):`, secondTry.data);
+    return secondTry.data as DeviceRow;
+  }
+
+  throw new Error(
+    `register-device failed: function=${res.status} ${fnErr} | fallback1=${firstTry.error?.message || "unknown"} | fallback2=${secondTry.error?.message || "unknown"}`
+  );
 }
 
 /** 기기 정보 업데이트 (공유 Supabase update-device Edge Function) */
