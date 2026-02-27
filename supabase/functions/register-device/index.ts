@@ -17,6 +17,9 @@ Deno.serve(async (req) => {
 
     const finalName = device_name || name || "My Laptop";
     const finalUserId = user_id;
+    const finalType = device_type || "laptop";
+    // device_id를 user_id + device_type으로 구분하여 unique constraint 충돌 방지
+    const compositeDeviceId = `${finalUserId}_${finalType}`;
 
     if (!finalUserId) {
       return new Response(
@@ -34,8 +37,7 @@ Deno.serve(async (req) => {
     const { data: existing } = await supabase
       .from("devices")
       .select("*")
-      .eq("device_id", finalUserId)
-      .eq("device_type", device_type || "laptop")
+      .eq("device_id", compositeDeviceId)
       .limit(1)
       .maybeSingle();
 
@@ -61,11 +63,11 @@ Deno.serve(async (req) => {
     const { data: inserted, error } = await supabase
       .from("devices")
       .insert({
-        device_id: finalUserId,
+        device_id: compositeDeviceId,
         user_id: finalUserId,
         device_name: finalName,
         name: finalName,
-        device_type: device_type || "laptop",
+        device_type: finalType,
         status: status || "offline",
         is_monitoring: false,
         is_camera_connected: false,
