@@ -181,6 +181,7 @@ export async function registerDeviceViaEdge(
   };
 
   // 1) 로컬 Lovable Cloud 우선 (이 프로젝트의 DB)
+  let localResult: DeviceRow | null = null;
   try {
     const res = await fetch(getLocalFunctionUrl("register-device"), {
       method: "POST",
@@ -191,38 +192,28 @@ export async function registerDeviceViaEdge(
     if (res.ok) {
       const data = await res.json();
       console.log("[deviceApi] ✅ Device registered via local function:", data);
-      return (data as any).device || (data as any);
+      localResult = (data as any).device || (data as any);
+    } else {
+      console.warn("[deviceApi] ⚠️ Local register-device failed:", res.status);
     }
-
-    const errText = await res.text();
-    console.warn("[deviceApi] ⚠️ Local register-device failed:", res.status, errText);
   } catch (err) {
     console.warn("[deviceApi] ⚠️ Local register-device network error:", err);
   }
 
-  // 2) 공유 프로젝트 폴백 (스마트폰 동기화 대상)
+  // 2) 공유 프로젝트에도 항상 등록 (스마트폰 동기화용, fire-and-forget)
   if (!isSharedRegisterCooldownActive()) {
-    try {
-      const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        console.log("[deviceApi] ✅ Device registered via shared function:", data);
-        return (data as any).device || (data as any);
-      }
-
-      const errText = await res.text();
-      activateSharedRegisterCooldown();
-      console.warn("[deviceApi] ⚠️ Shared register-device failed:", res.status, errText);
-    } catch (err) {
-      activateSharedRegisterCooldown();
-      console.warn("[deviceApi] ⚠️ Shared register-device network error:", err);
-    }
+    fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+      body: JSON.stringify(body),
+    })
+      .then(res => res.ok
+        ? console.log("[deviceApi] ✅ Shared DB register OK")
+        : res.text().then(t => console.warn("[deviceApi] ⚠️ Shared register failed:", t)))
+      .catch(err => console.warn("[deviceApi] ⚠️ Shared register error:", err));
   }
+
+  if (localResult) return localResult;
 
   if (options?.throwOnFailure) throw new Error("All register-device attempts failed");
   return null;
@@ -234,35 +225,33 @@ export async function updateDeviceViaEdge(
   updates: Record<string, unknown>
 ): Promise<void> {
   // 1) 로컬 우선
+  let localOk = false;
   try {
     const res = await fetch(getLocalFunctionUrl("update-device"), {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: getLocalAnonKey() },
       body: JSON.stringify({ device_id: deviceId, updates }),
     });
-
     if (res.ok) {
-      const data = await res.json();
-      console.log(`[deviceApi] ✅ Local updated device ${deviceId}:`, data);
-      return;
+      console.log(`[deviceApi] ✅ Local updated device ${deviceId}`);
+      localOk = true;
     }
-    console.warn("[deviceApi] Local update-device failed:", res.status);
   } catch (err) {
-    console.warn("[deviceApi] Local update-device network error:", err);
+    console.warn("[deviceApi] Local update-device error:", err);
   }
 
-  // 2) 공유 폴백
-  const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+  // 2) 공유 DB에도 항상 동기화 (fire-and-forget)
+  fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
     body: JSON.stringify({ device_id: deviceId, updates }),
-  });
+  })
+    .then(res => res.ok
+      ? console.log(`[deviceApi] ✅ Shared updated device ${deviceId}`)
+      : res.text().then(t => console.warn("[deviceApi] ⚠️ Shared update failed:", t)))
+    .catch(() => {});
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`update-device failed: ${res.status} ${err}`);
-  }
+  if (localOk) return;
 
-  const data = await res.json();
-  console.log(`[deviceApi] ✅ Shared updated device ${deviceId}:`, data);
+  throw new Error("update-device failed: all attempts failed");
 }
