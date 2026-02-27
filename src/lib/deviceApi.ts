@@ -28,7 +28,30 @@ interface DeviceRow {
   updated_at: string;
 }
 
-/** 사용자의 모든 기기 목록 조회 (공유 Supabase Edge Function) */
+const SHARED_REGISTER_COOLDOWN_KEY = "meercop_shared_register_cooldown_until";
+const SHARED_REGISTER_COOLDOWN_MS = 5 * 60 * 1000;
+
+function isSharedRegisterCooldownActive(): boolean {
+  try {
+    const raw = localStorage.getItem(SHARED_REGISTER_COOLDOWN_KEY);
+    const until = raw ? Number(raw) : 0;
+    return Number.isFinite(until) && until > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function activateSharedRegisterCooldown(): void {
+  try {
+    localStorage.setItem(
+      SHARED_REGISTER_COOLDOWN_KEY,
+      String(Date.now() + SHARED_REGISTER_COOLDOWN_MS)
+    );
+  } catch {
+    // noop
+  }
+}
+
 export async function fetchDevicesViaEdge(userId: string): Promise<DeviceRow[]> {
   const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
     method: "POST",
@@ -148,26 +171,30 @@ export async function registerDeviceViaEdge(
   };
 
   // 1) 공유 프로젝트 Edge Function 우선 시도 (스마트폰 동기화 대상)
-  try {
-    const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SHARED_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
+  if (!isSharedRegisterCooldownActive()) {
+    try {
+      const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SHARED_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      console.log("[deviceApi] ✅ Device registered via shared function:", data);
-      return (data as any).device || (data as any);
+      if (res.ok) {
+        const data = await res.json();
+        console.log("[deviceApi] ✅ Device registered via shared function:", data);
+        return (data as any).device || (data as any);
+      }
+
+      const errText = await res.text();
+      activateSharedRegisterCooldown();
+      console.warn("[deviceApi] ⚠️ Shared register-device failed:", res.status, errText);
+    } catch (err) {
+      activateSharedRegisterCooldown();
+      console.warn("[deviceApi] ⚠️ Shared register-device network error:", err);
     }
-
-    const errText = await res.text();
-    console.warn("[deviceApi] ⚠️ Shared register-device failed:", res.status, errText);
-  } catch (err) {
-    console.warn("[deviceApi] ⚠️ Shared register-device network error:", err);
   }
 
   // 2) 로컬 Lovable Cloud Edge Function 폴백 (앱 크래시 방지용)
