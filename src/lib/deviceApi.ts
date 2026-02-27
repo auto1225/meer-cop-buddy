@@ -127,7 +127,11 @@ export async function deleteSignalingViaEdge(
   }
 }
 
-/** 기기 등록 (공유 Supabase register-device Edge Function, RLS 우회) */
+/**
+ * 기기 등록
+ * - 외부 register-device 함수가 500을 반환해도 앱이 중단되지 않도록
+ *   직접 insert 기반으로 등록 처리
+ */
 export async function registerDeviceViaEdge(
   params: {
     user_id: string;
@@ -135,99 +139,75 @@ export async function registerDeviceViaEdge(
     device_type: string;
   }
 ): Promise<DeviceRow> {
-  // device_id 생성 (crypto.randomUUID 또는 폴백)
-  const deviceId = typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const now = new Date().toISOString();
 
-  const body = {
-    ...params,
-    // 호환성: 일부 백엔드가 name 컬럼을 기대함
-    name: params.device_name,
-    device_name: params.device_name,
-    device_id: deviceId,
-    device_type: params.device_type,
-    status: "offline",
-    is_monitoring: false,
-    is_camera_connected: false,
-    is_network_connected: false,
-    metadata: {},
-  };
-
-  const res = await fetch(
-    `${SHARED_SUPABASE_URL}/functions/v1/register-device`,
+  const payloadCandidates: Record<string, unknown>[] = [
+    // schema variant A: name + user_id
     {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": SHARED_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
+      user_id: params.user_id,
+      name: params.device_name,
+      device_type: params.device_type,
+      status: "offline",
+      is_monitoring: false,
+      is_camera_connected: false,
+      is_network_connected: false,
+      metadata: {},
+    },
+    // schema variant B: device_name + user_id
+    {
+      user_id: params.user_id,
+      device_name: params.device_name,
+      device_type: params.device_type,
+      status: "offline",
+      is_monitoring: false,
+      is_camera_connected: false,
+      is_network_connected: false,
+      metadata: {},
+    },
+    // schema variant C: name only (no user_id)
+    {
+      name: params.device_name,
+      device_type: params.device_type,
+      status: "offline",
+      is_monitoring: false,
+      is_camera_connected: false,
+      is_network_connected: false,
+      metadata: {},
+    },
+    // schema variant D: device_name only (no user_id)
+    {
+      device_name: params.device_name,
+      device_type: params.device_type,
+      status: "offline",
+      is_monitoring: false,
+      is_camera_connected: false,
+      is_network_connected: false,
+      metadata: {},
+    },
+  ];
+
+  let lastError = "unknown";
+
+  for (const payload of payloadCandidates) {
+    const attempt = await supabaseShared
+      .from("devices")
+      .insert(payload as any)
+      .select("*")
+      .single();
+
+    if (!attempt.error && attempt.data) {
+      console.log("[deviceApi] ✅ Device registered via direct insert:", attempt.data);
+      return attempt.data as DeviceRow;
     }
-  );
 
-  if (res.ok) {
-    const data = await res.json();
-    console.log(`[deviceApi] ✅ Device registered via function:`, data);
-    return data.device || data;
+    lastError = attempt.error?.message || lastError;
+    console.warn("[deviceApi] register direct insert attempt failed:", payload, attempt.error);
   }
 
-  const fnErr = await res.text();
-  console.warn(`[deviceApi] ⚠️ register-device function failed (${res.status}), fallback to direct insert`, fnErr);
-
-  // 폴백 1: shared schema 호환 (device_id/device_name 컬럼 미사용)
-  const payloadWithUser = {
-    user_id: params.user_id,
-    name: params.device_name,
-    device_type: params.device_type,
-    status: "offline",
-    is_monitoring: false,
-    is_camera_connected: false,
-    is_network_connected: false,
-    metadata: {},
-  };
-
-  const firstTry = await supabaseShared
-    .from("devices")
-    .insert(payloadWithUser as any)
-    .select("*")
-    .single();
-
-  if (!firstTry.error && firstTry.data) {
-    console.log(`[deviceApi] ✅ Device registered via direct insert (with user_id):`, firstTry.data);
-    return firstTry.data as DeviceRow;
-  }
-
-  // 폴백 2: user_id 컬럼/제약 불일치 환경 대응
-  const payloadWithoutUser = {
-    name: params.device_name,
-    device_type: params.device_type,
-    status: "offline",
-    is_monitoring: false,
-    is_camera_connected: false,
-    is_network_connected: false,
-    metadata: {},
-  };
-
-  const secondTry = await supabaseShared
-    .from("devices")
-    .insert(payloadWithoutUser as any)
-    .select("*")
-    .single();
-
-  if (!secondTry.error && secondTry.data) {
-    console.log(`[deviceApi] ✅ Device registered via direct insert (without user_id):`, secondTry.data);
-    return secondTry.data as DeviceRow;
-  }
-
-  console.error(
-    `[deviceApi] ❌ register-device ultimately failed | function=${res.status} ${fnErr} | fallback1=${firstTry.error?.message || "unknown"} | fallback2=${secondTry.error?.message || "unknown"}`
-  );
-
-  // 런타임 크래시 방지: 최종 실패 시에도 안전한 객체 반환
+  // 최종 실패 시에도 런타임 크래시 방지
+  console.error(`[deviceApi] ❌ Device registration failed after all insert attempts: ${lastError}`);
   return {
-    id: deviceId,
-    device_id: deviceId,
+    id: `local-${Date.now()}`,
     device_name: params.device_name,
     name: params.device_name,
     device_type: params.device_type,
@@ -240,8 +220,8 @@ export async function registerDeviceViaEdge(
     last_seen_at: null,
     metadata: {},
     user_id: params.user_id,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: now,
+    updated_at: now,
   };
 }
 
