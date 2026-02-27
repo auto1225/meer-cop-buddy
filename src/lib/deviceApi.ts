@@ -136,8 +136,9 @@ export async function registerDeviceViaEdge(
     user_id: string;
     device_name: string;
     device_type: string;
-  }
-): Promise<DeviceRow> {
+  },
+  options?: { throwOnFailure?: boolean }
+): Promise<DeviceRow | null> {
   const body = {
     user_id: params.user_id,
     // 공유 스키마 호환: name 사용
@@ -170,7 +171,11 @@ export async function registerDeviceViaEdge(
 
   if (!res.ok) {
     const message = (parsed as any)?.error || text || `register-device failed: ${res.status}`;
-    throw new Error(message);
+    if (options?.throwOnFailure ?? true) {
+      throw new Error(message);
+    }
+    console.warn("[deviceApi] ⚠️ register-device failed (suppressed):", message);
+    return null;
   }
 
   const data = parsed ?? {};
