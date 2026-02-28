@@ -670,6 +670,30 @@ const Index = ({ onExpired }: IndexProps) => {
             console.log("[Index] ✅ Device type updated via broadcast:", settings.device_type);
           }
         }
+        // ✅ 로컬 DB metadata에도 설정 영속 저장 (새로고침 후에도 유지)
+        if (currentDevice?.id && savedAuth?.user_id) {
+          (async () => {
+            try {
+              const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
+              const existingMeta = (device?.metadata as Record<string, unknown>) || {};
+              const metaUpdate: Record<string, unknown> = { ...existingMeta };
+              
+              if (settings.sensorSettings) metaUpdate.sensorSettings = settings.sensorSettings;
+              if (settings.motionSensitivity) metaUpdate.motionSensitivity = settings.motionSensitivity;
+              if (settings.mouseSensitivity) metaUpdate.mouseSensitivity = settings.mouseSensitivity;
+              if (settings.alarm_pin) metaUpdate.alarm_pin = settings.alarm_pin;
+              if (settings.alarm_sound_id) metaUpdate.alarm_sound_id = settings.alarm_sound_id;
+              if (settings.require_pc_pin !== undefined) metaUpdate.require_pc_pin = settings.require_pc_pin;
+              if (settings.camouflage_mode !== undefined) metaUpdate.camouflage_mode = settings.camouflage_mode;
+              if (settings.language) metaUpdate.language = settings.language;
+              
+              await updateDeviceViaEdge(currentDevice.id, { metadata: metaUpdate });
+              console.log("[Index] ✅ Settings persisted to local DB metadata");
+            } catch (e) {
+              console.warn("[Index] ⚠️ Failed to persist settings to local DB:", e);
+            }
+          })();
+        }
         // DB도 함께 갱신
         refetch();
       });
