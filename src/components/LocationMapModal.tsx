@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { X, MapPin, Loader2, Smartphone, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { fetchDevicesViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { useTranslation } from "@/lib/i18n";
 
@@ -61,7 +62,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     setAddressLoading(false);
   }, []);
 
-  // Send locate request to smartphone via SHARED DB and wait for response
+  // Send locate request to smartphone via BOTH local and shared DBs
   const requestSmartphoneLocation = useCallback(async () => {
     if (!smartphoneDeviceId) {
       setError(t("location.noSmartphone"));
@@ -79,70 +80,119 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
       const savedAuth = getSavedAuth();
       const userId = savedAuth?.user_id;
 
-      // 공유 DB에서 스마트폰 기기 조회
+      // ── 1) 공유 DB에서 스마트폰 기기 조회 ──
       let sharedDevice: any = null;
+      let sharedDeviceId = smartphoneDeviceId;
       if (userId) {
-        const data = await sharedFetch("get-devices", { user_id: userId });
-        const devices = data.devices || data || [];
-        sharedDevice = devices.find((d: any) => d.device_type === "smartphone");
+        try {
+          const data = await sharedFetch("get-devices", { user_id: userId });
+          const devices = data.devices || data || [];
+          sharedDevice = devices.find((d: any) => d.device_type === "smartphone");
+          if (sharedDevice) {
+            sharedDeviceId = sharedDevice.id;
+            if (sharedDevice.device_name) setDeviceName(sharedDevice.device_name);
+          }
+        } catch (e) {
+          console.warn("[LocationMap] Shared DB get-devices failed:", e);
+        }
       }
 
-      const sharedDeviceId = sharedDevice?.id || smartphoneDeviceId;
-      if (sharedDevice?.device_name) setDeviceName(sharedDevice.device_name);
+      // ── 2) 로컬 DB에서도 스마트폰 기기 조회 ──
+      let localDevice: any = null;
+      let localDeviceId = smartphoneDeviceId;
+      if (userId) {
+        try {
+          const localDevices = await fetchDevicesViaEdge(userId);
+          localDevice = localDevices.find((d: any) => d.device_type === "smartphone");
+          if (localDevice) {
+            localDeviceId = localDevice.id;
+            if (localDevice.device_name && !sharedDevice) setDeviceName(localDevice.device_name);
+          }
+        } catch (e) {
+          console.warn("[LocationMap] Local DB get-devices failed:", e);
+        }
+      }
 
-      const existingMeta = (sharedDevice?.metadata as Record<string, unknown>) || {};
       const requestTimestamp = new Date().toISOString();
 
-      // 공유 DB에 locate_requested 기록
-      await sharedFetch("update-device", {
+      // ── 3) 이중 쓰기: 양쪽 DB에 locate_requested 기록 ──
+      // 공유 DB
+      const sharedMeta = (sharedDevice?.metadata as Record<string, unknown>) || {};
+      sharedFetch("update-device", {
         device_id: sharedDeviceId,
-        updates: {
-          metadata: { ...existingMeta, locate_requested: requestTimestamp },
-        },
-      });
+        updates: { metadata: { ...sharedMeta, locate_requested: requestTimestamp } },
+      }).catch(e => console.warn("[LocationMap] Shared locate_requested write failed:", e));
 
-      console.log("[LocationMap] Sent locate request via SHARED DB:", requestTimestamp, "deviceId:", sharedDeviceId);
+      // 로컬 DB
+      const localMeta = (localDevice?.metadata as Record<string, unknown>) || {};
+      updateDeviceViaEdge(localDeviceId, {
+        metadata: { ...localMeta, locate_requested: requestTimestamp },
+      }).catch(e => console.warn("[LocationMap] Local locate_requested write failed:", e));
 
-      // 공유 DB 폴링으로 위치 응답 대기
+      console.log("[LocationMap] Sent locate request to BOTH DBs:", requestTimestamp, 
+        "shared:", sharedDeviceId, "local:", localDeviceId);
+
+      // ── 4) 이중 폴링: 양쪽 DB에서 응답 대기 ──
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = setInterval(async () => {
         if (locationReceivedRef.current || !userId) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           return;
         }
+
+        // 공유 DB 폴링
         try {
           const data = await sharedFetch("get-devices", { user_id: userId });
           const devices = data.devices || data || [];
           const updated = devices.find((d: any) => d.id === sharedDeviceId);
-          if (!updated) return;
-          const meta = updated.metadata as Record<string, unknown> | null;
-
-          if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
-            locationReceivedRef.current = true;
-            setCoords({ lat: updated.latitude, lng: updated.longitude });
-            setUpdatedAt(updated.location_updated_at || null);
-            setLocationSource((meta.location_source as string) || null);
-            setIsLoading(false);
-            fetchAddress(updated.latitude, updated.longitude);
-            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-            if (timeoutRef.current) {
-              clearTimeout(timeoutRef.current);
-              timeoutRef.current = null;
+          if (updated) {
+            const meta = updated.metadata as Record<string, unknown> | null;
+            if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
+              locationReceivedRef.current = true;
+              setCoords({ lat: updated.latitude, lng: updated.longitude });
+              setUpdatedAt(updated.location_updated_at || null);
+              setLocationSource((meta.location_source as string) || null);
+              setIsLoading(false);
+              fetchAddress(updated.latitude, updated.longitude);
+              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+              if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+              console.log("[LocationMap] ✅ Location received from SHARED DB");
+              return;
             }
           }
-        } catch {
-          // silent
-        }
+        } catch { /* silent */ }
+
+        // 로컬 DB 폴링
+        try {
+          const localDevices = await fetchDevicesViaEdge(userId);
+          const updated = localDevices.find((d: any) => d.id === localDeviceId);
+          if (updated) {
+            const meta = updated.metadata as Record<string, unknown> | null;
+            if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
+              locationReceivedRef.current = true;
+              setCoords({ lat: updated.latitude, lng: updated.longitude });
+              setUpdatedAt(updated.location_updated_at || null);
+              setLocationSource((meta.location_source as string) || null);
+              setIsLoading(false);
+              fetchAddress(updated.latitude, updated.longitude);
+              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+              if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+              console.log("[LocationMap] ✅ Location received from LOCAL DB");
+              return;
+            }
+          }
+        } catch { /* silent */ }
       }, 2000);
 
       // 20초 타임아웃: 마지막 알려진 위치 표시
       timeoutRef.current = setTimeout(() => {
-        if (sharedDevice?.latitude && sharedDevice?.longitude) {
-          const meta = (sharedDevice?.metadata as Record<string, unknown>) || {};
-          setCoords({ lat: sharedDevice.latitude, lng: sharedDevice.longitude });
-          setUpdatedAt(sharedDevice.location_updated_at || null);
+        const fallbackDevice = sharedDevice || localDevice;
+        if (fallbackDevice?.latitude && fallbackDevice?.longitude) {
+          const meta = (fallbackDevice?.metadata as Record<string, unknown>) || {};
+          setCoords({ lat: fallbackDevice.latitude, lng: fallbackDevice.longitude });
+          setUpdatedAt(fallbackDevice.location_updated_at || null);
           setLocationSource((meta.location_source as string) || null);
-          fetchAddress(sharedDevice.latitude, sharedDevice.longitude);
+          fetchAddress(fallbackDevice.latitude, fallbackDevice.longitude);
           setError(t("location.lastKnown"));
         } else {
           setError(t("location.noResponse"));
