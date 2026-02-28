@@ -41,7 +41,13 @@ export function useAlerts(deviceId?: string, userId?: string) {
 
     try {
       // 7-2: Presence track with status: 'alert' or 'online'
+      // Preserve existing Presence fields (camera, network) to avoid overwriting useDeviceStatus state
+      const existingState = channelRef.current.presenceState();
+      const myPresences = existingState[deviceIdRef.current || ""] as Record<string, unknown>[] | undefined;
+      const prev = myPresences?.[0] || {};
+
       await channelRef.current.track({
+        ...prev,
         device_id: deviceIdRef.current,
         active_alert: alert ? {
           id: alert.id,
@@ -137,7 +143,11 @@ export function useAlerts(deviceId?: string, userId?: string) {
     // 7-3: Presence 상태에서 active_alert: null, status: 'online'으로 재track
     if (channelRef.current) {
       try {
+        const existingState = channelRef.current.presenceState();
+        const myPresences = existingState[deviceId] as Record<string, unknown>[] | undefined;
+        const prev = myPresences?.[0] || {};
         await channelRef.current.track({
+          ...prev,
           device_id: deviceId,
           active_alert: null,
           status: "online",
@@ -252,10 +262,16 @@ export function useAlerts(deviceId?: string, userId?: string) {
         if (status === "SUBSCRIBED") {
           channelRef.current = channel;
           console.log("[Alerts] ✅ Channel subscribed — broadcast + presence ready");
+          const existingState = channel.presenceState();
+          const myPresences = existingState[deviceId] as Record<string, unknown>[] | undefined;
+          const prev = myPresences?.[0] || {};
           await channel.track({
+            ...prev,
             device_id: deviceId,
             active_alert: null,
             status: "online",
+            is_camera_connected: prev.is_camera_connected ?? false,
+            is_network_connected: prev.is_network_connected ?? navigator.onLine,
             updated_at: new Date().toISOString(),
           });
         }
