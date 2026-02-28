@@ -164,7 +164,7 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
 
     const ensuredDeviceId = await ensureSharedDeviceRegistration(
       s.user_id || saved.user_id,
-      s.device_name || saved.device_name || "My Laptop",
+      saved.device_name || s.device_name || "My Laptop",
       s.id || s.device_id || saved.device_id
     );
 
@@ -182,7 +182,7 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       remaining_days: s.remaining_days ?? saved.remaining_days,
       device_id: normalizedDeviceId,
       user_id: s.user_id || saved.user_id,
-      device_name: s.device_name || saved.device_name,
+      device_name: saved.device_name || s.device_name,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
