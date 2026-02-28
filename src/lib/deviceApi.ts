@@ -1,4 +1,5 @@
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
+import { getSharedDeviceId } from "./sharedDeviceIdMap";
 
 /**
  * Edge Function을 통한 디바이스 API
@@ -247,13 +248,15 @@ export async function updateDeviceViaEdge(
   }
 
   // 2) 공유 DB에도 항상 동기화 (fire-and-forget)
+  // 공유DB에서는 매핑된 shared ID를 사용 (로컬 ID와 다를 수 있음)
+  const sharedId = getSharedDeviceId(deviceId) || deviceId;
   fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-    body: JSON.stringify({ device_id: deviceId, updates }),
+    body: JSON.stringify({ device_id: sharedId, updates }),
   })
     .then(res => res.ok
-      ? console.log(`[deviceApi] ✅ Shared updated device ${deviceId}`)
+      ? console.log(`[deviceApi] ✅ Shared updated device ${sharedId}${sharedId !== deviceId ? ` (local: ${deviceId})` : ""}`)
       : res.text().then(t => console.warn("[deviceApi] ⚠️ Shared update failed:", t)))
     .catch(() => {});
 

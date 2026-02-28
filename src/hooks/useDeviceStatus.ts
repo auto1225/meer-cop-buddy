@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { getSavedAuth } from "@/lib/serialAuth";
+import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 // Global tracking to prevent duplicate Presence channel subscriptions
@@ -251,10 +252,11 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
 
     const sendOfflineBeacon = () => {
-      // Edge Function으로 오프라인 상태 전송 (sendBeacon은 POST만 지원)
+      // 공유DB에는 매핑된 shared ID 사용
+      const sharedId = getSharedDeviceId(deviceId) || deviceId;
       const url = `${SHARED_SUPABASE_URL}/functions/v1/update-device`;
       const body = JSON.stringify({
-        device_id: deviceId,
+        device_id: sharedId,
         updates: {
           status: "offline",
           is_network_connected: false,
@@ -265,7 +267,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       const blob = new Blob([body], { type: "application/json" });
       
       const sent = navigator.sendBeacon(url, blob);
-      console.log(`[DeviceStatus] 🚪 sendBeacon offline: ${sent}`);
+      console.log(`[DeviceStatus] 🚪 sendBeacon offline: ${sent} (sharedId: ${sharedId})`);
     };
 
     const sendStatusUpdate = (isOnline: boolean) => {

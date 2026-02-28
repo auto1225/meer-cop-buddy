@@ -32,6 +32,7 @@ import { useNetworkInfoResponder } from "@/hooks/useNetworkInfoResponder";
 import { channelManager } from "@/lib/channelManager";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { setSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useAppStabilizer } from "@/hooks/useAppStabilizer";
 import { I18nProvider, type Lang } from "@/lib/i18n";
@@ -57,7 +58,7 @@ const Index = ({ onExpired }: IndexProps) => {
   });
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
-  const [sharedDeviceId, setSharedDeviceId] = useState<string | null>(null);
+  const [sharedDeviceIdState, setSharedDeviceIdState] = useState<string | null>(null);
   const { devices, refetch } = useDevices(savedAuth?.user_id);
   
   // Debug: log device fetch results
@@ -100,7 +101,8 @@ const Index = ({ onExpired }: IndexProps) => {
           devices.find((d: any) => d.id === currentDeviceId);
 
         if (match?.id) {
-          setSharedDeviceId(match.id);
+          setSharedDeviceId(currentDeviceId, match.id); // 전역 매핑 등록
+          setSharedDeviceIdState(match.id);
           console.log(`[Index] 🔑 Shared signaling device ID: ${match.id} (local: ${currentDeviceId})`);
         }
       } catch (e) {
@@ -730,7 +732,7 @@ const Index = ({ onExpired }: IndexProps) => {
       >
 
         {/* Auto Broadcaster - listens for streaming requests from smartphone */}
-        <AutoBroadcaster deviceId={currentDevice?.id} userId={savedAuth?.user_id} sharedDeviceId={sharedDeviceId || undefined} />
+        <AutoBroadcaster deviceId={currentDevice?.id} userId={savedAuth?.user_id} sharedDeviceId={sharedDeviceIdState || undefined} />
 
         {/* Alert Overlay - shows when alarm is triggered */}
         <AlertOverlay
@@ -816,7 +818,7 @@ const Index = ({ onExpired }: IndexProps) => {
           isOpen={isCameraModalOpen}
           onClose={() => setIsCameraModalOpen(false)}
           deviceId={currentDevice?.id}
-          signalingDeviceId={sharedDeviceId || currentDevice?.id}
+          signalingDeviceId={sharedDeviceIdState || currentDevice?.id}
         />
 
         {/* Location Map Modal */}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "@/lib/supabase";
+import { setSharedDeviceId as setSharedDeviceIdGlobal } from "@/lib/sharedDeviceIdMap";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
 
 interface AutoBroadcasterProps {
@@ -278,6 +279,8 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
               if (sharedDeviceIdRef.current !== result.id) {
                 sharedDeviceIdRef.current = result.id;
                 setSignalingDeviceId(result.id);
+                // 전역 매핑 등록 (deviceApi 등에서 사용)
+                if (deviceId) setSharedDeviceIdGlobal(deviceId, result.id);
                 console.log(`[AutoBroadcaster] 🔑 Signaling ID set: ${result.id}`);
               }
               // Shared DB value wins (smartphone writes there)
