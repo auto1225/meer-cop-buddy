@@ -31,6 +31,7 @@ import { useLocationResponder } from "@/hooks/useLocationResponder";
 import { useNetworkInfoResponder } from "@/hooks/useNetworkInfoResponder";
 import { channelManager } from "@/lib/channelManager";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useAppStabilizer } from "@/hooks/useAppStabilizer";
 import { I18nProvider, type Lang } from "@/lib/i18n";
@@ -56,6 +57,7 @@ const Index = ({ onExpired }: IndexProps) => {
   });
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
+  const [sharedDeviceId, setSharedDeviceId] = useState<string | null>(null);
   const { devices, refetch } = useDevices(savedAuth?.user_id);
   
   // Debug: log device fetch results
@@ -66,6 +68,50 @@ const Index = ({ onExpired }: IndexProps) => {
       "devices:", devices.map(d => ({ id: d.id, type: d.device_type, status: d.status, name: d.device_name }))
     );
   }, [devices]);
+
+  // Resolve shared DB device ID for WebRTC signaling
+  useEffect(() => {
+    if (!currentDeviceId || !savedAuth?.user_id) return;
+    const resolve = async () => {
+      try {
+        // Get local device info for matching
+        const localDevice = await fetchDeviceViaEdge(currentDeviceId, savedAuth.user_id).catch(() => null);
+        const localName = localDevice?.device_name || localDevice?.name;
+        const localType = localDevice?.device_type || "laptop";
+        const localCompositeId = localDevice?.device_id;
+
+        const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+          body: JSON.stringify({ user_id: savedAuth.user_id }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const devices = data.devices || data || [];
+
+        const match =
+          devices.find((d: any) => localCompositeId && d.device_id === localCompositeId) ||
+          devices.find((d: any) => localName && d.device_name === localName && d.device_type === localType) ||
+          devices.find((d: any) => localName && d.name === localName && d.device_type === localType) ||
+          devices.find((d: any) => {
+            const laptops = devices.filter((dd: any) => dd.device_type === localType);
+            return laptops.length === 1 && d.device_type === localType;
+          }) ||
+          devices.find((d: any) => d.id === currentDeviceId);
+
+        if (match?.id) {
+          setSharedDeviceId(match.id);
+          console.log(`[Index] 🔑 Shared signaling device ID: ${match.id} (local: ${currentDeviceId})`);
+        }
+      } catch (e) {
+        console.warn("[Index] Failed to resolve shared device ID:", e);
+      }
+    };
+    resolve();
+    // Re-resolve periodically in case registration was delayed
+    const timer = setInterval(resolve, 30000);
+    return () => clearInterval(timer);
+  }, [currentDeviceId, savedAuth?.user_id]);
 
   // Get the current device (this laptop) - use savedAuth.device_id to match correctly
   const currentDevice = currentDeviceId 
@@ -684,7 +730,7 @@ const Index = ({ onExpired }: IndexProps) => {
       >
 
         {/* Auto Broadcaster - listens for streaming requests from smartphone */}
-        <AutoBroadcaster deviceId={currentDevice?.id} userId={savedAuth?.user_id} />
+        <AutoBroadcaster deviceId={currentDevice?.id} userId={savedAuth?.user_id} sharedDeviceId={sharedDeviceId || undefined} />
 
         {/* Alert Overlay - shows when alarm is triggered */}
         <AlertOverlay
@@ -770,6 +816,7 @@ const Index = ({ onExpired }: IndexProps) => {
           isOpen={isCameraModalOpen}
           onClose={() => setIsCameraModalOpen(false)}
           deviceId={currentDevice?.id}
+          signalingDeviceId={sharedDeviceId || currentDevice?.id}
         />
 
         {/* Location Map Modal */}

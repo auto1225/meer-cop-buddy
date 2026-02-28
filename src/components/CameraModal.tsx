@@ -15,9 +15,10 @@ interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
   deviceId?: string;
+  signalingDeviceId?: string;
 }
 
-export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
+export function CameraModal({ isOpen, onClose, deviceId, signalingDeviceId }: CameraModalProps) {
   const {
     videoRef,
     canvasRef,
@@ -38,7 +39,7 @@ export function CameraModal({ isOpen, onClose, deviceId }: CameraModalProps) {
     viewerCount,
     startBroadcasting,
     stopBroadcasting,
-  } = useWebRTCBroadcaster({ deviceId: deviceId || "" });
+  } = useWebRTCBroadcaster({ deviceId: signalingDeviceId || deviceId || "" });
 
   const [isMuted, setIsMuted] = useState(true);
   const [isAudioMonitoring] = useState(false);

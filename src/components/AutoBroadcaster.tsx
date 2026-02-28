@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
-import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "@/lib/supabase";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
 
 interface AutoBroadcasterProps {
   deviceId: string | undefined;
   userId: string | undefined;
+  sharedDeviceId?: string;
 }
 
 let globalBroadcastingDevice: string | null = null;
 
-export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
+export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDeviceIdProp }: AutoBroadcasterProps) {
   const [isStreamingRequested, setIsStreamingRequested] = useState(false);
   const [signalingDeviceId, setSignalingDeviceId] = useState<string>("");
   const streamRef = useRef<MediaStream | null>(null);
@@ -23,13 +24,22 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
   const MAX_RETRIES = 10;
   const sharedDeviceIdRef = useRef<string>("");
 
+  // Sync from parent prop when available
+  useEffect(() => {
+    if (sharedDeviceIdProp && sharedDeviceIdRef.current !== sharedDeviceIdProp) {
+      sharedDeviceIdRef.current = sharedDeviceIdProp;
+      setSignalingDeviceId(sharedDeviceIdProp);
+      console.log(`[AutoBroadcaster] 🔑 Signaling ID from parent: ${sharedDeviceIdProp}`);
+    }
+  }, [sharedDeviceIdProp]);
+
   // Log mount/unmount for debugging
   useEffect(() => {
-    console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🟢 MOUNTED deviceId=${deviceId} userId=${userId}`);
+    console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🟢 MOUNTED deviceId=${deviceId} userId=${userId} sharedId=${sharedDeviceIdProp}`);
     return () => {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔴 UNMOUNTED`);
     };
-  }, [deviceId, userId]);
+  }, [deviceId, userId, sharedDeviceIdProp]);
 
   const {
     isBroadcasting,
@@ -281,6 +291,26 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
         }
 
         if (!isMounted) return;
+
+        // 3) Also check for pending viewer-join signals in signaling table
+        // This handles the case where is_streaming_requested was briefly true then reset
+        if (!requested && sharedDeviceIdRef.current) {
+          try {
+            const { data: signals } = await supabaseShared
+              .from("webrtc_signaling")
+              .select("id")
+              .eq("device_id", sharedDeviceIdRef.current)
+              .eq("type", "viewer-join")
+              .eq("sender_type", "viewer")
+              .limit(1);
+            if (signals && signals.length > 0) {
+              console.log("[AutoBroadcaster] 👋 Found pending viewer-join signal! Triggering broadcast.");
+              requested = true;
+            }
+          } catch (e) {
+            // silent — signaling table might not be accessible
+          }
+        }
 
         if (lastRequestedRef.current !== requested) {
           console.log("[AutoBroadcaster] ✨ Streaming CHANGED:", lastRequestedRef.current, "→", requested);
