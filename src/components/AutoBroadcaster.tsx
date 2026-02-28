@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
 
 interface AutoBroadcasterProps {
@@ -193,21 +194,53 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     }, delay);
   }, [clearRetryTimer, startCameraAndBroadcast]);
 
-  // Poll streaming status via Edge Function
+  // Poll streaming status via BOTH local and shared DBs
   useEffect(() => {
     if (!deviceId || !userId) return;
 
-    console.log("[AutoBroadcaster] 🔗 Starting polling for device:", deviceId);
+    console.log("[AutoBroadcaster] 🔗 Starting dual-DB polling for device:", deviceId);
     let isMounted = true;
 
     const checkStreamingStatus = async () => {
       if (!isMounted) return;
       try {
-        const device = await fetchDeviceViaEdge(deviceId, userId);
-        if (!device || !isMounted) return;
+        // 1) Local DB (via Edge Function)
+        let requested = false;
+        try {
+          const device = await fetchDeviceViaEdge(deviceId, userId);
+          if (device) {
+            requested = device.is_streaming_requested ?? false;
+          }
+        } catch (e) {
+          console.warn("[AutoBroadcaster] Local poll error:", e);
+        }
 
-        const requested = device.is_streaming_requested ?? false;
-        
+        // 2) Shared DB — check if streaming was requested there too
+        if (!requested) {
+          try {
+            const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+              body: JSON.stringify({ user_id: userId }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const devices = data.devices || data || [];
+              // Match by device_id field OR id
+              const sharedDevice = devices.find(
+                (d: any) => d.id === deviceId || d.device_id === deviceId
+              );
+              if (sharedDevice) {
+                requested = sharedDevice.is_streaming_requested ?? false;
+              }
+            }
+          } catch (e) {
+            console.warn("[AutoBroadcaster] Shared poll error:", e);
+          }
+        }
+
+        if (!isMounted) return;
+
         if (lastRequestedRef.current !== requested) {
           console.log("[AutoBroadcaster] ✨ Streaming request CHANGED:", 
             lastRequestedRef.current, "→", requested);
