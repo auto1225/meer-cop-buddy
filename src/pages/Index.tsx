@@ -580,11 +580,15 @@ const Index = ({ onExpired }: IndexProps) => {
   }, [smartphoneOnline, refetch]);
 
   // Subscribe to broadcast commands from smartphone (instant, no polling)
+  // 🔑 핵심 규칙: userId 기반 단일 채널 사용 → ID 불일치 문제 근본 해결
   useEffect(() => {
-    if (!currentDevice?.id) return;
+    if (!currentDevice?.id || !savedAuth?.user_id) return;
 
     const channelNames = Array.from(
       new Set([
+        // ✅ 통합 채널 (userId 기반 - 절대 불일치 없음)
+        `user-commands-${savedAuth.user_id}`,
+        // ⬇️ 하위 호환: 기존 스마트폰 앱이 device-commands를 아직 사용할 수 있음
         `device-commands-${currentDevice.id}`,
         `device-commands-${sharedDeviceIdState || currentDevice.id}`,
       ])
