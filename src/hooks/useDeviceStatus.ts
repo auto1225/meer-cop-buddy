@@ -342,6 +342,13 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       const { isConnected } = event.detail;
       console.log("[DeviceStatus] Camera status changed event:", isConnected);
       setStatus((prev) => ({ ...prev, isCameraAvailable: isConnected }));
+      // 카메라 상태 변경 시 DB에도 동기화 (Presence와 DB 불일치 방지)
+      if (deviceIdRef.current) {
+        updateDeviceViaEdge(deviceIdRef.current, {
+          is_camera_connected: isConnected,
+          updated_at: new Date().toISOString(),
+        }).catch((e) => console.error("[DeviceStatus] Failed to sync camera to DB:", e));
+      }
       // 카메라 상태 변경 시 Presence 재동기화
       if (channelRef.current && deviceIdRef.current) {
         (async () => {
