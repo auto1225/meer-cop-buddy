@@ -55,7 +55,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       }
 
       if (deviceId) {
-        await updateDeviceViaEdge(deviceId, { name: trimmed });
+        await updateDeviceViaEdge(deviceId, { name: trimmed, device_name: trimmed });
       }
 
       if (saved) {
