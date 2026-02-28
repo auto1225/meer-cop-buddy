@@ -573,7 +573,8 @@ const Index = ({ onExpired }: IndexProps) => {
   useEffect(() => {
     if (!currentDevice?.id) return;
 
-    const channelName = `device-commands-${currentDevice.id}`;
+    const sharedId = sharedDeviceIdState || currentDevice.id;
+    const channelName = `device-commands-${sharedId}`;
     console.log("[Index] 🔌 Subscribing to broadcast channel:", channelName);
 
     const channel = channelManager.getOrCreate(channelName);
@@ -677,7 +678,7 @@ const Index = ({ onExpired }: IndexProps) => {
     return () => {
       channelManager.remove(channelName);
     };
-  }, [currentDevice?.id, refetch, stopAlarm, toast]);
+  }, [currentDevice?.id, sharedDeviceIdState, refetch, stopAlarm, toast]);
 
   // Start/stop surveillance based on monitoring state from DB
   useEffect(() => {
