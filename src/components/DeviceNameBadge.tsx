@@ -43,10 +43,20 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       const saved = getSavedAuth();
 
       if (saved?.user_id) {
+        const normalized = trimmed.toLowerCase();
+        const currentIds = new Set([deviceId, saved.device_id].filter(Boolean) as string[]);
+
         const allDevices = await fetchDevicesViaEdge(saved.user_id);
-        const duplicate = allDevices.find(
-          d => d.id !== deviceId && (d.device_name === trimmed || d.name === trimmed)
-        );
+        const duplicate = allDevices.find((d) => {
+          const isSameDevice = currentIds.has(d.id) || (!!d.device_id && currentIds.has(d.device_id));
+          if (isSameDevice) return false;
+
+          return (
+            d.device_name?.trim().toLowerCase() === normalized ||
+            d.name?.trim().toLowerCase() === normalized
+          );
+        });
+
         if (duplicate) {
           toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
           setIsSaving(false);
