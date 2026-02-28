@@ -573,112 +573,121 @@ const Index = ({ onExpired }: IndexProps) => {
   useEffect(() => {
     if (!currentDevice?.id) return;
 
-    const sharedId = sharedDeviceIdState || currentDevice.id;
-    const channelName = `device-commands-${sharedId}`;
-    console.log("[Index] 🔌 Subscribing to broadcast channel:", channelName);
+    const channelNames = Array.from(
+      new Set([
+        `device-commands-${currentDevice.id}`,
+        `device-commands-${sharedDeviceIdState || currentDevice.id}`,
+      ])
+    );
 
-    const channel = channelManager.getOrCreate(channelName);
-    
-    // monitoring_toggle: DB를 즉시 다시 읽어서 반영 (broadcast 자체로 상태를 바꾸지 않음)
-    channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
-      console.log("[Index] 📲 Broadcast monitoring_toggle received:", payload.payload);
-      refetch();
-    });
-    
-    channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
-      console.log("[Index] 📲 Broadcast settings_updated received:", payload.payload);
-      // 즉시 설정 반영 (DB 폴링 대기 없이)
-      const settings = payload.payload?.settings;
-      if (settings) {
-        if (settings.sensorSettings) {
-          const s = settings.sensorSettings;
-          setSensorToggles({
-            cameraMotion: s.camera ?? true,
-            lid: s.lidClosed ?? true,
-            keyboard: s.keyboard ?? true,
-            mouse: s.mouse ?? true,
-            power: s.power ?? true,
-            microphone: s.microphone ?? false,
-            usb: s.usb ?? false,
-          });
-        }
-        if (settings.motionSensitivity) {
-          const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
-          setMotionThreshold(sensitivityMap[settings.motionSensitivity] ?? 15);
-        }
-        if (settings.mouseSensitivity) {
-          const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
-          setMouseSensitivityPx(mouseMap[settings.mouseSensitivity] ?? 30);
-        }
-        if (settings.alarm_pin) {
-          setAlarmPin(settings.alarm_pin);
-          localStorage.setItem('meercop-alarm-pin', settings.alarm_pin);
-        }
-        if (settings.alarm_sound_id) {
-          setSelectedSoundId(settings.alarm_sound_id);
-          localStorage.setItem('meercop-alarm-sound', settings.alarm_sound_id);
-        }
-        if (settings.require_pc_pin !== undefined) {
-          setRequirePcPin(settings.require_pc_pin);
-        }
-        if (settings.camouflage_mode !== undefined) {
-          setIsCamouflageMode(settings.camouflage_mode);
-        }
-        if (settings.language) {
-          setAppLanguage(settings.language);
-          localStorage.setItem('meercop-language', settings.language);
-          console.log("[Index] ✅ Language updated via broadcast:", settings.language);
-        }
-      }
-      // DB도 함께 갱신
-      refetch();
-    });
+    console.log("[Index] 🔌 Subscribing to broadcast channels:", channelNames);
 
-    channel.on('broadcast', { event: 'remote_alarm_off' }, () => {
-      console.log("[Index] 📲 Broadcast remote_alarm_off received");
-      stopAlarm();
-      setCurrentEventType(undefined);
-      setShowPinKeypad(false);
-      markAlertCleared();
-    });
+    const channels = channelNames.map((name) => channelManager.getOrCreate(name));
 
-    channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
-      const camouflageOn = payload.payload?.camouflage_mode ?? false;
-      console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageOn);
-      setIsCamouflageMode(camouflageOn);
-    });
-
-    // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
-    channel.on('broadcast', { event: 'lock_command' }, (payload) => {
-      console.log("[Index] 🔒 Broadcast lock_command received:", payload);
-      setShowPinKeypad(true);
-      setIsCamouflageMode(true);
-      toast({
-        title: appLanguage === "en" ? "🔒 Device Locked" : "🔒 기기 잠금",
-        description: appLanguage === "en" ? "Remote lock activated from smartphone." : "스마트폰에서 원격 잠금이 활성화되었습니다.",
+    const bindHandlers = (channel: ReturnType<typeof channelManager.getOrCreate>) => {
+      // monitoring_toggle: DB를 즉시 다시 읽어서 반영 (broadcast 자체로 상태를 바꾸지 않음)
+      channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
+        console.log("[Index] 📲 Broadcast monitoring_toggle received:", payload.payload);
+        refetch();
       });
-    });
 
-    // 메시지 명령: 토스트 알림으로 메시지 표시
-    channel.on('broadcast', { event: 'message_command' }, (payload) => {
-      const message = payload.payload?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.");
-      const title = payload.payload?.title || (appLanguage === "en" ? "📩 Remote Message" : "📩 원격 메시지");
-      console.log("[Index] 💬 Broadcast message_command received:", message);
-      toast({
-        title,
-        description: message,
-        duration: 10000,
+      channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
+        console.log("[Index] 📲 Broadcast settings_updated received:", payload.payload);
+        // 즉시 설정 반영 (DB 폴링 대기 없이)
+        const settings = payload.payload?.settings;
+        if (settings) {
+          if (settings.sensorSettings) {
+            const s = settings.sensorSettings;
+            setSensorToggles({
+              cameraMotion: s.camera ?? true,
+              lid: s.lidClosed ?? true,
+              keyboard: s.keyboard ?? true,
+              mouse: s.mouse ?? true,
+              power: s.power ?? true,
+              microphone: s.microphone ?? false,
+              usb: s.usb ?? false,
+            });
+          }
+          if (settings.motionSensitivity) {
+            const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
+            setMotionThreshold(sensitivityMap[settings.motionSensitivity] ?? 15);
+          }
+          if (settings.mouseSensitivity) {
+            const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
+            setMouseSensitivityPx(mouseMap[settings.mouseSensitivity] ?? 30);
+          }
+          if (settings.alarm_pin) {
+            setAlarmPin(settings.alarm_pin);
+            localStorage.setItem('meercop-alarm-pin', settings.alarm_pin);
+          }
+          if (settings.alarm_sound_id) {
+            setSelectedSoundId(settings.alarm_sound_id);
+            localStorage.setItem('meercop-alarm-sound', settings.alarm_sound_id);
+          }
+          if (settings.require_pc_pin !== undefined) {
+            setRequirePcPin(settings.require_pc_pin);
+          }
+          if (settings.camouflage_mode !== undefined) {
+            setIsCamouflageMode(settings.camouflage_mode);
+          }
+          if (settings.language) {
+            setAppLanguage(settings.language);
+            localStorage.setItem('meercop-language', settings.language);
+            console.log("[Index] ✅ Language updated via broadcast:", settings.language);
+          }
+        }
+        // DB도 함께 갱신
+        refetch();
       });
-    });
 
-    channel.subscribe((status) => {
-      console.log("[Index] 📡 device-commands channel status:", status);
-    });
+      channel.on('broadcast', { event: 'remote_alarm_off' }, () => {
+        console.log("[Index] 📲 Broadcast remote_alarm_off received");
+        stopAlarm();
+        setCurrentEventType(undefined);
+        setShowPinKeypad(false);
+        markAlertCleared();
+      });
+
+      channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
+        const camouflageOn = payload.payload?.camouflage_mode ?? false;
+        console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageOn);
+        setIsCamouflageMode(camouflageOn);
+      });
+
+      // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
+      channel.on('broadcast', { event: 'lock_command' }, (payload) => {
+        console.log("[Index] 🔒 Broadcast lock_command received:", payload);
+        setShowPinKeypad(true);
+        setIsCamouflageMode(true);
+        toast({
+          title: appLanguage === "en" ? "🔒 Device Locked" : "🔒 기기 잠금",
+          description: appLanguage === "en" ? "Remote lock activated from smartphone." : "스마트폰에서 원격 잠금이 활성화되었습니다.",
+        });
+      });
+
+      // 메시지 명령: 토스트 알림으로 메시지 표시
+      channel.on('broadcast', { event: 'message_command' }, (payload) => {
+        const message = payload.payload?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.");
+        const title = payload.payload?.title || (appLanguage === "en" ? "📩 Remote Message" : "📩 원격 메시지");
+        console.log("[Index] 💬 Broadcast message_command received:", message);
+        toast({
+          title,
+          description: message,
+          duration: 10000,
+        });
+      });
+
+      channel.subscribe((status) => {
+        console.log("[Index] 📡 device-commands channel status:", status, "topic:", channel.topic);
+      });
+    };
+
+    channels.forEach(bindHandlers);
 
     return () => {
-      channelManager.remove(channelName);
+      channelNames.forEach((name) => channelManager.remove(name));
     };
-  }, [currentDevice?.id, sharedDeviceIdState, refetch, stopAlarm, toast]);
+  }, [currentDevice?.id, sharedDeviceIdState, refetch, stopAlarm, toast, appLanguage, setSelectedSoundId]);
 
   // Start/stop surveillance based on monitoring state from DB
   useEffect(() => {
