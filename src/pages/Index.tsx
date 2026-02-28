@@ -90,13 +90,14 @@ const Index = ({ onExpired }: IndexProps) => {
         const data = await res.json();
         const devices = data.devices || data || [];
 
+        const isComputerType = (t: string) => ["laptop", "desktop", "notebook"].includes(t);
+
         const match =
           devices.find((d: any) => localCompositeId && d.device_id === localCompositeId) ||
-          devices.find((d: any) => localName && d.device_name === localName && d.device_type === localType) ||
-          devices.find((d: any) => localName && d.name === localName && d.device_type === localType) ||
+          devices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isComputerType(d.device_type) && isComputerType(localType)) ||
           devices.find((d: any) => {
-            const laptops = devices.filter((dd: any) => dd.device_type === localType);
-            return laptops.length === 1 && d.device_type === localType;
+            const computers = devices.filter((dd: any) => isComputerType(dd.device_type));
+            return computers.length === 1 && isComputerType(d.device_type) && isComputerType(localType);
           }) ||
           devices.find((d: any) => d.id === currentDeviceId);
 

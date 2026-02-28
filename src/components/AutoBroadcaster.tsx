@@ -177,6 +177,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     const localCompositeId = localDevice?.device_id;
     const localName = localDevice?.device_name || localDevice?.name;
     const localType = localDevice?.device_type || "laptop";
+    const isComputerType = (t: string) => ["laptop", "desktop", "notebook"].includes(t);
 
     console.log(`[AutoBroadcaster] 🔍 Matching shared device: compositeId=${localCompositeId} name=${localName} type=${localType} sharedCount=${sharedDevices.length}`);
     
@@ -188,16 +189,15 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     // Strategy 1: Match by composite device_id text field
     let match = sharedDevices.find((d: any) => localCompositeId && d.device_id === localCompositeId);
     
-    // Strategy 2: Match by name + type
-    if (!match) match = sharedDevices.find((d: any) => localName && d.device_name === localName && d.device_type === localType);
-    if (!match) match = sharedDevices.find((d: any) => localName && d.name === localName && d.device_type === localType);
+    // Strategy 2: Match by name + type (laptop/desktop/notebook treated as same group)
+    if (!match) match = sharedDevices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isComputerType(d.device_type) && isComputerType(localType));
     
-    // Strategy 3: If only one laptop exists, use it
+    // Strategy 3: If only one computer exists, use it
     if (!match) {
-      const laptops = sharedDevices.filter((d: any) => d.device_type === localType);
-      if (laptops.length === 1) {
-        match = laptops[0];
-        console.log(`[AutoBroadcaster] 🎯 Only one ${localType} in shared DB, using it`);
+      const computers = sharedDevices.filter((d: any) => isComputerType(d.device_type));
+      if (computers.length === 1) {
+        match = computers[0];
+        console.log(`[AutoBroadcaster] 🎯 Only one computer in shared DB, using it`);
       }
     }
 
