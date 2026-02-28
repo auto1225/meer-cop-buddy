@@ -126,6 +126,13 @@ const Index = ({ onExpired }: IndexProps) => {
     console.log("[Index] 🖥️ currentDeviceId:", currentDeviceId, "→ currentDevice:", currentDevice?.id, currentDevice?.device_name);
   }, [currentDeviceId, currentDevice]);
 
+  // Sync deviceType when currentDevice loads/changes
+  useEffect(() => {
+    if (currentDevice?.device_type) {
+      setDeviceType(currentDevice.device_type);
+    }
+  }, [currentDevice?.device_type]);
+
   // Detect smartphone online status from devices list
   // device_type enum: laptop | desktop | smartphone | tablet
   const smartphoneDevice = devices.find(d => d.device_type === 'smartphone');
@@ -170,6 +177,8 @@ const Index = ({ onExpired }: IndexProps) => {
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
   const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
+  // Device type from smartphone settings (laptop | desktop | tablet)
+  const [deviceType, setDeviceType] = useState<string>(() => currentDevice?.device_type || "laptop");
   // Language setting from smartphone (supports 17 languages)
   const [appLanguage, setAppLanguage] = useState<string>(() => {
     return localStorage.getItem('meercop-language') || "ko";
@@ -646,6 +655,16 @@ const Index = ({ onExpired }: IndexProps) => {
             localStorage.setItem('meercop-language', settings.language);
             console.log("[Index] ✅ Language updated via broadcast:", settings.language);
           }
+          if (settings.device_type) {
+            setDeviceType(settings.device_type);
+            // 로컬 DB에도 동기화
+            if (currentDevice?.id) {
+              updateDeviceViaEdge(currentDevice.id, { device_type: settings.device_type }).catch(err =>
+                console.warn("[Index] ⚠️ Failed to sync device_type:", err)
+              );
+            }
+            console.log("[Index] ✅ Device type updated via broadcast:", settings.device_type);
+          }
         }
         // DB도 함께 갱신
         refetch();
@@ -814,6 +833,7 @@ const Index = ({ onExpired }: IndexProps) => {
             localStorage.setItem('meercop-alarm-volume', String(v));
           }}
           isMonitoring={isMonitoring}
+          deviceType={deviceType}
           availableSounds={availableSounds}
           selectedSoundId={selectedSoundId}
           onSoundChange={setSelectedSoundId}
