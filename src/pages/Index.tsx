@@ -406,88 +406,91 @@ const Index = ({ onExpired }: IndexProps) => {
   // Listen for settings changes from smartphone via metadata
   useEffect(() => {
     if (!currentDevice?.id) return;
-    const meta = currentDevice?.metadata as {
-      alarm_pin?: string;
-      alarm_sound_id?: string;
-      require_pc_pin?: boolean;
-      camouflage_mode?: boolean;
-      language?: string;
-      sensorSettings?: {
-        camera?: boolean;
-        lidClosed?: boolean;
-        microphone?: boolean;
-        keyboard?: boolean;
-        mouse?: boolean;
-        usb?: boolean;
-        power?: boolean;
-      };
-      motionSensitivity?: string;
-      mouseSensitivity?: string;
-    } | null;
 
+    const meta = (currentDevice?.metadata as Record<string, unknown> | null) || null;
     console.log("[Index] 📋 Current metadata from DB:", JSON.stringify(meta));
 
-    if (meta?.alarm_pin) {
-      setAlarmPin(meta.alarm_pin);
-      localStorage.setItem('meercop-alarm-pin', meta.alarm_pin);
-      console.log("[Index] ✅ alarm_pin applied:", meta.alarm_pin);
+    const sensorSettings = (meta?.sensorSettings || meta?.sensor_settings) as {
+      camera?: boolean;
+      lidClosed?: boolean;
+      microphone?: boolean;
+      keyboard?: boolean;
+      mouse?: boolean;
+      usb?: boolean;
+      power?: boolean;
+    } | undefined;
+
+    const motionSensitivity = (meta?.motionSensitivity || meta?.motion_sensitivity) as string | undefined;
+    const mouseSensitivity = (meta?.mouseSensitivity || meta?.mouse_sensitivity) as string | undefined;
+    const alarmPinFromMeta = (meta?.alarm_pin || meta?.alarmPin) as string | undefined;
+    const alarmSoundFromMeta = (meta?.alarm_sound_id || meta?.alarmSoundId) as string | undefined;
+    const requirePcPinFromMeta = (meta?.require_pc_pin ?? meta?.requirePcPin) as boolean | undefined;
+    const camouflageFromMeta = (meta?.camouflage_mode ?? meta?.camouflageMode) as boolean | undefined;
+    const languageFromMeta = (meta?.language || meta?.lang) as string | undefined;
+
+    if (alarmPinFromMeta) {
+      setAlarmPin(alarmPinFromMeta);
+      localStorage.setItem("meercop-alarm-pin", alarmPinFromMeta);
+      console.log("[Index] ✅ alarm_pin applied:", alarmPinFromMeta);
     }
 
-    if (meta?.require_pc_pin !== undefined) {
-      setRequirePcPin(meta.require_pc_pin);
-      console.log("[Index] ✅ require_pc_pin applied:", meta.require_pc_pin);
+    if (alarmSoundFromMeta) {
+      setSelectedSoundId(alarmSoundFromMeta);
+      localStorage.setItem("meercop-alarm-sound", alarmSoundFromMeta);
+      console.log("[Index] ✅ alarm_sound_id applied:", alarmSoundFromMeta);
     }
 
-    if (meta?.camouflage_mode !== undefined) {
-      setIsCamouflageMode(meta.camouflage_mode);
-      console.log("[Index] ✅ camouflage_mode applied:", meta.camouflage_mode);
+    if (requirePcPinFromMeta !== undefined) {
+      setRequirePcPin(requirePcPinFromMeta);
+      console.log("[Index] ✅ require_pc_pin applied:", requirePcPinFromMeta);
     }
 
-    if (meta?.language) {
-      setAppLanguage(meta.language);
-      localStorage.setItem('meercop-language', meta.language);
-      console.log("[Index] ✅ language applied from DB:", meta.language);
+    if (camouflageFromMeta !== undefined) {
+      setIsCamouflageMode(camouflageFromMeta);
+      console.log("[Index] ✅ camouflage_mode applied:", camouflageFromMeta);
     }
 
-    // alarm_sound_id는 컴퓨터 자체 localStorage에서 관리 (DB 동기화하지 않음)
+    if (languageFromMeta) {
+      setAppLanguage(languageFromMeta);
+      localStorage.setItem("meercop-language", languageFromMeta);
+      console.log("[Index] ✅ language applied from DB:", languageFromMeta);
+    }
 
-    if (meta?.sensorSettings) {
-      const s = meta.sensorSettings;
+    if (sensorSettings) {
       setSensorToggles({
-        cameraMotion: s.camera ?? true,
-        lid: s.lidClosed ?? true,
-        keyboard: s.keyboard ?? true,
-        mouse: s.mouse ?? true,
-        power: s.power ?? true,
-        microphone: s.microphone ?? false,
-        usb: s.usb ?? false,
+        cameraMotion: sensorSettings.camera ?? true,
+        lid: sensorSettings.lidClosed ?? true,
+        keyboard: sensorSettings.keyboard ?? true,
+        mouse: sensorSettings.mouse ?? true,
+        power: sensorSettings.power ?? true,
+        microphone: sensorSettings.microphone ?? false,
+        usb: sensorSettings.usb ?? false,
       });
-      console.log("[Index] ✅ sensorSettings applied:", s);
+      console.log("[Index] ✅ sensorSettings applied:", sensorSettings);
     }
 
-    if (meta?.motionSensitivity) {
+    if (motionSensitivity) {
       const sensitivityMap: Record<string, number> = {
         sensitive: 10,
         normal: 50,
         insensitive: 80,
       };
-      const threshold = sensitivityMap[meta.motionSensitivity] ?? 15;
+      const threshold = sensitivityMap[motionSensitivity] ?? 15;
       setMotionThreshold(threshold);
-      console.log("[Index] ✅ motionSensitivity applied:", meta.motionSensitivity, "→", threshold);
+      console.log("[Index] ✅ motionSensitivity applied:", motionSensitivity, "→", threshold);
     }
 
-    if (meta?.mouseSensitivity) {
-      // 0.2초 내 이동 거리 임계값 (px): 민감 5px(≈0.5cm), 보통 30px(≈3cm), 둔감 100px(≈10cm)
+    if (mouseSensitivity) {
       const mouseMap: Record<string, number> = {
         sensitive: 5,
         normal: 30,
         insensitive: 100,
       };
-      const px = mouseMap[meta.mouseSensitivity] ?? 30;
+      const px = mouseMap[mouseSensitivity] ?? 30;
       setMouseSensitivityPx(px);
-      console.log("[Index] ✅ mouseSensitivity applied:", meta.mouseSensitivity, "→", px, "px");
+      console.log("[Index] ✅ mouseSensitivity applied:", mouseSensitivity, "→", px, "px");
     }
-  }, [currentDevice?.metadata, currentDevice?.id]);
+  }, [currentDevice?.metadata, currentDevice?.id, setSelectedSoundId]);
 
   // No redirect needed - App.tsx handles auth gate
 
@@ -617,83 +620,112 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
         console.log("[Index] 📲 Broadcast settings_updated received:", payload.payload);
-        // 즉시 설정 반영 (DB 폴링 대기 없이)
-        const settings = payload.payload?.settings;
-        if (settings) {
-          if (settings.sensorSettings) {
-            const s = settings.sensorSettings;
-            setSensorToggles({
-              cameraMotion: s.camera ?? true,
-              lid: s.lidClosed ?? true,
-              keyboard: s.keyboard ?? true,
-              mouse: s.mouse ?? true,
-              power: s.power ?? true,
-              microphone: s.microphone ?? false,
-              usb: s.usb ?? false,
-            });
-          }
-          if (settings.motionSensitivity) {
-            const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
-            setMotionThreshold(sensitivityMap[settings.motionSensitivity] ?? 15);
-          }
-          if (settings.mouseSensitivity) {
-            const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
-            setMouseSensitivityPx(mouseMap[settings.mouseSensitivity] ?? 30);
-          }
-          if (settings.alarm_pin) {
-            setAlarmPin(settings.alarm_pin);
-            localStorage.setItem('meercop-alarm-pin', settings.alarm_pin);
-          }
-          if (settings.alarm_sound_id) {
-            setSelectedSoundId(settings.alarm_sound_id);
-            localStorage.setItem('meercop-alarm-sound', settings.alarm_sound_id);
-          }
-          if (settings.require_pc_pin !== undefined) {
-            setRequirePcPin(settings.require_pc_pin);
-          }
-          if (settings.camouflage_mode !== undefined) {
-            setIsCamouflageMode(settings.camouflage_mode);
-          }
-          if (settings.language) {
-            setAppLanguage(settings.language);
-            localStorage.setItem('meercop-language', settings.language);
-            console.log("[Index] ✅ Language updated via broadcast:", settings.language);
-          }
-          if (settings.device_type) {
-            setDeviceType(settings.device_type);
-            // 로컬 DB에도 동기화
-            if (currentDevice?.id) {
-              updateDeviceViaEdge(currentDevice.id, { device_type: settings.device_type }).catch(err =>
-                console.warn("[Index] ⚠️ Failed to sync device_type:", err)
-              );
-            }
-            console.log("[Index] ✅ Device type updated via broadcast:", settings.device_type);
-          }
+
+        const payloadObj = (payload.payload && typeof payload.payload === "object")
+          ? (payload.payload as Record<string, unknown>)
+          : {};
+        const settingsRaw = (payloadObj.settings && typeof payloadObj.settings === "object")
+          ? (payloadObj.settings as Record<string, unknown>)
+          : payloadObj;
+
+        if (!settingsRaw || Object.keys(settingsRaw).length === 0) {
+          console.warn("[Index] ⚠️ settings_updated payload is empty");
+          return;
         }
+
+        const sensorSettings = (settingsRaw.sensorSettings || settingsRaw.sensor_settings) as {
+          camera?: boolean;
+          lidClosed?: boolean;
+          microphone?: boolean;
+          keyboard?: boolean;
+          mouse?: boolean;
+          usb?: boolean;
+          power?: boolean;
+        } | undefined;
+        const motionSensitivity = (settingsRaw.motionSensitivity || settingsRaw.motion_sensitivity) as string | undefined;
+        const mouseSensitivity = (settingsRaw.mouseSensitivity || settingsRaw.mouse_sensitivity) as string | undefined;
+        const alarmPinFromSettings = (settingsRaw.alarm_pin || settingsRaw.alarmPin) as string | undefined;
+        const alarmSoundFromSettings = (settingsRaw.alarm_sound_id || settingsRaw.alarmSoundId) as string | undefined;
+        const requirePcPinFromSettings = (settingsRaw.require_pc_pin ?? settingsRaw.requirePcPin) as boolean | undefined;
+        const camouflageFromSettings = (settingsRaw.camouflage_mode ?? settingsRaw.camouflageMode) as boolean | undefined;
+        const languageFromSettings = (settingsRaw.language || settingsRaw.lang) as string | undefined;
+        const deviceTypeFromSettings = (settingsRaw.device_type || settingsRaw.deviceType) as string | undefined;
+
+        if (sensorSettings) {
+          setSensorToggles({
+            cameraMotion: sensorSettings.camera ?? true,
+            lid: sensorSettings.lidClosed ?? true,
+            keyboard: sensorSettings.keyboard ?? true,
+            mouse: sensorSettings.mouse ?? true,
+            power: sensorSettings.power ?? true,
+            microphone: sensorSettings.microphone ?? false,
+            usb: sensorSettings.usb ?? false,
+          });
+        }
+
+        if (motionSensitivity) {
+          const sensitivityMap: Record<string, number> = { sensitive: 10, normal: 50, insensitive: 80 };
+          setMotionThreshold(sensitivityMap[motionSensitivity] ?? 15);
+        }
+
+        if (mouseSensitivity) {
+          const mouseMap: Record<string, number> = { sensitive: 5, normal: 30, insensitive: 100 };
+          setMouseSensitivityPx(mouseMap[mouseSensitivity] ?? 30);
+        }
+
+        if (alarmPinFromSettings) {
+          setAlarmPin(alarmPinFromSettings);
+          localStorage.setItem("meercop-alarm-pin", alarmPinFromSettings);
+        }
+
+        if (alarmSoundFromSettings) {
+          setSelectedSoundId(alarmSoundFromSettings);
+          localStorage.setItem("meercop-alarm-sound", alarmSoundFromSettings);
+        }
+
+        if (requirePcPinFromSettings !== undefined) {
+          setRequirePcPin(requirePcPinFromSettings);
+        }
+
+        if (camouflageFromSettings !== undefined) {
+          setIsCamouflageMode(camouflageFromSettings);
+        }
+
+        if (languageFromSettings) {
+          setAppLanguage(languageFromSettings);
+          localStorage.setItem("meercop-language", languageFromSettings);
+          console.log("[Index] ✅ Language updated via broadcast:", languageFromSettings);
+        }
+
+        if (deviceTypeFromSettings) {
+          setDeviceType(deviceTypeFromSettings);
+          console.log("[Index] ✅ Device type updated via broadcast:", deviceTypeFromSettings);
+        }
+
         // ✅ 로컬 DB metadata에도 설정 영속 저장 (새로고침 후에도 유지)
-        if (currentDevice?.id && savedAuth?.user_id) {
-          (async () => {
-            try {
-              const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
-              const existingMeta = (device?.metadata as Record<string, unknown>) || {};
-              const metaUpdate: Record<string, unknown> = { ...existingMeta };
-              
-              if (settings.sensorSettings) metaUpdate.sensorSettings = settings.sensorSettings;
-              if (settings.motionSensitivity) metaUpdate.motionSensitivity = settings.motionSensitivity;
-              if (settings.mouseSensitivity) metaUpdate.mouseSensitivity = settings.mouseSensitivity;
-              if (settings.alarm_pin) metaUpdate.alarm_pin = settings.alarm_pin;
-              if (settings.alarm_sound_id) metaUpdate.alarm_sound_id = settings.alarm_sound_id;
-              if (settings.require_pc_pin !== undefined) metaUpdate.require_pc_pin = settings.require_pc_pin;
-              if (settings.camouflage_mode !== undefined) metaUpdate.camouflage_mode = settings.camouflage_mode;
-              if (settings.language) metaUpdate.language = settings.language;
-              
-              await updateDeviceViaEdge(currentDevice.id, { metadata: metaUpdate });
-              console.log("[Index] ✅ Settings persisted to local DB metadata");
-            } catch (e) {
-              console.warn("[Index] ⚠️ Failed to persist settings to local DB:", e);
-            }
-          })();
+        if (currentDevice?.id) {
+          const existingMeta = (currentDevice.metadata as Record<string, unknown>) || {};
+          const metaUpdate: Record<string, unknown> = { ...existingMeta };
+
+          if (sensorSettings) metaUpdate.sensorSettings = sensorSettings;
+          if (motionSensitivity) metaUpdate.motionSensitivity = motionSensitivity;
+          if (mouseSensitivity) metaUpdate.mouseSensitivity = mouseSensitivity;
+          if (alarmPinFromSettings) metaUpdate.alarm_pin = alarmPinFromSettings;
+          if (alarmSoundFromSettings) metaUpdate.alarm_sound_id = alarmSoundFromSettings;
+          if (requirePcPinFromSettings !== undefined) metaUpdate.require_pc_pin = requirePcPinFromSettings;
+          if (camouflageFromSettings !== undefined) metaUpdate.camouflage_mode = camouflageFromSettings;
+          if (languageFromSettings) metaUpdate.language = languageFromSettings;
+
+          const updatePayload: Record<string, unknown> = { metadata: metaUpdate };
+          if (deviceTypeFromSettings) {
+            updatePayload.device_type = deviceTypeFromSettings;
+          }
+
+          updateDeviceViaEdge(currentDevice.id, updatePayload)
+            .then(() => console.log("[Index] ✅ Settings persisted to local DB metadata"))
+            .catch((e) => console.warn("[Index] ⚠️ Failed to persist settings to local DB:", e));
         }
+
         // DB도 함께 갱신
         refetch();
       });
