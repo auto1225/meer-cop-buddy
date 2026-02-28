@@ -3,9 +3,49 @@ import { supabaseShared } from "@/lib/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { getIceServers } from "@/lib/iceServers";
 
+/**
+ * WebRTC Viewer Hook — 스마트폰(뷰어) 측
+ * 
+ * 프로토콜:
+ * 1. viewer-join 시그널 전송
+ * 2. 브로드캐스터의 offer 수신 대기
+ * 3. answer 생성 및 전송
+ * 4. ICE candidates 교환
+ * 5. P2P 스트림 수신
+ */
+
 interface UseWebRTCViewerOptions {
   deviceId: string;
   onStream?: (stream: MediaStream) => void;
+}
+
+// ── Supabase signaling helpers ──
+
+async function fetchSignaling(deviceId: string, type: string, senderType: string) {
+  const { data, error } = await supabaseShared
+    .from("webrtc_signaling")
+    .select("*")
+    .eq("device_id", deviceId)
+    .eq("type", type)
+    .eq("sender_type", senderType);
+  if (error) {
+    console.warn("[Viewer] fetchSignaling error:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+async function insertSignaling(record: {
+  device_id: string;
+  session_id: string;
+  type: string;
+  sender_type: string;
+  data: Record<string, unknown>;
+}) {
+  const { error } = await supabaseShared.from("webrtc_signaling").insert(record);
+  if (error) {
+    console.error("[Viewer] insertSignaling error:", error.message);
+  }
 }
 
 export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) {
@@ -15,147 +55,172 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const sessionIdRef = useRef<string>("");
+  const sessionIdRef = useRef("");
   const streamRef = useRef<MediaStream | null>(null);
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
   const isConnectedRef = useRef(false);
   const isConnectingRef = useRef(false);
   const remoteDescriptionSetRef = useRef(false);
   const answerSentRef = useRef(false);
+  const onStreamRef = useRef(onStream);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Generate unique session ID
+  // Keep onStream ref fresh without re-creating callbacks
+  useEffect(() => {
+    onStreamRef.current = onStream;
+  }, [onStream]);
+
   const generateSessionId = useCallback(() => {
     return `viewer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // Handle incoming answer from broadcaster
-  const handleAnswer = useCallback(async (answer: RTCSessionDescriptionInit) => {
-    if (!pcRef.current) return;
-    
-    // 중복 setRemoteDescription 방지
+  // ── Handle offer from broadcaster ──
+  const handleOffer = useCallback(async (offerData: any) => {
+    const pc = pcRef.current;
+    if (!pc) return;
+
     if (remoteDescriptionSetRef.current) {
-      console.log("[WebRTC Viewer] ⏭️ Remote description already set, skipping duplicate");
+      console.log("[Viewer] ⏭️ Remote description already set, skipping");
       return;
     }
     remoteDescriptionSetRef.current = true;
 
     try {
-      await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-      console.log("[WebRTC Viewer] Set remote description (answer)");
-      
+      // Parse SDP flexibly
+      let sdp: RTCSessionDescriptionInit;
+      if (typeof offerData === "string") {
+        sdp = JSON.parse(offerData);
+      } else if (offerData?.type && offerData?.sdp) {
+        sdp = { type: offerData.type, sdp: offerData.sdp };
+      } else if (offerData?.sdp?.type && offerData?.sdp?.sdp) {
+        sdp = { type: offerData.sdp.type, sdp: offerData.sdp.sdp };
+      } else {
+        throw new Error("Invalid SDP format");
+      }
+
+      console.log("[Viewer] 📥 Setting remote description (offer)");
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+
+      // Create and send answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      if (!answerSentRef.current) {
+        answerSentRef.current = true;
+        await insertSignaling({
+          device_id: deviceId,
+          session_id: sessionIdRef.current,
+          type: "answer",
+          sender_type: "viewer",
+          data: { sdp: { type: answer.type, sdp: answer.sdp } },
+        });
+        console.log("[Viewer] ✅ Answer sent");
+      }
+
       // Flush queued ICE candidates
       if (iceCandidateQueueRef.current.length > 0) {
-        console.log(`[WebRTC Viewer] 🧊 Flushing ${iceCandidateQueueRef.current.length} queued ICE candidates`);
+        console.log(`[Viewer] 🧊 Flushing ${iceCandidateQueueRef.current.length} queued ICE candidates`);
         for (const candidate of iceCandidateQueueRef.current) {
           try {
-            await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
           } catch (e) {
-            console.warn("[WebRTC Viewer] Failed to add queued ICE candidate:", e);
+            console.warn("[Viewer] Failed to add queued ICE:", e);
           }
         }
         iceCandidateQueueRef.current = [];
       }
     } catch (err) {
-      console.error("[WebRTC Viewer] Error setting remote description:", err);
+      console.error("[Viewer] ❌ Error handling offer:", err);
+      remoteDescriptionSetRef.current = false;
+      answerSentRef.current = false;
       setError("VIEWER_CONNECTION_FAILED");
     }
-  }, []);
+  }, [deviceId]);
 
-  // Handle incoming ICE candidate from broadcaster (with queuing)
+  // ── Handle ICE candidate from broadcaster ──
   const handleIceCandidate = useCallback(async (candidate: RTCIceCandidateInit) => {
-    if (!pcRef.current) return;
+    const pc = pcRef.current;
+    if (!pc) return;
 
-    if (pcRef.current.remoteDescription) {
+    if (pc.remoteDescription) {
       try {
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-        console.log("[WebRTC Viewer] Added ICE candidate from broadcaster");
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
-        console.error("[WebRTC Viewer] Error adding ICE candidate:", err);
+        console.warn("[Viewer] Error adding ICE candidate:", err);
       }
     } else {
-      // Queue until remoteDescription is set
       iceCandidateQueueRef.current.push(candidate);
-      console.log(`[WebRTC Viewer] 🧊 Queued ICE candidate (${iceCandidateQueueRef.current.length} total)`);
+      console.log(`[Viewer] 🧊 Queued ICE candidate (${iceCandidateQueueRef.current.length} total)`);
     }
   }, []);
 
-  // Connect to broadcaster
+  // ── Cleanup internals ──
+  const cleanupInternals = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (channelRef.current) {
+      supabaseShared.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    iceCandidateQueueRef.current = [];
+    streamRef.current = null;
+    remoteDescriptionSetRef.current = false;
+    answerSentRef.current = false;
+  }, []);
+
+  // ── Connect to broadcaster ──
   const connect = useCallback(async () => {
     if (isConnectingRef.current || isConnectedRef.current) return;
 
     setIsConnecting(true);
     isConnectingRef.current = true;
     setError(null);
-    remoteDescriptionSetRef.current = false;
-    answerSentRef.current = false;
 
     const sessionId = generateSessionId();
     sessionIdRef.current = sessionId;
+    console.log(`[Viewer] 🚀 Starting connection, session=${sessionId}`);
 
-    console.log(`[WebRTC Viewer] Connecting with session ${sessionId}`);
-
-    // Create peer connection with TURN support
+    // 1. Create peer connection
     const iceConfig = await getIceServers();
     const pc = new RTCPeerConnection(iceConfig);
     pcRef.current = pc;
 
-    // Add transceiver for receiving video
+    // Add transceivers for receiving
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
 
-    // Handle incoming stream — debounce onStream to avoid rapid play() calls
-    const pendingTracksRef = { audio: false, video: false };
-    let streamDeliverTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const deliverStream = () => {
-      if (streamDeliverTimer) clearTimeout(streamDeliverTimer);
-      streamDeliverTimer = setTimeout(() => {
-        if (streamRef.current) {
-          // Wrap to force React re-render
-          const wrapped = new MediaStream(streamRef.current.getTracks());
-          streamRef.current = wrapped;
-          console.log("[WebRTC Viewer] 📤 Delivering stream to consumer");
-          onStream?.(wrapped);
-        }
-      }, 100);
-    };
-
+    // 2. Handle incoming tracks
     pc.ontrack = (event) => {
-      console.log("[WebRTC Viewer] Received track:", event.track.kind);
-      
-      let stream: MediaStream;
-      if (event.streams && event.streams[0]) {
-        stream = event.streams[0];
+      console.log(`[Viewer] 🎬 Received track: ${event.track.kind}`);
+      const stream = event.streams?.[0];
+      if (stream) {
+        streamRef.current = stream;
+        onStreamRef.current?.(stream);
       } else {
-        console.log("[WebRTC Viewer] ⚠️ event.streams empty, creating manual MediaStream");
+        // Fallback: manually assemble stream
         if (!streamRef.current) {
-          stream = new MediaStream();
-        } else {
-          stream = streamRef.current;
+          streamRef.current = new MediaStream();
         }
-        stream.addTrack(event.track);
-      }
-
-      streamRef.current = stream;
-
-      // Wait for unmute before delivering to avoid AbortError from premature play()
-      if (event.track.muted) {
-        event.track.addEventListener("unmute", () => {
-          console.log(`[WebRTC Viewer] ✅ Track unmuted: ${event.track.kind}`);
-          pendingTracksRef[event.track.kind as "audio" | "video"] = true;
-          deliverStream();
-        }, { once: true });
-      } else {
-        pendingTracksRef[event.track.kind as "audio" | "video"] = true;
-        deliverStream();
+        streamRef.current.addTrack(event.track);
+        onStreamRef.current?.(streamRef.current);
       }
     };
 
-    // Handle ICE candidates
+    // 3. Send ICE candidates to broadcaster
     pc.onicecandidate = async (event) => {
       if (event.candidate) {
-        console.log("[WebRTC Viewer] Sending ICE candidate");
-        await supabaseShared.from("webrtc_signaling").insert({
+        await insertSignaling({
           device_id: deviceId,
           session_id: sessionId,
           type: "ice-candidate",
@@ -165,21 +230,29 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       }
     };
 
+    // 4. Connection state tracking
     pc.onconnectionstatechange = () => {
-      console.log(`[WebRTC Viewer] Connection state: ${pc.connectionState}`);
+      console.log(`[Viewer] Connection state: ${pc.connectionState}`);
       if (pc.connectionState === "connected") {
         setIsConnected(true);
         isConnectedRef.current = true;
         setIsConnecting(false);
         isConnectingRef.current = false;
-      } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+        // Stop polling once connected
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      } else if (pc.connectionState === "failed" || pc.connectionState === "closed") {
         setIsConnected(false);
         isConnectedRef.current = false;
+        setIsConnecting(false);
+        isConnectingRef.current = false;
         setError("VIEWER_DISCONNECTED");
       }
     };
 
-    // Subscribe to signaling channel
+    // 5. Subscribe to Realtime for fast signal delivery
     const channel = supabaseShared
       .channel(`webrtc-viewer-${sessionId}`)
       .on(
@@ -188,21 +261,25 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
           event: "INSERT",
           schema: "public",
           table: "webrtc_signaling",
-          filter: `session_id=eq.${sessionId}`,
+          filter: `device_id=eq.${deviceId}`,
         },
         async (payload) => {
           const record = payload.new as {
             type: string;
             sender_type: string;
+            session_id: string;
             data: any;
           };
-
-          // Only process messages from broadcaster
           if (record.sender_type !== "broadcaster") return;
 
-          if (record.type === "answer") {
-            await handleAnswer(record.data.sdp);
-          } else if (record.type === "ice-candidate") {
+          // Only process offers/ice-candidates targeted at this session
+          const targetSession = record.data?.target_session;
+          if (targetSession && targetSession !== sessionId) return;
+
+          if (record.type === "offer") {
+            console.log("[Viewer] 📡 Realtime: received offer");
+            await handleOffer(record.data?.sdp || record.data);
+          } else if (record.type === "ice-candidate" && record.data?.candidate) {
             await handleIceCandidate(record.data.candidate);
           }
         }
@@ -211,58 +288,68 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
     channelRef.current = channel;
 
-    // Create and send offer
-    try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+    // 6. Send viewer-join signal
+    await insertSignaling({
+      device_id: deviceId,
+      session_id: sessionId,
+      type: "viewer-join",
+      sender_type: "viewer",
+      data: { timestamp: Date.now() },
+    });
+    console.log("[Viewer] 📤 Sent viewer-join");
 
-      // Send SDP as plain object with type and sdp string
-      await supabaseShared.from("webrtc_signaling").insert({
-        device_id: deviceId,
-        session_id: sessionId,
-        type: "offer",
-        sender_type: "viewer",
-        data: { sdp: { type: offer.type, sdp: offer.sdp } },
-      });
+    // 7. Poll for offer (fallback if Realtime misses it)
+    const pollForOffer = async () => {
+      if (remoteDescriptionSetRef.current || !pcRef.current) return;
 
-      console.log("[WebRTC Viewer] Sent offer");
-
-      // Timeout for connection
-      setTimeout(() => {
-        if (!isConnectedRef.current && isConnectingRef.current) {
-          setError("VIEWER_CAMERA_NOT_ON");
-          setIsConnecting(false);
-          isConnectingRef.current = false;
-          // Inline cleanup instead of calling disconnect to avoid circular dep
-          if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
-          iceCandidateQueueRef.current = [];
-          if (channelRef.current) { supabaseShared.removeChannel(channelRef.current); channelRef.current = null; }
-          if (sessionIdRef.current) {
-            supabaseShared.from("webrtc_signaling").delete().eq("session_id", sessionIdRef.current);
-          }
-          streamRef.current = null;
+      try {
+        const offers = await fetchSignaling(deviceId, "offer", "broadcaster");
+        for (const offer of offers) {
+          const targetSession = offer.data?.target_session;
+          if (targetSession && targetSession !== sessionId) continue;
+          console.log("[Viewer] 📡 Poll: found offer");
+          await handleOffer(offer.data?.sdp || offer.data);
+          break;
         }
-      }, 15000);
-    } catch (err) {
-      console.error("[WebRTC Viewer] Error creating offer:", err);
-      setError("VIEWER_CONNECTION_FAILED");
-      setIsConnecting(false);
-      isConnectingRef.current = false;
-    }
-  }, [deviceId, generateSessionId, handleAnswer, handleIceCandidate, onStream]);
 
-  // Disconnect from broadcaster
+        // Also check for ICE candidates
+        if (pcRef.current?.remoteDescription) {
+          const candidates = await fetchSignaling(deviceId, "ice-candidate", "broadcaster");
+          for (const cand of candidates) {
+            const targetSession = cand.data?.target_session;
+            if (targetSession && targetSession !== sessionId) continue;
+            if (cand.data?.candidate) {
+              await handleIceCandidate(cand.data.candidate);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[Viewer] Poll error:", e);
+      }
+    };
+
+    // Start polling after 1s grace period (give Realtime a chance first)
+    setTimeout(() => {
+      if (remoteDescriptionSetRef.current) return;
+      pollForOffer();
+      pollingRef.current = setInterval(pollForOffer, 2000);
+    }, 1000);
+
+    // 8. Timeout after 20s
+    timeoutRef.current = setTimeout(() => {
+      if (!isConnectedRef.current && isConnectingRef.current) {
+        console.warn("[Viewer] ⏰ Connection timeout");
+        setError("VIEWER_CAMERA_NOT_ON");
+        setIsConnecting(false);
+        isConnectingRef.current = false;
+        cleanupInternals();
+      }
+    }, 20000);
+  }, [deviceId, generateSessionId, handleOffer, handleIceCandidate, cleanupInternals]);
+
+  // ── Disconnect ──
   const disconnect = useCallback(async () => {
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
-    iceCandidateQueueRef.current = [];
-
-    if (channelRef.current) {
-      await supabaseShared.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    cleanupInternals();
 
     // Clean up signaling data
     if (sessionIdRef.current) {
@@ -272,22 +359,25 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
         .eq("session_id", sessionIdRef.current);
     }
 
-    streamRef.current = null;
     setIsConnected(false);
     isConnectedRef.current = false;
     setIsConnecting(false);
     isConnectingRef.current = false;
-    remoteDescriptionSetRef.current = false;
-    answerSentRef.current = false;
-    console.log("[WebRTC Viewer] Disconnected");
-  }, []);
+    console.log("[Viewer] Disconnected");
+  }, [cleanupInternals]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      disconnect();
+      cleanupInternals();
+      if (sessionIdRef.current) {
+        supabaseShared
+          .from("webrtc_signaling")
+          .delete()
+          .eq("session_id", sessionIdRef.current);
+      }
     };
-  }, [disconnect]);
+  }, [cleanupInternals]);
 
   return {
     isConnecting,

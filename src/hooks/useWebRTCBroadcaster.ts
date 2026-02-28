@@ -194,29 +194,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       }
     };
 
-    // 🆕 ICE 연결 시 키프레임 강제 생성 — replaceTrack 방식 (트랙 비활성화 없이)
     pc.oniceconnectionstatechange = () => {
       console.log(`[Broadcaster] [${sessionId.slice(-8)}] ICE state: ${pc.iceConnectionState}`);
-      
-      if (pc.iceConnectionState === "connected") {
-        console.log(`[Broadcaster] [${sessionId.slice(-8)}] 🔥 뷰어 ICE 연결! replaceTrack으로 키프레임 강제 생성`);
-        
-        const senders = pc.getSenders();
-        const videoSender = senders.find(s => s.track && s.track.kind === "video");
-        
-        if (videoSender && videoSender.track && videoSender.track.readyState === "live") {
-          const track = videoSender.track;
-          // replaceTrack with the SAME track forces encoder reset → keyframe without disabling
-          videoSender.replaceTrack(track)
-            .then(() => {
-              console.log(`[Broadcaster] [${sessionId.slice(-8)}] ✅ Keyframe forced via replaceTrack`);
-              // Also nudge constraints to stimulate encoder
-              const constraints = track.getConstraints();
-              return track.applyConstraints({ ...constraints, frameRate: 30 });
-            })
-            .catch(e => console.warn(`[Broadcaster] [${sessionId.slice(-8)}] replaceTrack/applyConstraints:`, e));
-        }
-      }
     };
 
     pc.onconnectionstatechange = () => {
