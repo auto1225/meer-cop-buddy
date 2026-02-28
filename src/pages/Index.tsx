@@ -682,6 +682,21 @@ const Index = ({ onExpired }: IndexProps) => {
         markAlertCleared();
       });
 
+      // ✅ 통합 명령 채널: alarm_dismiss (스마트폰 broadcastCommand 경유)
+      channel.on('broadcast', { event: 'alarm_dismiss' }, (payload) => {
+        const targetDeviceId = payload?.payload?.device_id;
+        // 다른 기기 대상이면 무시
+        if (targetDeviceId && targetDeviceId !== currentDevice?.id && targetDeviceId !== sharedDeviceIdState) {
+          console.log("[Index] ⏭️ alarm_dismiss for different device:", targetDeviceId);
+          return;
+        }
+        console.log("[Index] 📲 Broadcast alarm_dismiss received via user-commands");
+        stopAlarm();
+        setCurrentEventType(undefined);
+        setShowPinKeypad(false);
+        markAlertCleared();
+      });
+
       channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
         const camouflageOn = payload.payload?.camouflage_mode ?? false;
         console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageOn);
