@@ -133,6 +133,11 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
         "shared:", sharedDeviceId, "local:", localDeviceId);
 
       // ── 4) 이중 폴링: 양쪽 DB에서 응답 대기 ──
+      // Track initial coordinates to detect changes
+      const initialLat = sharedDevice?.latitude || localDevice?.latitude || null;
+      const initialLng = sharedDevice?.longitude || localDevice?.longitude || null;
+      const initialLocUpdatedAt = sharedDevice?.location_updated_at || localDevice?.location_updated_at || null;
+
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = setInterval(async () => {
         if (locationReceivedRef.current || !userId) {
@@ -140,25 +145,44 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           return;
         }
 
+        // Helper: check if device has a NEW location response
+        const hasNewLocation = (device: any): boolean => {
+          if (!device?.latitude || !device?.longitude) return false;
+          const meta = device.metadata as Record<string, unknown> | null;
+          
+          // Case 1: locate_requested was cleared AND has coordinates
+          if (meta && !meta.locate_requested) return true;
+          
+          // Case 2: coordinates changed since request
+          if (device.latitude !== initialLat || device.longitude !== initialLng) return true;
+          
+          // Case 3: location_updated_at is newer than our request
+          if (device.location_updated_at && device.location_updated_at > requestTimestamp) return true;
+          
+          return false;
+        };
+
+        const acceptLocation = (device: any, source: string) => {
+          const meta = (device.metadata as Record<string, unknown>) || {};
+          locationReceivedRef.current = true;
+          setCoords({ lat: device.latitude, lng: device.longitude });
+          setUpdatedAt(device.location_updated_at || null);
+          setLocationSource((meta.location_source as string) || null);
+          setIsLoading(false);
+          fetchAddress(device.latitude, device.longitude);
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+          console.log(`[LocationMap] ✅ Location received from ${source}`);
+        };
+
         // 공유 DB 폴링
         try {
           const data = await sharedFetch("get-devices", { user_id: userId });
           const devices = data.devices || data || [];
           const updated = devices.find((d: any) => d.id === sharedDeviceId);
-          if (updated) {
-            const meta = updated.metadata as Record<string, unknown> | null;
-            if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
-              locationReceivedRef.current = true;
-              setCoords({ lat: updated.latitude, lng: updated.longitude });
-              setUpdatedAt(updated.location_updated_at || null);
-              setLocationSource((meta.location_source as string) || null);
-              setIsLoading(false);
-              fetchAddress(updated.latitude, updated.longitude);
-              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-              if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-              console.log("[LocationMap] ✅ Location received from SHARED DB");
-              return;
-            }
+          if (updated && hasNewLocation(updated)) {
+            acceptLocation(updated, "SHARED DB");
+            return;
           }
         } catch { /* silent */ }
 
@@ -166,20 +190,9 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
         try {
           const localDevices = await fetchDevicesViaEdge(userId);
           const updated = localDevices.find((d: any) => d.id === localDeviceId);
-          if (updated) {
-            const meta = updated.metadata as Record<string, unknown> | null;
-            if (meta && !meta.locate_requested && updated.latitude && updated.longitude) {
-              locationReceivedRef.current = true;
-              setCoords({ lat: updated.latitude, lng: updated.longitude });
-              setUpdatedAt(updated.location_updated_at || null);
-              setLocationSource((meta.location_source as string) || null);
-              setIsLoading(false);
-              fetchAddress(updated.latitude, updated.longitude);
-              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-              if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-              console.log("[LocationMap] ✅ Location received from LOCAL DB");
-              return;
-            }
+          if (updated && hasNewLocation(updated)) {
+            acceptLocation(updated, "LOCAL DB");
+            return;
           }
         } catch { /* silent */ }
       }, 2000);

@@ -8,12 +8,10 @@ interface AutoBroadcasterProps {
   userId: string | undefined;
 }
 
-// Global singleton guard to prevent duplicate broadcasts across component instances
 let globalBroadcastingDevice: string | null = null;
 
 export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
   const [isStreamingRequested, setIsStreamingRequested] = useState(false);
-  // The shared DB's UUID for this device — used for signaling
   const [signalingDeviceId, setSignalingDeviceId] = useState<string>("");
   const streamRef = useRef<MediaStream | null>(null);
   const isStartingRef = useRef(false);
@@ -24,22 +22,27 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 10;
   const sharedDeviceIdRef = useRef<string>("");
-  
-  // Use shared DB device ID for signaling so smartphone viewer-join matches
+
+  // Log mount/unmount for debugging
+  useEffect(() => {
+    console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🟢 MOUNTED deviceId=${deviceId} userId=${userId}`);
+    return () => {
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔴 UNMOUNTED`);
+    };
+  }, [deviceId, userId]);
+
   const {
     isBroadcasting,
     startBroadcasting,
     stopBroadcasting,
   } = useWebRTCBroadcaster({ deviceId: signalingDeviceId });
 
-  // Use ref to avoid stale closure issues with isBroadcasting
   const isBroadcastingRef = useRef(isBroadcasting);
   useEffect(() => { isBroadcastingRef.current = isBroadcasting; }, [isBroadcasting]);
 
   const isStreamingRequestedRef = useRef(isStreamingRequested);
   useEffect(() => { isStreamingRequestedRef.current = isStreamingRequested; }, [isStreamingRequested]);
 
-  // Clean up retry timer
   const clearRetryTimer = useCallback(() => {
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
@@ -47,18 +50,14 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     }
   }, []);
 
-  // Stop camera and broadcasting
   const stopCameraAndBroadcast = useCallback(async () => {
     if (isStoppingRef.current) return;
     isStoppingRef.current = true;
-
     console.log(`[AutoBroadcaster:${instanceIdRef.current}] Stopping camera and broadcast`);
-
     globalBroadcastingDevice = null;
     clearRetryTimer();
     retryCountRef.current = 0;
     isStartingRef.current = false;
-
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         track.onended = null;
@@ -66,13 +65,10 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       });
       streamRef.current = null;
     }
-
     await stopBroadcasting();
-
     isStoppingRef.current = false;
   }, [stopBroadcasting, clearRetryTimer]);
 
-  // Start camera and broadcasting
   const startCameraAndBroadcast = useCallback(async () => {
     if (globalBroadcastingDevice && globalBroadcastingDevice !== deviceId) {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⏭️ Another device is already broadcasting`);
@@ -80,15 +76,13 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     }
     
     if (!deviceId || !sharedDeviceIdRef.current || isStartingRef.current || isStoppingRef.current) {
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⏭️ Skipped: sharedId=${sharedDeviceIdRef.current} starting=${isStartingRef.current} stopping=${isStoppingRef.current}`);
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⏭️ Skipped: deviceId=${deviceId} sharedId=${sharedDeviceIdRef.current} starting=${isStartingRef.current} stopping=${isStoppingRef.current}`);
       return;
     }
 
-    // Set guard IMMEDIATELY to prevent duplicate calls
     isStartingRef.current = true;
     globalBroadcastingDevice = deviceId;
 
-    // If stream already exists and tracks are alive, skip
     if (streamRef.current) {
       const activeTracks = streamRef.current.getTracks().filter(t => t.readyState === "live");
       if (activeTracks.length > 0) {
@@ -96,12 +90,10 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
         isStartingRef.current = false;
         return;
       }
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Cleaning dead stream`);
       streamRef.current.getTracks().forEach(t => { t.onended = null; t.stop(); });
       streamRef.current = null;
     }
     
-    // ALWAYS stop previous broadcast to clear stale PeerConnections/signaling
     console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🧹 Forcing full cleanup before (re)start`);
     await stopBroadcasting();
     await new Promise(r => setTimeout(r, 500));
@@ -110,24 +102,12 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera (attempt ${retryCountRef.current + 1}) signalingId=${sharedDeviceIdRef.current}`);
       
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640, max: 640 },
-          height: { ideal: 480, max: 480 },
-          frameRate: { ideal: 15, max: 30 },
-          facingMode: "user",
-        },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+        video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 15, max: 30 }, facingMode: "user" },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       
       const audioTracks = stream.getAudioTracks();
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎤 Audio tracks: ${audioTracks.length}`);
-      audioTracks.forEach(t => {
-        console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎤 Audio: "${t.label}" enabled=${t.enabled} muted=${t.muted}`);
-      });
       if (audioTracks.length === 0) {
         console.warn(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ No audio track captured!`);
       }
@@ -138,37 +118,27 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
 
       stream.getTracks().forEach((track) => {
         track.onended = async () => {
-          console.log(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ Track ended: ${track.kind} (${track.label})`);
-          
           const allEnded = stream.getTracks().every(t => t.readyState === "ended");
           if (allEnded && streamRef.current === stream) {
-            console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔌 All tracks ended — camera likely removed`);
-            
+            console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔌 All tracks ended`);
             streamRef.current = null;
             globalBroadcastingDevice = null;
             isStartingRef.current = false;
-            
             await stopBroadcasting();
-            
-            if (isStreamingRequestedRef.current) {
-              scheduleRetry();
-            }
+            if (isStreamingRequestedRef.current) scheduleRetry();
           }
         };
       });
 
       await startBroadcasting(stream);
-
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ✅ Camera started and broadcasting (signalingId=${sharedDeviceIdRef.current})`);
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] ✅ Broadcasting started (signalingId=${sharedDeviceIdRef.current})`);
     } catch (error) {
       console.error(`[AutoBroadcaster:${instanceIdRef.current}] ❌ Failed to start camera:`, error);
       streamRef.current = null;
       globalBroadcastingDevice = null;
-      
       if (retryCountRef.current < MAX_RETRIES) {
         scheduleRetry();
       } else {
-        console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🛑 Max retries reached, giving up`);
         retryCountRef.current = 0;
         await updateDeviceViaEdge(deviceId, { is_streaming_requested: false });
       }
@@ -177,25 +147,92 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     }
   }, [deviceId, startBroadcasting, stopBroadcasting, clearRetryTimer]);
 
-  // Schedule a retry attempt
   const scheduleRetry = useCallback(() => {
     clearRetryTimer();
     retryCountRef.current++;
     const delay = 3000;
-    console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔄 Retry scheduled in ${delay}ms (${retryCountRef.current}/${MAX_RETRIES})`);
+    console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔄 Retry in ${delay}ms (${retryCountRef.current}/${MAX_RETRIES})`);
     retryTimerRef.current = setTimeout(() => {
       retryTimerRef.current = null;
-      if (isStreamingRequestedRef.current) {
-        startCameraAndBroadcast();
-      }
+      if (isStreamingRequestedRef.current) startCameraAndBroadcast();
     }, delay);
   }, [clearRetryTimer, startCameraAndBroadcast]);
 
-  // Resolve shared DB device ID + poll streaming status
-  useEffect(() => {
-    if (!deviceId || !userId) return;
+  // ── Shared DB helper: find or register this laptop ──
+  const resolveSharedDeviceId = useCallback(async (
+    localDevice: any,
+    sharedDevices: any[]
+  ): Promise<{ id: string; is_streaming_requested: boolean } | null> => {
+    const localCompositeId = localDevice?.device_id;
+    const localName = localDevice?.device_name || localDevice?.name;
+    const localType = localDevice?.device_type || "laptop";
 
-    console.log("[AutoBroadcaster] 🔗 Starting dual-DB polling for device:", deviceId);
+    console.log(`[AutoBroadcaster] 🔍 Matching shared device: compositeId=${localCompositeId} name=${localName} type=${localType} sharedCount=${sharedDevices.length}`);
+    
+    // Log all shared devices for debugging
+    sharedDevices.forEach((d: any, i: number) => {
+      console.log(`[AutoBroadcaster] 📋 Shared[${i}]: id=${d.id} device_id=${d.device_id} name=${d.device_name || d.name} type=${d.device_type} streaming=${d.is_streaming_requested}`);
+    });
+
+    // Strategy 1: Match by composite device_id text field
+    let match = sharedDevices.find((d: any) => localCompositeId && d.device_id === localCompositeId);
+    
+    // Strategy 2: Match by name + type
+    if (!match) match = sharedDevices.find((d: any) => localName && d.device_name === localName && d.device_type === localType);
+    if (!match) match = sharedDevices.find((d: any) => localName && d.name === localName && d.device_type === localType);
+    
+    // Strategy 3: If only one laptop exists, use it
+    if (!match) {
+      const laptops = sharedDevices.filter((d: any) => d.device_type === localType);
+      if (laptops.length === 1) {
+        match = laptops[0];
+        console.log(`[AutoBroadcaster] 🎯 Only one ${localType} in shared DB, using it`);
+      }
+    }
+
+    // Strategy 4: Match by UUID (same as local — unlikely but try)
+    if (!match) match = sharedDevices.find((d: any) => d.id === localDevice?.id);
+
+    if (match) {
+      console.log(`[AutoBroadcaster] ✅ Shared device matched: ${match.id} (name=${match.device_name || match.name})`);
+      return { id: match.id, is_streaming_requested: match.is_streaming_requested ?? false };
+    }
+
+    // No match found — register in shared DB
+    console.log(`[AutoBroadcaster] ⚠️ No shared device found, registering...`);
+    try {
+      const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+        body: JSON.stringify({
+          user_id: localDevice?.user_id,
+          name: localName,
+          device_name: localName,
+          device_type: localType,
+          status: "online",
+          metadata: {},
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const device = data.device || data;
+        console.log(`[AutoBroadcaster] ✅ Registered in shared DB: ${device.id}`);
+        return { id: device.id, is_streaming_requested: device.is_streaming_requested ?? false };
+      }
+    } catch (e) {
+      console.warn("[AutoBroadcaster] Shared register failed:", e);
+    }
+    return null;
+  }, []);
+
+  // ── Main polling effect ──
+  useEffect(() => {
+    if (!deviceId || !userId) {
+      console.log(`[AutoBroadcaster] ⏭️ Polling skipped: deviceId=${deviceId} userId=${userId}`);
+      return;
+    }
+
+    console.log(`[AutoBroadcaster] 🔗 Starting dual-DB polling: localId=${deviceId} userId=${userId}`);
     let isMounted = true;
 
     const checkStreamingStatus = async () => {
@@ -203,7 +240,7 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       try {
         let requested = false;
 
-        // 1) Local DB: read current device once
+        // 1) Local DB
         let localDevice: any = null;
         try {
           localDevice = await fetchDeviceViaEdge(deviceId, userId);
@@ -214,7 +251,7 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
           console.warn("[AutoBroadcaster] Local poll error:", e);
         }
 
-        // 2) Shared DB: resolve matching shared UUID + sync requested flag
+        // 2) Shared DB
         try {
           const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
             method: "POST",
@@ -225,25 +262,19 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
           if (res.ok) {
             const data = await res.json();
             const devices = data.devices || data || [];
-            const localCompositeId = localDevice?.device_id;
-            const localName = localDevice?.device_name || localDevice?.name;
-            const localType = localDevice?.device_type;
-
-            const sharedDevice =
-              devices.find((d: any) => localCompositeId && d.device_id === localCompositeId) ||
-              devices.find((d: any) => localName && localType && d.device_name === localName && d.device_type === localType) ||
-              devices.find((d: any) => localName && localType && d.name === localName && d.device_type === localType) ||
-              devices.find((d: any) => d.id === deviceId);
-
-            if (sharedDevice?.id) {
-              if (sharedDeviceIdRef.current !== sharedDevice.id) {
-                sharedDeviceIdRef.current = sharedDevice.id;
-                setSignalingDeviceId(sharedDevice.id);
-                console.log(`[AutoBroadcaster] 🔑 Shared signaling device resolved: ${sharedDevice.id} (local: ${deviceId})`);
+            
+            const result = await resolveSharedDeviceId(localDevice, devices);
+            if (result) {
+              if (sharedDeviceIdRef.current !== result.id) {
+                sharedDeviceIdRef.current = result.id;
+                setSignalingDeviceId(result.id);
+                console.log(`[AutoBroadcaster] 🔑 Signaling ID set: ${result.id}`);
               }
-              // Shared DB value should win if smartphone writes there
-              requested = sharedDevice.is_streaming_requested ?? requested;
+              // Shared DB value wins (smartphone writes there)
+              if (result.is_streaming_requested) requested = true;
             }
+          } else {
+            console.warn(`[AutoBroadcaster] Shared get-devices HTTP ${res.status}`);
           }
         } catch (e) {
           console.warn("[AutoBroadcaster] Shared poll error:", e);
@@ -252,8 +283,7 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
         if (!isMounted) return;
 
         if (lastRequestedRef.current !== requested) {
-          console.log("[AutoBroadcaster] ✨ Streaming request CHANGED:", 
-            lastRequestedRef.current, "→", requested);
+          console.log("[AutoBroadcaster] ✨ Streaming CHANGED:", lastRequestedRef.current, "→", requested);
           lastRequestedRef.current = requested;
           setIsStreamingRequested(requested);
         }
@@ -269,16 +299,14 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [deviceId, userId]);
+  }, [deviceId, userId, resolveSharedDeviceId]);
 
-  // Listen for camera-status-changed events to auto-restart broadcast
+  // ── Event listeners ──
   useEffect(() => {
     const handleCameraStatusChanged = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      console.log(`[AutoBroadcaster] 📷 Camera status changed:`, detail);
-      
       if (detail.isConnected && isStreamingRequestedRef.current && !isBroadcastingRef.current) {
-        console.log(`[AutoBroadcaster] 📷 Camera reconnected + streaming requested → restarting in 1.5s`);
+        console.log(`[AutoBroadcaster] 📷 Camera reconnected → restarting in 1.5s`);
         retryCountRef.current = 0;
         clearRetryTimer();
         retryTimerRef.current = setTimeout(() => {
@@ -287,38 +315,33 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
         }, 1500);
       }
     };
-
     window.addEventListener("camera-status-changed", handleCameraStatusChanged);
     return () => window.removeEventListener("camera-status-changed", handleCameraStatusChanged);
   }, [startCameraAndBroadcast, clearRetryTimer]);
 
-  // Listen for broadcast-needs-restart events (stale stream detection)
   useEffect(() => {
     const handleNeedsRestart = async () => {
       if (!isStreamingRequestedRef.current || !deviceId) return;
-      
-      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔄 Received broadcast-needs-restart — doing full restart`);
-      
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🔄 broadcast-needs-restart`);
       await stopCameraAndBroadcast();
       await new Promise(r => setTimeout(r, 800));
-      
       if (isStreamingRequestedRef.current) {
         retryCountRef.current = 0;
         startCameraAndBroadcast();
       }
     };
-
     window.addEventListener("broadcast-needs-restart", handleNeedsRestart);
     return () => window.removeEventListener("broadcast-needs-restart", handleNeedsRestart);
   }, [deviceId, stopCameraAndBroadcast, startCameraAndBroadcast]);
 
-  // React to streaming request changes
+  // React to streaming request + signalingDeviceId changes
   useEffect(() => {
+    console.log(`[AutoBroadcaster] 📊 State: streaming=${isStreamingRequested} broadcasting=${isBroadcasting} signalingId=${signalingDeviceId}`);
     if (isStreamingRequested && !isBroadcasting) {
       if (signalingDeviceId) {
         startCameraAndBroadcast();
       } else {
-        console.log("[AutoBroadcaster] ⏳ Waiting for shared signaling device ID before start");
+        console.log("[AutoBroadcaster] ⏳ Waiting for shared signaling ID...");
       }
     } else if (!isStreamingRequested && isBroadcasting) {
       stopCameraAndBroadcast();
@@ -328,7 +351,6 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
     }
   }, [isStreamingRequested, isBroadcasting, signalingDeviceId, startCameraAndBroadcast, stopCameraAndBroadcast, clearRetryTimer]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearRetryTimer();
