@@ -188,6 +188,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
                 device_id: deviceId,
                 status: "online",
                 is_network_connected: navigator.onLine,
+                is_camera_connected: false,
                 battery_level: batteryLevel,
                 is_charging: isCharging,
                 last_seen_at: new Date().toISOString(),
