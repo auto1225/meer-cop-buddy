@@ -586,9 +586,19 @@ const Index = ({ onExpired }: IndexProps) => {
     const channels = channelNames.map((name) => channelManager.getOrCreate(name));
 
     const bindHandlers = (channel: ReturnType<typeof channelManager.getOrCreate>) => {
-      // monitoring_toggle: DB를 즉시 다시 읽어서 반영 (broadcast 자체로 상태를 바꾸지 않음)
+      // monitoring_toggle: payload에서 즉시 상태 적용 + 로컬 DB 동기화
       channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
-        console.log("[Index] 📲 Broadcast monitoring_toggle received:", payload.payload);
+        const enable = payload.payload?.is_monitoring;
+        console.log("[Index] 📲 Broadcast monitoring_toggle received:", enable, payload.payload);
+        if (enable !== undefined) {
+          setIsMonitoring(enable);
+          // 로컬 DB에도 동기화
+          if (currentDevice?.id) {
+            updateDeviceViaEdge(currentDevice.id, { is_monitoring: enable }).catch(err =>
+              console.warn("[Index] ⚠️ Failed to sync monitoring to local DB:", err)
+            );
+          }
+        }
         refetch();
       });
 
