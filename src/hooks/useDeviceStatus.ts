@@ -341,9 +341,35 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const handleCameraStatusChanged = (event: CustomEvent<{ isConnected: boolean }>) => {
       const { isConnected } = event.detail;
       console.log("[DeviceStatus] Camera status changed event:", isConnected);
-      // 카메라 상태는 useCameraDetection에서 DB로 직접 업데이트
-      // Presence에서는 카메라 상태를 동기화하지 않음
       setStatus((prev) => ({ ...prev, isCameraAvailable: isConnected }));
+      // 카메라 상태 변경 시 Presence 재동기화
+      if (channelRef.current && deviceIdRef.current) {
+        (async () => {
+          let batteryLevel: number | null = null;
+          let isCharging = false;
+          if (navigator.getBattery) {
+            try {
+              const battery = await navigator.getBattery();
+              batteryLevel = Math.round(battery.level * 100);
+              isCharging = battery.charging;
+            } catch { /* ignore */ }
+          }
+          try {
+            await channelRef.current?.track({
+              device_id: deviceIdRef.current,
+              status: "online",
+              is_network_connected: navigator.onLine,
+              is_camera_connected: isConnected,
+              battery_level: batteryLevel,
+              is_charging: isCharging,
+              last_seen_at: new Date().toISOString(),
+            });
+            console.log("[DeviceStatus] Presence re-synced with camera:", isConnected);
+          } catch (e) {
+            console.error("[DeviceStatus] Failed to re-sync presence for camera:", e);
+          }
+        })();
+      }
     };
 
     window.addEventListener("camera-status-changed", handleCameraStatusChanged as EventListener);
