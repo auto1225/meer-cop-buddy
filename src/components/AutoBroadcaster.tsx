@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
-import { getSavedAuth } from "@/lib/serialAuth";
 
 interface AutoBroadcasterProps {
   deviceId: string | undefined;
@@ -204,48 +203,46 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
       try {
         let requested = false;
 
-        // 1) Local DB
+        // 1) Local DB: read current device once
+        let localDevice: any = null;
         try {
-          const device = await fetchDeviceViaEdge(deviceId, userId);
-          if (device) {
-            requested = device.is_streaming_requested ?? false;
+          localDevice = await fetchDeviceViaEdge(deviceId, userId);
+          if (localDevice) {
+            requested = localDevice.is_streaming_requested ?? false;
           }
         } catch (e) {
           console.warn("[AutoBroadcaster] Local poll error:", e);
         }
 
-        // 2) Shared DB — also resolve the shared UUID
+        // 2) Shared DB: resolve matching shared UUID + sync requested flag
         try {
           const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
             method: "POST",
             headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
             body: JSON.stringify({ user_id: userId }),
           });
+
           if (res.ok) {
             const data = await res.json();
             const devices = data.devices || data || [];
-            // Match by device_name + device_type since UUIDs differ between DBs
-            // Also try matching by device_id text field (compositeId = userId_deviceType)
-            const localDevice = await fetchDeviceViaEdge(deviceId, userId).catch(() => null);
-            const sharedDevice = devices.find((d: any) => {
-              // Match by composite device_id (e.g. "userId_laptop")
-              if (localDevice?.device_id && d.device_id === localDevice.device_id) return true;
-              // Match by name + type
-              if (localDevice?.device_name && d.device_name === localDevice.device_name && d.device_type === localDevice.device_type) return true;
-              // Match by name field
-              if (localDevice?.name && d.name === localDevice.name && d.device_type === localDevice.device_type) return true;
-              return false;
-            });
-            
-            if (sharedDevice) {
+            const localCompositeId = localDevice?.device_id;
+            const localName = localDevice?.device_name || localDevice?.name;
+            const localType = localDevice?.device_type;
+
+            const sharedDevice =
+              devices.find((d: any) => localCompositeId && d.device_id === localCompositeId) ||
+              devices.find((d: any) => localName && localType && d.device_name === localName && d.device_type === localType) ||
+              devices.find((d: any) => localName && localType && d.name === localName && d.device_type === localType) ||
+              devices.find((d: any) => d.id === deviceId);
+
+            if (sharedDevice?.id) {
               if (sharedDeviceIdRef.current !== sharedDevice.id) {
-                console.log(`[AutoBroadcaster] 🔑 Resolved shared DB device ID: ${sharedDevice.id} (local: ${deviceId})`);
                 sharedDeviceIdRef.current = sharedDevice.id;
                 setSignalingDeviceId(sharedDevice.id);
+                console.log(`[AutoBroadcaster] 🔑 Shared signaling device resolved: ${sharedDevice.id} (local: ${deviceId})`);
               }
-              if (!requested) {
-                requested = sharedDevice.is_streaming_requested ?? false;
-              }
+              // Shared DB value should win if smartphone writes there
+              requested = sharedDevice.is_streaming_requested ?? requested;
             }
           }
         } catch (e) {
@@ -318,14 +315,18 @@ export function AutoBroadcaster({ deviceId, userId }: AutoBroadcasterProps) {
   // React to streaming request changes
   useEffect(() => {
     if (isStreamingRequested && !isBroadcasting) {
-      startCameraAndBroadcast();
+      if (signalingDeviceId) {
+        startCameraAndBroadcast();
+      } else {
+        console.log("[AutoBroadcaster] ⏳ Waiting for shared signaling device ID before start");
+      }
     } else if (!isStreamingRequested && isBroadcasting) {
       stopCameraAndBroadcast();
     } else if (!isStreamingRequested && !isBroadcasting) {
       clearRetryTimer();
       retryCountRef.current = 0;
     }
-  }, [isStreamingRequested, isBroadcasting, startCameraAndBroadcast, stopCameraAndBroadcast, clearRetryTimer]);
+  }, [isStreamingRequested, isBroadcasting, signalingDeviceId, startCameraAndBroadcast, stopCameraAndBroadcast, clearRetryTimer]);
 
   // Cleanup on unmount
   useEffect(() => {
