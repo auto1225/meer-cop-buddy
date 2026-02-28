@@ -537,7 +537,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
 
     // Do NOT immediately poll — wait for viewer to send fresh viewer-join
     // after receiving broadcaster-ready. Start polling after a grace period.
-    console.log("[Broadcaster] ⏳ Waiting 4s for viewer to send fresh viewer-join...");
+    console.log("[Broadcaster] ⏳ Waiting 2s for viewer to send fresh viewer-join...");
     
     // Delay BOTH the first poll and the interval start
     setTimeout(() => {
@@ -547,7 +547,7 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       console.log("[Broadcaster] ▶️ Starting polling for viewer signals");
       pollViewerSignals();
       pollingIntervalRef.current = setInterval(pollViewerSignals, 3000);
-    }, 4000);
+    }, 2000);
   }, [createPeerConnectionAndOffer, handleAnswer, handleIceCandidate, pollViewerSignals]);
 
   const stopBroadcasting = useCallback(async () => {
