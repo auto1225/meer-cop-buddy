@@ -228,5 +228,13 @@
   "alarm.loudKlaxon": "📣 대형 클랙슨",
   "alarm.tripleThreat": "⚡ 트리플 경보",
   "event.cameraMotion": "카메라 모션 감지 (변화율",
-  "event.detected": "이벤트 감지됨"
+  "event.detected": "이벤트 감지됨",
+  "sensor.micThreshold": "마이크 민감도 (dB)",
+  "sensor.micThresholdDesc": "설정된 데시벨 이상의 소리가 감지되면 경보가 발생합니다.",
+  "sensor.micWhisper": "속삭임",
+  "sensor.micConversation": "대화",
+  "sensor.micShout": "고함",
+  "sensor.micAirplane": "비행기",
+  "sensor.micWarning": "⚠️ 낮은 값은 민감한 환경에서 오탐이 발생할 수 있습니다.",
+  "alert.microphone": "마이크 소리가 감지되었습니다!"
 }

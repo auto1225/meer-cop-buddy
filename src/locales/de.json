@@ -228,5 +228,13 @@
   "alarm.loudKlaxon": "📣 Laute Hupe",
   "alarm.tripleThreat": "⚡ Dreifach-Alarm",
   "event.cameraMotion": "Kamerabewegung erkannt (Änderungsrate",
-  "event.detected": "Ereignis erkannt"
+  "event.detected": "Ereignis erkannt",
+  "sensor.micThreshold": "Mikrofon-Empfindlichkeit (dB)",
+  "sensor.micThresholdDesc": "Der Alarm wird ausgelöst, wenn der Ton den eingestellten Dezibelpegel überschreitet.",
+  "sensor.micWhisper": "Flüstern",
+  "sensor.micConversation": "Gespräch",
+  "sensor.micShout": "Schrei",
+  "sensor.micAirplane": "Flugzeug",
+  "sensor.micWarning": "⚠️ Niedrige Werte können in empfindlichen Umgebungen Fehlalarme verursachen.",
+  "alert.microphone": "Mikrofonton erkannt!"
 }

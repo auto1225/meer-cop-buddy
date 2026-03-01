@@ -228,5 +228,13 @@
   "alarm.loudKlaxon": "📣 Loud Klaxon",
   "alarm.tripleThreat": "⚡ Triple Threat",
   "event.cameraMotion": "Camera motion detected (Change rate",
-  "event.detected": "event detected"
+  "event.detected": "event detected",
+  "sensor.micThreshold": "Mic Sensitivity (dB)",
+  "sensor.micThresholdDesc": "Alarm triggers when sound exceeds the set decibel level.",
+  "sensor.micWhisper": "Whisper",
+  "sensor.micConversation": "Talk",
+  "sensor.micShout": "Shout",
+  "sensor.micAirplane": "Airplane",
+  "sensor.micWarning": "⚠️ Low values may cause false alarms in sensitive environments.",
+  "alert.microphone": "Microphone sound detected!"
 }

@@ -228,5 +228,13 @@
   "alarm.loudKlaxon": "📣 大型喇叭",
   "alarm.tripleThreat": "⚡ 三重警报",
   "event.cameraMotion": "摄像头运动检测（变化率",
-  "event.detected": "事件检测"
+  "event.detected": "事件检测",
+  "sensor.micThreshold": "麦克风灵敏度 (dB)",
+  "sensor.micThresholdDesc": "当声音超过设定分贝值时会触发警报。",
+  "sensor.micWhisper": "耳语",
+  "sensor.micConversation": "对话",
+  "sensor.micShout": "喊叫",
+  "sensor.micAirplane": "飞机",
+  "sensor.micWarning": "⚠️ 较低的值在敏感环境中可能导致误报。",
+  "alert.microphone": "检测到麦克风声音！"
 }
