@@ -85,7 +85,7 @@ async function sendViaChannel(
   tx: PhotoTransmission
 ): Promise<boolean> {
   try {
-    // 1. 전송 시작 알림 (6-1: device_name 포함)
+    // 1. 전송 시작 알림 (6-1: device_name + 위치 포함)
     const startResult = await channel.send({
       type: "broadcast",
       event: "photo_alert_start",
@@ -98,6 +98,10 @@ async function sendViaChannel(
         change_percent: tx.change_percent,
         batch_id: tx.batch_id,
         batch_total: tx.batch_total,
+        latitude: tx.latitude,
+        longitude: tx.longitude,
+        location_source: tx.location_source,
+        auto_streaming: tx.auto_streaming ?? false,
         created_at: tx.created_at,
       },
     });
