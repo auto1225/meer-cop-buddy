@@ -84,7 +84,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     const r = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-      body: JSON.stringify({ device_id: sharedId, name: newName, device_name: newName }),
+      body: JSON.stringify({ device_id: sharedId, name: newName }),
     });
 
     const payload = await r.json().catch(() => null);
@@ -135,7 +135,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       }
 
       if (deviceId) {
-        await updateDeviceViaEdge(deviceId, { name: trimmed, device_name: trimmed });
+        await updateDeviceViaEdge(deviceId, { name: trimmed });
 
         // 공유 DB에도 이름 동기화 (스마트폰이 공유 DB를 바라보므로)
         // shared ID 매핑이 아직 없으면 조회로 강제 해석
