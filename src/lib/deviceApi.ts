@@ -231,13 +231,20 @@ export async function updateDeviceViaEdge(
     return;
   }
 
+  // Normalize updates for cross-project compatibility
+  const normalizedUpdates: Record<string, unknown> = { ...updates };
+  if (normalizedUpdates.device_name && !normalizedUpdates.name) {
+    normalizedUpdates.name = normalizedUpdates.device_name;
+  }
+  delete normalizedUpdates.device_name;
+
   // 1) 로컬 우선
   let localOk = false;
   try {
     const res = await fetch(getLocalFunctionUrl("update-device"), {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: getLocalAnonKey() },
-      body: JSON.stringify({ device_id: deviceId, updates }),
+      body: JSON.stringify({ device_id: deviceId, updates: normalizedUpdates }),
     });
     if (res.ok) {
       console.log(`[deviceApi] ✅ Local updated device ${deviceId}`);
@@ -253,7 +260,7 @@ export async function updateDeviceViaEdge(
   fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-    body: JSON.stringify({ device_id: sharedId, updates }),
+    body: JSON.stringify({ device_id: sharedId, updates: normalizedUpdates }),
   })
     .then(res => res.ok
       ? console.log(`[deviceApi] ✅ Shared updated device ${sharedId}${sharedId !== deviceId ? ` (local: ${deviceId})` : ""}`)
