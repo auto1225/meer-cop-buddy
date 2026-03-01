@@ -139,6 +139,14 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       return null;
     }
 
+    // ✅ Validate tracks are live before creating offer
+    const liveTracks = streamRef.current.getTracks().filter(t => t.readyState === "live");
+    if (liveTracks.length === 0) {
+      console.warn("[Broadcaster] ⚠️ All tracks are dead — requesting stream restart");
+      window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
+      return null;
+    }
+
     // Mutex: prevent concurrent creation for the same session
     if (creatingPeerRef.current.has(sessionId)) {
       console.log(`[Broadcaster] ⏭️ Already creating peer for ${sessionId}`);
@@ -168,8 +176,12 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
     const videoTracks = streamRef.current.getVideoTracks();
     console.log(`[Broadcaster] 📹 Adding ${tracks.length} tracks (video: ${videoTracks.length}, audio: ${audioTracks.length})`);
     
-    // Ensure all tracks are enabled (especially audio)
+    // Only add live tracks
     tracks.forEach((track) => {
+      if (track.readyState !== "live") {
+        console.warn(`[Broadcaster] ⏭️ Skipping dead track: ${track.kind} readyState=${track.readyState}`);
+        return;
+      }
       if (!track.enabled) {
         console.warn(`[Broadcaster] ⚠️ Track ${track.kind} was disabled — enabling`);
         track.enabled = true;
@@ -178,8 +190,8 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       pc.addTrack(track, streamRef.current!);
     });
     
-    if (audioTracks.length === 0) {
-      console.error("[Broadcaster] ❌ NO AUDIO TRACKS in stream! Microphone may not be available.");
+    if (audioTracks.filter(t => t.readyState === "live").length === 0) {
+      console.error("[Broadcaster] ❌ NO LIVE AUDIO TRACKS in stream!");
     }
 
     pc.onicecandidate = async (event) => {

@@ -55,6 +55,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const broadcastReadyChannelRef = useRef<RealtimeChannel | null>(null);
   const sessionIdRef = useRef("");
   const streamRef = useRef<MediaStream | null>(null);
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
@@ -65,6 +66,10 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
   const onStreamRef = useRef(onStream);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectCountRef = useRef(0);
+  const MAX_AUTO_RECONNECT = 5;
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectRef = useRef<() => Promise<void>>();
 
   // Keep onStream ref fresh without re-creating callbacks
   useEffect(() => {
@@ -165,6 +170,10 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
@@ -173,6 +182,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       supabaseShared.removeChannel(channelRef.current);
       channelRef.current = null;
     }
+    // Note: broadcastReadyChannel is NOT cleaned here — it persists for auto-reconnect
     iceCandidateQueueRef.current = [];
     streamRef.current = null;
     remoteDescriptionSetRef.current = false;
@@ -230,7 +240,7 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
       }
     };
 
-    // 4. Connection state tracking
+    // 4. Connection state tracking with auto-reconnect
     pc.onconnectionstatechange = () => {
       console.log(`[Viewer] Connection state: ${pc.connectionState}`);
       if (pc.connectionState === "connected") {
@@ -238,17 +248,37 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
         isConnectedRef.current = true;
         setIsConnecting(false);
         isConnectingRef.current = false;
+        reconnectCountRef.current = 0; // Reset on successful connection
         // Stop polling once connected
         if (pollingRef.current) {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
         }
       } else if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        const wasConnected = isConnectedRef.current;
         setIsConnected(false);
         isConnectedRef.current = false;
         setIsConnecting(false);
         isConnectingRef.current = false;
-        setError("VIEWER_DISCONNECTED");
+        
+        // Auto-reconnect if was previously connected (broadcaster likely restarted)
+        if (wasConnected && reconnectCountRef.current < MAX_AUTO_RECONNECT) {
+          reconnectCountRef.current++;
+          const delay = Math.min(1000 * reconnectCountRef.current, 5000);
+          console.log(`[Viewer] 🔄 Auto-reconnect ${reconnectCountRef.current}/${MAX_AUTO_RECONNECT} in ${delay}ms`);
+          cleanupInternals();
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectTimerRef.current = null;
+            if (!isConnectedRef.current && !isConnectingRef.current) {
+              connectRef.current?.();
+            }
+          }, delay);
+        } else if (reconnectCountRef.current >= MAX_AUTO_RECONNECT) {
+          setError("VIEWER_DISCONNECTED");
+          reconnectCountRef.current = 0;
+        } else {
+          setError("VIEWER_DISCONNECTED");
+        }
       }
     };
 
@@ -347,9 +377,26 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     }, 20000);
   }, [deviceId, generateSessionId, handleOffer, handleIceCandidate, cleanupInternals]);
 
-  // ── Disconnect ──
+  // Keep connectRef in sync
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
   const disconnect = useCallback(async () => {
+    // Cancel any pending auto-reconnect
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    reconnectCountRef.current = 0;
+
     cleanupInternals();
+
+    // Clean up broadcaster-ready channel
+    if (broadcastReadyChannelRef.current) {
+      supabaseShared.removeChannel(broadcastReadyChannelRef.current);
+      broadcastReadyChannelRef.current = null;
+    }
 
     // Clean up signaling data
     if (sessionIdRef.current) {
@@ -366,10 +413,70 @@ export function useWebRTCViewer({ deviceId, onStream }: UseWebRTCViewerOptions) 
     console.log("[Viewer] Disconnected");
   }, [cleanupInternals]);
 
+  // ── Listen for broadcaster-ready to auto-reconnect ──
+  useEffect(() => {
+    if (!deviceId) return;
+
+    const channelName = `webrtc-viewer-ready-${deviceId}`;
+    // Remove stale channel if exists
+    const stale = supabaseShared.getChannels().find(ch => ch.topic === `realtime:${channelName}`);
+    if (stale) supabaseShared.removeChannel(stale);
+
+    const channel = supabaseShared
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "webrtc_signaling",
+          filter: `device_id=eq.${deviceId}`,
+        },
+        async (payload) => {
+          const record = payload.new as { type: string; sender_type: string };
+          if (record.type !== "broadcaster-ready" || record.sender_type !== "broadcaster") return;
+
+          console.log("[Viewer] 📡 Detected broadcaster-ready — auto-reconnecting");
+          
+          // Clean up current connection
+          cleanupInternals();
+          setIsConnected(false);
+          isConnectedRef.current = false;
+          setIsConnecting(false);
+          isConnectingRef.current = false;
+          setError(null);
+
+          // Debounce: wait 1.5s for old signaling to clear
+          if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectTimerRef.current = null;
+            if (!isConnectedRef.current && !isConnectingRef.current) {
+              console.log("[Viewer] 🔄 Reconnecting after broadcaster-ready");
+              reconnectCountRef.current = 0;
+              connectRef.current?.();
+            }
+          }, 1500);
+        }
+      )
+      .subscribe();
+
+    broadcastReadyChannelRef.current = channel;
+
+    return () => {
+      supabaseShared.removeChannel(channel);
+      broadcastReadyChannelRef.current = null;
+    };
+  }, [deviceId, cleanupInternals]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       cleanupInternals();
+      if (broadcastReadyChannelRef.current) {
+        supabaseShared.removeChannel(broadcastReadyChannelRef.current);
+        broadcastReadyChannelRef.current = null;
+      }
       if (sessionIdRef.current) {
         supabaseShared
           .from("webrtc_signaling")
