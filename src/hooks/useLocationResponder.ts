@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
-import { getSavedAuth } from "@/lib/serialAuth";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 
 /**
@@ -95,13 +94,12 @@ export function useLocationResponder(deviceId?: string, metadata?: Record<string
     lat: number,
     lng: number,
     source: string,
-    existingMeta: Record<string, unknown>
   ) => {
     const updates = {
       latitude: lat,
       longitude: lng,
       location_updated_at: new Date().toISOString(),
-      metadata: { ...existingMeta, locate_requested: null, location_source: source },
+      metadata: { locate_requested: null, location_source: source },
     };
 
     // 1) Local DB
@@ -128,14 +126,14 @@ export function useLocationResponder(deviceId?: string, metadata?: Record<string
   const handleLocateRequest = useCallback(async (requestedAt: string) => {
     if (!deviceId || isLocating.current) return;
     if (lastRequestRef.current === requestedAt) return;
-    
+
     isLocating.current = true;
     lastRequestRef.current = requestedAt;
     console.log("[LocationResponder] 📍 Locate requested at:", requestedAt);
 
     try {
       const location = await getLocation();
-      
+
       if (!location) {
         console.error("[LocationResponder] ❌ All location methods failed");
         isLocating.current = false;
@@ -143,13 +141,7 @@ export function useLocationResponder(deviceId?: string, metadata?: Record<string
       }
 
       console.log(`[LocationResponder] ✅ Got ${location.source} location: ${location.lat}, ${location.lng}`);
-
-      const savedAuth = getSavedAuth();
-      const userId = savedAuth?.user_id;
-      const device = userId ? await fetchDeviceViaEdge(deviceId, userId) : null;
-      const existingMeta = (device?.metadata as Record<string, unknown>) || {};
-
-      await saveLocation(deviceId, location.lat, location.lng, location.source, existingMeta);
+      await saveLocation(deviceId, location.lat, location.lng, location.source);
     } catch (err) {
       console.error("[LocationResponder] Error:", err);
     }

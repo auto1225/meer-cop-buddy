@@ -253,11 +253,9 @@ const Index = ({ onExpired }: IndexProps) => {
     // ── Phase 2: DB 업데이트 (GPS 결과 반영) ──
     if (currentDevice?.id) {
       try {
-        const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth?.user_id || "");
-        const existingMeta = (device?.metadata as Record<string, unknown>) || {};
         const dbUpdate: Record<string, unknown> = {
           is_streaming_requested: true,
-          metadata: { ...existingMeta, last_location_source: "alert_triggered" },
+          metadata: { last_location_source: "alert_triggered" },
         };
         if (alertCoords) {
           dbUpdate.latitude = alertCoords.latitude;
@@ -546,10 +544,8 @@ const Index = ({ onExpired }: IndexProps) => {
     if (!currentDevice?.id || !savedAuth?.user_id) return;
     const syncAlarmSounds = async () => {
       try {
-        const device = await fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id);
-        const existingMeta = (device?.metadata as Record<string, unknown>) || {};
         await updateDeviceViaEdge(currentDevice.id, {
-          metadata: { ...existingMeta, available_alarm_sounds: getAlarmSoundsForDB() },
+          metadata: { available_alarm_sounds: getAlarmSoundsForDB() },
         });
         console.log("[Index] ✅ Alarm sounds list synced to DB");
       } catch (e) {
@@ -704,19 +700,18 @@ const Index = ({ onExpired }: IndexProps) => {
 
         // ✅ 로컬 DB metadata에도 설정 영속 저장 (새로고침 후에도 유지)
         if (currentDevice?.id) {
-          const existingMeta = (currentDevice.metadata as Record<string, unknown>) || {};
-          const metaUpdate: Record<string, unknown> = { ...existingMeta };
+          const metadataPatch: Record<string, unknown> = {};
 
-          if (sensorSettings) metaUpdate.sensorSettings = sensorSettings;
-          if (motionSensitivity) metaUpdate.motionSensitivity = motionSensitivity;
-          if (mouseSensitivity) metaUpdate.mouseSensitivity = mouseSensitivity;
-          if (alarmPinFromSettings) metaUpdate.alarm_pin = alarmPinFromSettings;
-          if (alarmSoundFromSettings) metaUpdate.alarm_sound_id = alarmSoundFromSettings;
-          if (requirePcPinFromSettings !== undefined) metaUpdate.require_pc_pin = requirePcPinFromSettings;
-          if (camouflageFromSettings !== undefined) metaUpdate.camouflage_mode = camouflageFromSettings;
-          if (languageFromSettings) metaUpdate.language = languageFromSettings;
+          if (sensorSettings) metadataPatch.sensorSettings = sensorSettings;
+          if (motionSensitivity) metadataPatch.motionSensitivity = motionSensitivity;
+          if (mouseSensitivity) metadataPatch.mouseSensitivity = mouseSensitivity;
+          if (alarmPinFromSettings) metadataPatch.alarm_pin = alarmPinFromSettings;
+          if (alarmSoundFromSettings) metadataPatch.alarm_sound_id = alarmSoundFromSettings;
+          if (requirePcPinFromSettings !== undefined) metadataPatch.require_pc_pin = requirePcPinFromSettings;
+          if (camouflageFromSettings !== undefined) metadataPatch.camouflage_mode = camouflageFromSettings;
+          if (languageFromSettings) metadataPatch.language = languageFromSettings;
 
-          const updatePayload: Record<string, unknown> = { metadata: metaUpdate };
+          const updatePayload: Record<string, unknown> = { metadata: metadataPatch };
           if (deviceTypeFromSettings) {
             updatePayload.device_type = deviceTypeFromSettings;
           }
@@ -918,12 +913,9 @@ const Index = ({ onExpired }: IndexProps) => {
             setAppLanguage(lang);
             localStorage.setItem('meercop-language', lang);
             // DB metadata에도 저장
-            if (currentDevice?.id && savedAuth?.user_id) {
-              fetchDeviceViaEdge(currentDevice.id, savedAuth.user_id).then(device => {
-                const existingMeta = (device?.metadata as Record<string, unknown>) || {};
-                updateDeviceViaEdge(currentDevice.id, {
-                  metadata: { ...existingMeta, language: lang },
-                });
+            if (currentDevice?.id) {
+              updateDeviceViaEdge(currentDevice.id, {
+                metadata: { language: lang },
               }).catch(e => console.error("[Index] Failed to save language:", e));
             }
           }}
