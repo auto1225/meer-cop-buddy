@@ -16,6 +16,7 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     }
     return DEFAULT_ALARM_SOUND_ID;
   });
+  const pendingAlarmRef = useRef(false); // 자동재생 차단 시 대기 플래그
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorRef = useRef<OscillatorNode | null>(null);
@@ -185,22 +186,60 @@ export function useAlarmSystem({ onAlarmStart, onAlarmStop, volumePercent = 50 }
     setIsAlarming(true);
     onAlarmStart?.();
     
-    if (isCustomSound(selectedSoundId)) {
-      const custom = getCustomSounds().find(s => s.id === selectedSoundId);
-      if (custom) {
-        playCustomAudio(custom.audioDataUrl);
-        return;
+    const tryPlay = () => {
+      if (isCustomSound(selectedSoundId)) {
+        const custom = getCustomSounds().find(s => s.id === selectedSoundId);
+        if (custom) {
+          playCustomAudio(custom.audioDataUrl);
+          return true;
+        }
       }
+      
+      const soundConfig = getAlarmSoundById(selectedSoundId);
+      const configToPlay = soundConfig || getAlarmSoundById(DEFAULT_ALARM_SOUND_ID);
+      if (configToPlay) {
+        try {
+          playAlarmSound(configToPlay);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    };
+
+    // 즉시 재생 시도
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') {
+      // 자동재생 차단됨 — 사용자 상호작용 대기
+      ctx.close();
+      pendingAlarmRef.current = true;
+      console.log("[AlarmSystem] ⏳ Autoplay blocked — waiting for user interaction to play sound");
+      
+      const resumeOnInteraction = () => {
+        if (pendingAlarmRef.current) {
+          pendingAlarmRef.current = false;
+          console.log("[AlarmSystem] 🔊 User interacted — playing pending alarm sound");
+          tryPlay();
+        }
+        document.removeEventListener('click', resumeOnInteraction);
+        document.removeEventListener('touchstart', resumeOnInteraction);
+        document.removeEventListener('keydown', resumeOnInteraction);
+      };
+      
+      document.addEventListener('click', resumeOnInteraction, { once: false });
+      document.addEventListener('touchstart', resumeOnInteraction, { once: false });
+      document.addEventListener('keydown', resumeOnInteraction, { once: false });
+    } else {
+      ctx.close();
+      tryPlay();
     }
-    
-    const soundConfig = getAlarmSoundById(selectedSoundId);
-    const configToPlay = soundConfig || getAlarmSoundById(DEFAULT_ALARM_SOUND_ID);
-    if (configToPlay) playAlarmSound(configToPlay);
   }, [isAlarmEnabled, isAlarming, selectedSoundId, playAlarmSound, playCustomAudio, onAlarmStart]);
 
   // Stop alarm
   const stopAlarm = useCallback(() => {
     stopSound();
+    pendingAlarmRef.current = false;
     setIsAlarming(false);
     onAlarmStop?.();
   }, [stopSound, onAlarmStop]);
