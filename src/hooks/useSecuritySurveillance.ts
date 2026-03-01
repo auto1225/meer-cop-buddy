@@ -102,6 +102,7 @@ export function useSecuritySurveillance({
   const lastCaptureTickRef = useRef<number>(0);
   const cameraRetryCountRef = useRef(0);
   const lastHeartbeatLogRef = useRef<number>(0);
+  const isStartingRef = useRef(false); // 동시 호출 방지
 
   // Sync refs
   useEffect(() => { onEventDetectedRef.current = onEventDetected; }, [onEventDetected]);
@@ -322,7 +323,11 @@ export function useSecuritySurveillance({
   }, [reacquireCamera]);
 
   const startSurveillance = useCallback(async () => {
-    if (isMonitoringRef.current) return true;
+    if (isMonitoringRef.current || isStartingRef.current) return true;
+    isStartingRef.current = true;
+
+    // ✅ 리스너 등록 전에 플래그 설정 — 핸들러가 즉시 동작하도록
+    isMonitoringRef.current = true;
 
     let cameraAvailable = false;
     try {
@@ -452,7 +457,7 @@ export function useSecuritySurveillance({
       `Worker timers: capture(${captureIntervalValRef.current}ms) + watchdog(${WATCHDOG_INTERVAL_MS}ms) + ` +
       `trackHealth(${cameraAvailable ? TRACK_HEALTH_INTERVAL_MS + "ms" : "OFF"})`
     );
-    isMonitoringRef.current = true;
+    isStartingRef.current = false;
     setIsActive(true);
     return true;
   }, [captureLoopTick, watchdogTick, trackHealthTick, triggerEvent]);
@@ -498,6 +503,7 @@ export function useSecuritySurveillance({
     cameraRetryCountRef.current = 0;
 
     isMonitoringRef.current = false;
+    isStartingRef.current = false;
     setIsActive(false);
     console.log("[Surveillance] 🛑 Stopped — all worker timers & listeners cleaned up");
   }, []);

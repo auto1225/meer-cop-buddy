@@ -801,15 +801,22 @@ const Index = ({ onExpired }: IndexProps) => {
   }, [currentDevice?.id, sharedDeviceIdState, refetch, stopAlarm, toast, appLanguage, setSelectedSoundId]);
 
   // Start/stop surveillance based on monitoring state from DB
+  const startSurveillanceRef = useRef(startSurveillance);
+  startSurveillanceRef.current = startSurveillance;
+  const stopSurveillanceRef = useRef(stopSurveillance);
+  stopSurveillanceRef.current = stopSurveillance;
+
   useEffect(() => {
     if (isMonitoring && !isSurveillanceActive) {
       console.log("[Index] Starting surveillance (requested by smartphone)");
-      startSurveillance();
+      isAlertActiveRef.current = false; // ✅ 감시 재시작 시 경보 가드 초기화
+      startSurveillanceRef.current();
     } else if (!isMonitoring && isSurveillanceActive) {
       console.log("[Index] Stopping surveillance");
-      stopSurveillance();
+      stopSurveillanceRef.current();
+      isAlertActiveRef.current = false; // ✅ 감시 종료 시에도 초기화
     }
-  }, [isMonitoring, isSurveillanceActive, startSurveillance, stopSurveillance]);
+  }, [isMonitoring, isSurveillanceActive]);
 
   const handleDeviceSelect = useCallback((deviceId: string) => {
     setCurrentDeviceId(deviceId);
