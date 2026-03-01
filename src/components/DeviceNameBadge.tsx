@@ -80,6 +80,26 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     return localId;
   };
 
+  const syncSharedName = async (sharedId: string, newName: string): Promise<boolean> => {
+    const r = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+      body: JSON.stringify({ device_id: sharedId, name: newName, device_name: newName }),
+    });
+
+    const payload = await r.json().catch(() => null);
+    const updated = typeof payload?.updated === "number" ? payload.updated : undefined;
+    const ok = r.ok && (updated === undefined || updated > 0 || !!payload?.device);
+
+    if (ok) {
+      console.log("[DeviceNameBadge] ✅ Shared DB name synced:", newName, "sharedId:", sharedId, "payload:", payload);
+      return true;
+    }
+
+    console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", payload);
+    return false;
+  };
+
   const handleSave = async () => {
     const trimmed = editValue.trim();
     if (!trimmed) return;
@@ -126,23 +146,13 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
           deviceName
         );
 
-        fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-          body: JSON.stringify({ device_id: sharedId, name: trimmed, device_name: trimmed }),
-        })
-          .then(async (r) => {
-            const payload = await r.json().catch(() => null);
-            const updated = typeof payload?.updated === "number" ? payload.updated : undefined;
-            const ok = r.ok && (updated === undefined || updated > 0 || !!payload?.device);
-
-            if (ok) {
-              console.log("[DeviceNameBadge] ✅ Shared DB name synced:", trimmed, "sharedId:", sharedId, "payload:", payload);
-            } else {
-              console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", payload);
-            }
-          })
-          .catch(e => console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync error:", e));
+        const sharedOk = await syncSharedName(sharedId, trimmed);
+        if (!sharedOk) {
+          toast({
+            title: t("device.nameChanged"),
+            description: "공유 동기화가 지연되고 있어요. 잠시 후 다시 시도해주세요.",
+          });
+        }
       }
 
       if (saved) {
@@ -159,6 +169,45 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!deviceId || isEditing || isSaving) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const saved = getSavedAuth();
+      if (!saved?.user_id) return;
+
+      const sharedId = await resolveSharedDeviceId(deviceId, saved.user_id, saved.device_id, deviceName);
+      if (cancelled) return;
+
+      try {
+        const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+          body: JSON.stringify({ user_id: saved.user_id }),
+        });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const sharedDevices = (data.devices || data || []) as Array<Record<string, any>>;
+        const target = sharedDevices.find((d) => d?.id === sharedId);
+        const sharedName = (target?.name || target?.device_name || "").toString().trim();
+        const desiredName = deviceName.trim();
+
+        if (!cancelled && desiredName && sharedName !== desiredName) {
+          await syncSharedName(sharedId, desiredName);
+        }
+      } catch (e) {
+        console.warn("[DeviceNameBadge] Shared reconcile error:", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId, deviceName, isEditing, isSaving]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSave();
