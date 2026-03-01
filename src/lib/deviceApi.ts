@@ -233,12 +233,10 @@ export async function updateDeviceViaEdge(
 
   // Normalize updates for cross-project compatibility
   const normalizedUpdates: Record<string, unknown> = { ...updates };
-  if (typeof normalizedUpdates.name === "string" && !normalizedUpdates.device_name) {
-    normalizedUpdates.device_name = normalizedUpdates.name;
-  }
-  if (typeof normalizedUpdates.device_name === "string" && !normalizedUpdates.name) {
+  if (normalizedUpdates.device_name && !normalizedUpdates.name) {
     normalizedUpdates.name = normalizedUpdates.device_name;
   }
+  delete normalizedUpdates.device_name;
 
   // 1) 로컬 우선
   let localOk = false;
