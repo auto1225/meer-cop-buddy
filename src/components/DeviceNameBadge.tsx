@@ -84,7 +84,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     const r = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-      body: JSON.stringify({ device_id: sharedId, name: newName }),
+      body: JSON.stringify({ device_id: sharedId, name: newName, device_name: newName }),
     });
 
     const payload = await r.json().catch(() => null);
@@ -112,30 +112,8 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     try {
       const saved = getSavedAuth();
 
-      if (saved?.user_id) {
-        const normalized = trimmed.toLowerCase();
-        const currentIds = new Set([deviceId, saved.device_id].filter(Boolean) as string[]);
-
-        const allDevices = await fetchDevicesViaEdge(saved.user_id);
-        const duplicate = allDevices.find((d) => {
-          const isSameDevice = currentIds.has(d.id) || (!!d.device_id && currentIds.has(d.device_id));
-          if (isSameDevice) return false;
-
-          return (
-            d.device_name?.trim().toLowerCase() === normalized ||
-            d.name?.trim().toLowerCase() === normalized
-          );
-        });
-
-        if (duplicate) {
-          toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
-          setIsSaving(false);
-          return;
-        }
-      }
-
       if (deviceId) {
-        await updateDeviceViaEdge(deviceId, { name: trimmed });
+        await updateDeviceViaEdge(deviceId, { name: trimmed, device_name: trimmed });
 
         // 같은 user_id의 모든 기기 이름도 동기화 (스마트폰 포함)
         if (saved?.user_id) {
@@ -143,7 +121,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
           for (const d of allDevices) {
             const did = d.id || d.device_id;
             if (did && did !== deviceId) {
-              updateDeviceViaEdge(did, { name: trimmed }).catch(() => {});
+              updateDeviceViaEdge(did, { name: trimmed, device_name: trimmed }).catch(() => {});
             }
           }
         }
