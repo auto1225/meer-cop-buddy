@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { X, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe } from "lucide-react";
+import { ArrowLeft, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -133,14 +133,14 @@ export function SensorSettingsPanel({
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 shrink-0">
-        <h2 className="text-white font-extrabold text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{t("settings.title")}</h2>
+      <div className="flex items-center px-4 py-2.5 shrink-0">
         <button
           onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          className="w-6 h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors mr-2"
         >
-          <X className="w-3.5 h-3.5 text-white" />
+          <ArrowLeft className="w-3.5 h-3.5 text-white" />
         </button>
+        <h2 className="text-white font-extrabold text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{t("settings.title")}</h2>
       </div>
 
       {/* Scrollable Content */}
