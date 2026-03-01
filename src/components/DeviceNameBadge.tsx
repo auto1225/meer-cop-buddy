@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { updateDeviceViaEdge, fetchDevicesViaEdge } from "@/lib/deviceApi";
-import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "@/lib/supabase";
 import { getSharedDeviceId, setSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n";
@@ -137,8 +137,18 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       if (deviceId) {
         await updateDeviceViaEdge(deviceId, { name: trimmed });
 
+        // 같은 user_id의 모든 기기 이름도 동기화 (스마트폰 포함)
+        if (saved?.user_id) {
+          const allDevices = await fetchDevicesViaEdge(saved.user_id);
+          for (const d of allDevices) {
+            const did = d.id || d.device_id;
+            if (did && did !== deviceId) {
+              updateDeviceViaEdge(did, { name: trimmed }).catch(() => {});
+            }
+          }
+        }
+
         // 공유 DB에도 이름 동기화 (스마트폰이 공유 DB를 바라보므로)
-        // shared ID 매핑이 아직 없으면 조회로 강제 해석
         const sharedId = await resolveSharedDeviceId(
           deviceId,
           saved?.user_id,
@@ -147,6 +157,40 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
         );
 
         const sharedOk = await syncSharedName(sharedId, trimmed);
+
+        // 공유 DB의 모든 기기도 동기화
+        if (saved?.user_id) {
+          try {
+            const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+              body: JSON.stringify({ user_id: saved.user_id }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const sharedDevices = (data.devices || data || []) as Array<Record<string, any>>;
+              for (const sd of sharedDevices) {
+                if (sd.id && sd.id !== sharedId) {
+                  syncSharedName(sd.id, trimmed).catch(() => {});
+                }
+              }
+            }
+          } catch {}
+        }
+
+        // 실시간 브로드캐스트로 스마트폰에 이름 변경 알림
+        if (saved?.user_id) {
+          supabaseShared.channel(`user-commands-${saved.user_id}`).send({
+            type: "broadcast",
+            event: "command",
+            payload: {
+              type: "name_changed",
+              new_name: trimmed,
+              timestamp: new Date().toISOString(),
+            },
+          }).catch(() => {});
+        }
+
         if (!sharedOk) {
           toast({
             title: t("device.nameChanged"),
