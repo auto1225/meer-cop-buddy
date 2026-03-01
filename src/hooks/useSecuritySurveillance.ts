@@ -9,6 +9,10 @@ import {
   DEFAULT_MOTION_COOLDOWN_MS,
 } from "@/lib/constants";
 import {
+  createSensorRegistry,
+  type SensorRegistry,
+} from "@/lib/sensorRegistry";
+import {
   startWorkerInterval,
   stopWorkerInterval,
 } from "@/lib/workerTimer";
@@ -77,8 +81,6 @@ export function useSecuritySurveillance({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const lastMousePosition = useRef<{ x: number; y: number } | null>(null);
-  const mouseMovementAccum = useRef<{ distance: number; startTime: number }>({ distance: 0, startTime: 0 });
   const isMonitoringRef = useRef(false);
   const onEventDetectedRef = useRef(onEventDetected);
   const motionDetectorRef = useRef<MotionDetector | null>(null);
@@ -91,12 +93,8 @@ export function useSecuritySurveillance({
   const motionConsecutiveRef = useRef(motionConsecutive);
   const motionCooldownRef = useRef(motionCooldown);
 
-  // 이벤트 핸들러 refs
-  const keyboardHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
-  const mouseHandlerRef = useRef<((e: MouseEvent) => void) | null>(null);
-  const visibilityHandlerRef = useRef<(() => void) | null>(null);
-  const batteryRef = useRef<any>(null);
-  const batteryHandlerRef = useRef<(() => void) | null>(null);
+  // 센서 레지스트리
+  const sensorRegistryRef = useRef<SensorRegistry | null>(null);
 
   // ── 워치독 & 헬스체크 refs ──
   const lastCaptureTickRef = useRef<number>(0);
@@ -367,95 +365,33 @@ export function useSecuritySurveillance({
       startWorkerInterval("surveillance-track-health", trackHealthTick, TRACK_HEALTH_INTERVAL_MS);
     }
 
-    // === 센서 리스너 등록 ===
+    // === 센서 레지스트리를 통한 통합 센서 등록 ===
+    if (!sensorRegistryRef.current) {
+      sensorRegistryRef.current = createSensorRegistry({
+        getMouseSensitivity: () => mouseSensitivityRef.current,
+      });
+    }
 
-    // Keyboard
-    const handleKeyboard = (e: KeyboardEvent) => {
-      if (isMonitoringRef.current && sensorTogglesRef.current.keyboard) {
-        console.log("[Surveillance] Keyboard detected:", e.key);
-        triggerEvent("keyboard");
+    // SensorToggles → 활성화할 센서 이름 목록 변환
+    const toggles = sensorTogglesRef.current;
+    const enabledSensors: string[] = [];
+    if (toggles.keyboard) enabledSensors.push("keyboard");
+    if (toggles.mouse) enabledSensors.push("mouse");
+    if (toggles.lid) enabledSensors.push("lid");
+    if (toggles.power) enabledSensors.push("power");
+    if (toggles.usb) enabledSensors.push("usb");
+
+    sensorRegistryRef.current.attachSensors(enabledSensors, (eventType) => {
+      if (isMonitoringRef.current) {
+        triggerEvent(eventType);
       }
-    };
-
-    // Mouse
-    const MOUSE_TIME_WINDOW = 200;
-    const handleMouse = (e: MouseEvent) => {
-      if (!isMonitoringRef.current || !sensorTogglesRef.current.mouse) return;
-      const currentPos = { x: e.clientX, y: e.clientY };
-      const now = Date.now();
-
-      if (lastMousePosition.current) {
-        const dx = currentPos.x - lastMousePosition.current.x;
-        const dy = currentPos.y - lastMousePosition.current.y;
-        const segmentDist = Math.sqrt(dx * dx + dy * dy);
-
-        const accum = mouseMovementAccum.current;
-        if (now - accum.startTime > MOUSE_TIME_WINDOW) {
-          accum.distance = segmentDist;
-          accum.startTime = now;
-        } else {
-          accum.distance += segmentDist;
-        }
-
-        if (accum.distance >= mouseSensitivityRef.current) {
-          console.log("[Surveillance] Mouse movement detected:", accum.distance.toFixed(0), "px");
-          triggerEvent("mouse");
-          accum.distance = 0;
-          accum.startTime = now;
-        }
-      }
-      lastMousePosition.current = currentPos;
-    };
-
-    // Power detection
-    let lastChargingState: boolean | null = null;
-    const handleChargingChange = (charging: boolean) => {
-      if (!isMonitoringRef.current || !sensorTogglesRef.current.power) return;
-      if (lastChargingState === true && charging === false) {
-        console.log("[Surveillance] Power unplugged detected!");
-        triggerEvent("power");
-      }
-      lastChargingState = charging;
-    };
-
-    const setupBatteryMonitoring = async () => {
-      try {
-        if (navigator.getBattery) {
-          const battery = await navigator.getBattery();
-          lastChargingState = battery.charging;
-          const handler = () => handleChargingChange(battery.charging);
-          battery.addEventListener("chargingchange", handler);
-          batteryRef.current = battery;
-          batteryHandlerRef.current = handler;
-        }
-      } catch (err) {
-        console.warn("[Surveillance] Battery API unavailable:", err);
-      }
-    };
-    setupBatteryMonitoring();
-
-    // Lid close detection
-    const handleVisibilityChange = () => {
-      if (!isMonitoringRef.current || !sensorTogglesRef.current.lid) return;
-      if (document.hidden) {
-        console.log("[Surveillance] Lid closed / screen hidden detected!");
-        triggerEvent("lid");
-      }
-    };
-
-    // 이벤트 리스너 등록
-    window.addEventListener("keydown", handleKeyboard);
-    window.addEventListener("mousemove", handleMouse);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    keyboardHandlerRef.current = handleKeyboard;
-    mouseHandlerRef.current = handleMouse;
-    visibilityHandlerRef.current = handleVisibilityChange;
+    });
 
     console.log(
       `[Surveillance] ✅ Started — camera: ${cameraAvailable ? "ON" : "OFF"}, ` +
       `Worker timers: capture(${captureIntervalValRef.current}ms) + watchdog(${WATCHDOG_INTERVAL_MS}ms) + ` +
-      `trackHealth(${cameraAvailable ? TRACK_HEALTH_INTERVAL_MS + "ms" : "OFF"})`
+      `trackHealth(${cameraAvailable ? TRACK_HEALTH_INTERVAL_MS + "ms" : "OFF"}), ` +
+      `sensors: [${enabledSensors.join(", ")}]`
     );
     isStartingRef.current = false;
     setIsActive(true);
@@ -476,30 +412,10 @@ export function useSecuritySurveillance({
     motionDetectorRef.current?.reset();
     motionDetectorRef.current = null;
 
-    // Battery 리스너 정리
-    if (batteryRef.current && batteryHandlerRef.current) {
-      batteryRef.current.removeEventListener("chargingchange", batteryHandlerRef.current);
-      batteryRef.current = null;
-      batteryHandlerRef.current = null;
-    }
-
-    // 이벤트 리스너 정리
-    if (keyboardHandlerRef.current) {
-      window.removeEventListener("keydown", keyboardHandlerRef.current);
-      keyboardHandlerRef.current = null;
-    }
-    if (mouseHandlerRef.current) {
-      window.removeEventListener("mousemove", mouseHandlerRef.current);
-      mouseHandlerRef.current = null;
-    }
-    if (visibilityHandlerRef.current) {
-      document.removeEventListener("visibilitychange", visibilityHandlerRef.current);
-      visibilityHandlerRef.current = null;
-    }
+    // 센서 레지스트리 일괄 해제
+    sensorRegistryRef.current?.detachAll();
 
     photoBufferRef.current = [];
-    lastMousePosition.current = null;
-    mouseMovementAccum.current = { distance: 0, startTime: 0 };
     cameraRetryCountRef.current = 0;
 
     isMonitoringRef.current = false;
@@ -516,12 +432,7 @@ export function useSecuritySurveillance({
       stopWorkerInterval("surveillance-track-health");
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       motionDetectorRef.current?.reset();
-      if (batteryRef.current && batteryHandlerRef.current) {
-        batteryRef.current.removeEventListener("chargingchange", batteryHandlerRef.current);
-      }
-      if (keyboardHandlerRef.current) window.removeEventListener("keydown", keyboardHandlerRef.current);
-      if (mouseHandlerRef.current) window.removeEventListener("mousemove", mouseHandlerRef.current);
-      if (visibilityHandlerRef.current) document.removeEventListener("visibilitychange", visibilityHandlerRef.current);
+      sensorRegistryRef.current?.detachAll();
     };
   }, []);
 
