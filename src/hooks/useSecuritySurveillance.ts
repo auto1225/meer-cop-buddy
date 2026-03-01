@@ -26,7 +26,7 @@ const CAMERA_RETRY_BASE_MS = 1_000;      // 재시도 기본 대기 (지수 백�
 const HEARTBEAT_LOG_INTERVAL_MS = 60_000; // 하트비트 로그 간격
 
 export interface SecurityEvent {
-  type: "keyboard" | "mouse" | "usb" | "lid" | "power" | "camera_motion" | "microphone";
+  type: "keyboard" | "mouse" | "usb" | "lid" | "power" | "camera_motion";
   timestamp: Date;
   photos: string[];
   changePercent?: number;
@@ -61,7 +61,6 @@ interface UseSecuritySurveillanceOptions {
   motionConsecutive?: number;
   motionCooldown?: number;
   sensorToggles?: SensorToggles;
-  micThresholdDb?: number;
 }
 
 export function useSecuritySurveillance({
@@ -73,7 +72,6 @@ export function useSecuritySurveillance({
   motionConsecutive = DEFAULT_MOTION_CONSECUTIVE,
   motionCooldown = DEFAULT_MOTION_COOLDOWN_MS,
   sensorToggles = DEFAULT_SENSOR_TOGGLES,
-  micThresholdDb = 60,
 }: UseSecuritySurveillanceOptions = {}) {
   const [isActive, setIsActive] = useState(false);
 
@@ -94,15 +92,9 @@ export function useSecuritySurveillance({
   const motionThresholdRef = useRef(motionThreshold);
   const motionConsecutiveRef = useRef(motionConsecutive);
   const motionCooldownRef = useRef(motionCooldown);
-  const micThresholdDbRef = useRef(micThresholdDb);
 
   // 센서 레지스트리
   const sensorRegistryRef = useRef<SensorRegistry | null>(null);
-
-  // 마이크 감지용 refs
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const micAnalyserRef = useRef<AnalyserNode | null>(null);
-  const micAudioCtxRef = useRef<AudioContext | null>(null);
 
   // ── 워치독 & 헬스체크 refs ──
   const lastCaptureTickRef = useRef<number>(0);
@@ -118,7 +110,6 @@ export function useSecuritySurveillance({
   useEffect(() => { motionThresholdRef.current = motionThreshold; }, [motionThreshold]);
   useEffect(() => { motionConsecutiveRef.current = motionConsecutive; }, [motionConsecutive]);
   useEffect(() => { motionCooldownRef.current = motionCooldown; }, [motionCooldown]);
-  useEffect(() => { micThresholdDbRef.current = micThresholdDb; }, [micThresholdDb]);
 
   // Initialize hidden video and canvas elements once
   useEffect(() => {
@@ -396,43 +387,8 @@ export function useSecuritySurveillance({
       }
     });
 
-    // ── 마이크 감지 시작 ──
-    let micStarted = false;
-    if (toggles.microphone) {
-      try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        micStreamRef.current = micStream;
-        const audioCtx = new AudioContext();
-        micAudioCtxRef.current = audioCtx;
-        const source = audioCtx.createMediaStreamSource(micStream);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
-        micAnalyserRef.current = analyser;
-
-        // 마이크 dB 체크 루프 (Worker timer 사용)
-        startWorkerInterval("surveillance-mic", () => {
-          if (!isMonitoringRef.current || !micAnalyserRef.current) return;
-          const dataArray = new Uint8Array(micAnalyserRef.current.frequencyBinCount);
-          micAnalyserRef.current.getByteFrequencyData(dataArray);
-          // RMS → dB 변환 (0-255 → 0-100dB 근사)
-          const sum = dataArray.reduce((a, b) => a + b, 0);
-          const avg = sum / dataArray.length;
-          const dB = Math.round((avg / 255) * 100);
-          if (dB >= micThresholdDbRef.current) {
-            console.log(`[Surveillance] 🎤 Mic triggered: ${dB}dB ≥ ${micThresholdDbRef.current}dB threshold`);
-            triggerEvent("microphone" as SecurityEvent["type"]);
-          }
-        }, 500);
-        micStarted = true;
-        console.log("[Surveillance] 🎤 Microphone monitoring started (threshold:", micThresholdDbRef.current, "dB)");
-      } catch (err) {
-        console.warn("[Surveillance] Microphone unavailable:", err);
-      }
-    }
-
     console.log(
-      `[Surveillance] ✅ Started — camera: ${cameraAvailable ? "ON" : "OFF"}, mic: ${micStarted ? "ON" : "OFF"}, ` +
+      `[Surveillance] ✅ Started — camera: ${cameraAvailable ? "ON" : "OFF"}, ` +
       `Worker timers: capture(${captureIntervalValRef.current}ms) + watchdog(${WATCHDOG_INTERVAL_MS}ms) + ` +
       `trackHealth(${cameraAvailable ? TRACK_HEALTH_INTERVAL_MS + "ms" : "OFF"}), ` +
       `sensors: [${enabledSensors.join(", ")}]`
@@ -447,23 +403,11 @@ export function useSecuritySurveillance({
     stopWorkerInterval("surveillance-capture");
     stopWorkerInterval("surveillance-watchdog");
     stopWorkerInterval("surveillance-track-health");
-    stopWorkerInterval("surveillance-mic");
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-
-    // 마이크 정리
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
-    }
-    if (micAudioCtxRef.current) {
-      micAudioCtxRef.current.close().catch(() => {});
-      micAudioCtxRef.current = null;
-    }
-    micAnalyserRef.current = null;
 
     motionDetectorRef.current?.reset();
     motionDetectorRef.current = null;
@@ -486,10 +430,7 @@ export function useSecuritySurveillance({
       stopWorkerInterval("surveillance-capture");
       stopWorkerInterval("surveillance-watchdog");
       stopWorkerInterval("surveillance-track-health");
-      stopWorkerInterval("surveillance-mic");
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micAudioCtxRef.current?.close().catch(() => {});
       motionDetectorRef.current?.reset();
       sensorRegistryRef.current?.detachAll();
     };

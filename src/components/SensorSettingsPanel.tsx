@@ -34,7 +34,6 @@ interface SensorSettingsPanelProps {
   onPreviewSound: (id: string) => void;
   appLanguage: string;
   onLanguageChange: (lang: string) => void;
-  micThresholdDb?: number;
 }
 
 const SENSOR_ICONS: Record<string, React.ElementType> = {
@@ -47,8 +46,7 @@ const SENSOR_ICONS: Record<string, React.ElementType> = {
   power: Power,
 };
 
-// power will be filtered out dynamically for desktop
-const ALL_SENSOR_KEYS: (keyof SensorToggles)[] = [
+const SENSOR_KEYS: (keyof SensorToggles)[] = [
   "cameraMotion", "lid", "microphone", "keyboard", "mouse", "usb", "power",
 ];
 
@@ -113,7 +111,6 @@ export function SensorSettingsPanel({
   onPreviewSound,
   appLanguage,
   onLanguageChange,
-  micThresholdDb = 60,
 }: SensorSettingsPanelProps) {
   const { t } = useTranslation();
 
@@ -276,9 +273,7 @@ export function SensorSettingsPanel({
           </div>
 
           <div>
-            {ALL_SENSOR_KEYS
-              .filter(key => !(key === "power" && deviceType === "desktop"))
-              .map((key, idx, filteredKeys) => {
+            {SENSOR_KEYS.map((key, idx) => {
               const Icon = SENSOR_ICONS[key] || Camera;
               const active = sensorToggles[key];
               const label = t(`sensor.${key}`);
@@ -308,39 +303,7 @@ export function SensorSettingsPanel({
                     </Link>
                   )}
 
-                  {/* Microphone dB threshold slider */}
-                  {key === "microphone" && active && (
-                    <div className="ml-[34px] mr-1 mb-2 mt-1 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-white/70">{t("sensor.micThreshold")}</span>
-                        <span className="text-[10px] font-extrabold text-secondary">{micThresholdDb} dB</span>
-                      </div>
-                      {/* dB scale bar */}
-                      <div className="relative h-5 rounded-lg bg-white/10 overflow-hidden">
-                        {/* Highlight zone (above threshold) */}
-                        <div 
-                          className="absolute top-0 bottom-0 bg-red-500/25 border-l-2 border-red-400/60"
-                          style={{ left: `${((micThresholdDb - 30) / 70) * 100}%`, right: 0 }}
-                        />
-                        {/* Labels */}
-                        <div className="absolute inset-0 flex items-center justify-between px-1.5">
-                          <span className="text-[7px] font-bold text-white/50">30dB {t("sensor.micWhisper")}</span>
-                          <span className="text-[7px] font-bold text-white/50">100dB {t("sensor.micAirplane")}</span>
-                        </div>
-                      </div>
-                      {/* Middle labels */}
-                      <div className="flex justify-between px-1">
-                        <span className="text-[7px] text-white/40">|</span>
-                        <span className="text-[7px] text-white/40">50dB {t("sensor.micConversation")}</span>
-                        <span className="text-[7px] text-white/40">80dB {t("sensor.micShout")}</span>
-                        <span className="text-[7px] text-white/40">|</span>
-                      </div>
-                      <p className="text-[8px] text-yellow-300/70 font-semibold">{t("sensor.micWarning")}</p>
-                      <p className="text-[8px] text-white/40">{t("sensor.micThresholdDesc")}</p>
-                    </div>
-                  )}
-
-                  {idx < filteredKeys.length - 1 && (
+                  {idx < SENSOR_KEYS.length - 1 && (
                     <div className="ml-[34px] border-b border-white/10" />
                   )}
                 </div>

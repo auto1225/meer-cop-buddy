@@ -228,13 +228,5 @@
   "alarm.loudKlaxon": "📣 Klakson kuat",
   "alarm.tripleThreat": "⚡ Ancaman tiga kali ganda",
   "event.cameraMotion": "Gerakan kamera dikesan (Kadar perubahan",
-  "event.detected": "peristiwa dikesan",
-  "sensor.micThreshold": "Kepekaan mikrofon (dB)",
-  "sensor.micThresholdDesc": "Penggera berbunyi apabila bunyi melebihi tahap desibel yang ditetapkan.",
-  "sensor.micWhisper": "Bisikan",
-  "sensor.micConversation": "Perbualan",
-  "sensor.micShout": "Jeritan",
-  "sensor.micAirplane": "Kapal terbang",
-  "sensor.micWarning": "⚠️ Nilai rendah boleh menyebabkan penggera palsu dalam persekitaran sensitif.",
-  "alert.microphone": "Bunyi dikesan oleh mikrofon!"
+  "event.detected": "peristiwa dikesan"
 }

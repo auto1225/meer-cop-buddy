@@ -176,11 +176,7 @@ const Index = ({ onExpired }: IndexProps) => {
     cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true, microphone: false, usb: false,
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
-  const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30);
-  const [micThresholdDb, setMicThresholdDb] = useState(() => {
-    const saved = localStorage.getItem('meercop-mic-threshold-db');
-    return saved ? parseInt(saved, 10) : 60;
-  });
+  const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
   // Device type from smartphone settings (laptop | desktop | tablet)
   const [deviceType, setDeviceType] = useState<string>(() => currentDevice?.device_type || "laptop");
   // Language setting from smartphone (supports 17 languages)
@@ -362,7 +358,6 @@ const Index = ({ onExpired }: IndexProps) => {
     mouseSensitivity: mouseSensitivityPx,
     motionThreshold,
     sensorToggles,
-    micThresholdDb,
   });
 
   // Handle alarm dismiss (from PIN keypad success)
@@ -506,13 +501,6 @@ const Index = ({ onExpired }: IndexProps) => {
       const px = mouseMap[mouseSensitivity] ?? 30;
       setMouseSensitivityPx(px);
       console.log("[Index] ✅ mouseSensitivity applied:", mouseSensitivity, "→", px, "px");
-    }
-
-    const micThresholdFromMeta = (meta?.micThresholdDb ?? meta?.mic_threshold_db) as number | undefined;
-    if (micThresholdFromMeta !== undefined) {
-      setMicThresholdDb(micThresholdFromMeta);
-      localStorage.setItem("meercop-mic-threshold-db", String(micThresholdFromMeta));
-      console.log("[Index] ✅ micThresholdDb applied from DB:", micThresholdFromMeta);
     }
   }, [currentDevice?.metadata, currentDevice?.id, setSelectedSoundId]);
 
@@ -675,7 +663,6 @@ const Index = ({ onExpired }: IndexProps) => {
         const camouflageFromSettings = (settingsRaw.camouflage_mode ?? settingsRaw.camouflageMode) as boolean | undefined;
         const languageFromSettings = (settingsRaw.language || settingsRaw.lang) as string | undefined;
         const deviceTypeFromSettings = (settingsRaw.device_type || settingsRaw.deviceType) as string | undefined;
-        const micThresholdDbFromSettings = (settingsRaw.micThresholdDb ?? settingsRaw.mic_threshold_db) as number | undefined;
 
         if (sensorSettings) {
           setSensorToggles({
@@ -728,12 +715,6 @@ const Index = ({ onExpired }: IndexProps) => {
           console.log("[Index] ✅ Device type updated via broadcast:", deviceTypeFromSettings);
         }
 
-        if (micThresholdDbFromSettings !== undefined) {
-          setMicThresholdDb(micThresholdDbFromSettings);
-          localStorage.setItem("meercop-mic-threshold-db", String(micThresholdDbFromSettings));
-          console.log("[Index] ✅ micThresholdDb updated via broadcast:", micThresholdDbFromSettings);
-        }
-
         // ✅ 로컬 DB metadata에도 설정 영속 저장 (새로고침 후에도 유지)
         if (currentDevice?.id) {
           const metadataPatch: Record<string, unknown> = {};
@@ -746,7 +727,6 @@ const Index = ({ onExpired }: IndexProps) => {
           if (requirePcPinFromSettings !== undefined) metadataPatch.require_pc_pin = requirePcPinFromSettings;
           if (camouflageFromSettings !== undefined) metadataPatch.camouflage_mode = camouflageFromSettings;
           if (languageFromSettings) metadataPatch.language = languageFromSettings;
-          if (micThresholdDbFromSettings !== undefined) metadataPatch.micThresholdDb = micThresholdDbFromSettings;
 
           const updatePayload: Record<string, unknown> = { metadata: metadataPatch };
           if (deviceTypeFromSettings) {
@@ -957,13 +937,13 @@ const Index = ({ onExpired }: IndexProps) => {
           onLanguageChange={(lang) => {
             setAppLanguage(lang);
             localStorage.setItem('meercop-language', lang);
+            // DB metadata에도 저장
             if (currentDevice?.id) {
               updateDeviceViaEdge(currentDevice.id, {
                 metadata: { language: lang },
               }).catch(e => console.error("[Index] Failed to save language:", e));
             }
           }}
-          micThresholdDb={micThresholdDb}
         />
 
         {/* Camera Modal */}

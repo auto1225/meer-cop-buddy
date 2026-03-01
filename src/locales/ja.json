@@ -228,13 +228,5 @@
   "alarm.loudKlaxon": "📣 大型クラクション",
   "alarm.tripleThreat": "⚡ トリプル警報",
   "event.cameraMotion": "カメラモーション検知（変化率",
-  "event.detected": "イベント検知",
-  "sensor.micThreshold": "マイク感度 (dB)",
-  "sensor.micThresholdDesc": "設定されたデシベル以上の音が検出されると警報が鳴ります。",
-  "sensor.micWhisper": "ささやき",
-  "sensor.micConversation": "会話",
-  "sensor.micShout": "叫び声",
-  "sensor.micAirplane": "飛行機",
-  "sensor.micWarning": "⚠️ 低い値は敏感な環境で誤検知を引き起こす可能性があります。",
-  "alert.microphone": "マイクで音が検出されました！"
+  "event.detected": "イベント検知"
 }

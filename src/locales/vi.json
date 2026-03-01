@@ -228,13 +228,5 @@
   "alarm.loudKlaxon": "📣 Còi lớn",
   "alarm.tripleThreat": "⚡ Ba mối đe dọa",
   "event.cameraMotion": "Phát hiện chuyển động camera (Tỷ lệ thay đổi",
-  "event.detected": "sự kiện phát hiện",
-  "sensor.micThreshold": "Độ nhạy micro (dB)",
-  "sensor.micThresholdDesc": "Báo động kích hoạt khi âm thanh vượt quá mức decibel đã đặt.",
-  "sensor.micWhisper": "Thì thầm",
-  "sensor.micConversation": "Trò chuyện",
-  "sensor.micShout": "La hét",
-  "sensor.micAirplane": "Máy bay",
-  "sensor.micWarning": "⚠️ Giá trị thấp có thể gây báo động giả trong môi trường nhạy cảm.",
-  "alert.microphone": "Phát hiện âm thanh từ micro!"
+  "event.detected": "sự kiện phát hiện"
 }

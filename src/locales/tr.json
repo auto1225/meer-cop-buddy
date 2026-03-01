@@ -228,13 +228,5 @@
   "alarm.loudKlaxon": "📣 Yüksek korna",
   "alarm.tripleThreat": "⚡ Üçlü tehdit",
   "event.cameraMotion": "Kamera hareketi algılandı (Değişim oranı",
-  "event.detected": "olay algılandı",
-  "sensor.micThreshold": "Mikrofon hassasiyeti (dB)",
-  "sensor.micThresholdDesc": "Ses belirlenen desibel seviyesini aştığında alarm tetiklenir.",
-  "sensor.micWhisper": "Fısıltı",
-  "sensor.micConversation": "Konuşma",
-  "sensor.micShout": "Bağırma",
-  "sensor.micAirplane": "Uçak",
-  "sensor.micWarning": "⚠️ Düşük değerler hassas ortamlarda yanlış alarmlara neden olabilir.",
-  "alert.microphone": "Mikrofon sesi algılandı!"
+  "event.detected": "olay algılandı"
 }

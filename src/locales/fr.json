@@ -228,13 +228,5 @@
   "alarm.loudKlaxon": "📣 Grand klaxon",
   "alarm.tripleThreat": "⚡ Triple menace",
   "event.cameraMotion": "Mouvement de caméra détecté (Taux de changement",
-  "event.detected": "événement détecté",
-  "sensor.micThreshold": "Sensibilité du micro (dB)",
-  "sensor.micThresholdDesc": "L'alarme se déclenche lorsque le son dépasse le niveau de décibels défini.",
-  "sensor.micWhisper": "Chuchotement",
-  "sensor.micConversation": "Conversation",
-  "sensor.micShout": "Cri",
-  "sensor.micAirplane": "Avion",
-  "sensor.micWarning": "⚠️ Des valeurs basses peuvent provoquer de fausses alarmes dans des environnements sensibles.",
-  "alert.microphone": "Son détecté par le microphone !"
+  "event.detected": "événement détecté"
 }
