@@ -112,10 +112,39 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     try {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera (attempt ${retryCountRef.current + 1}) signalingId=${sharedDeviceIdRef.current}`);
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 15, max: 30 }, facingMode: "user" },
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      // 비디오 트랙이 포함될 때까지 재시도 (카메라 하드웨어 초기화 대기)
+      const MAX_VIDEO_RETRIES = 5;
+      const VIDEO_RETRY_DELAY = 2000;
+      let stream: MediaStream | null = null;
+      
+      for (let attempt = 0; attempt < MAX_VIDEO_RETRIES; attempt++) {
+        const acquired = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 15, max: 30 }, facingMode: "user" },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+        
+        const videoTracks = acquired.getVideoTracks().filter(t => t.readyState === "live");
+        const audioTracks = acquired.getAudioTracks().filter(t => t.readyState === "live");
+        console.log(`[AutoBroadcaster:${instanceIdRef.current}] 📹 Attempt ${attempt + 1}: video=${videoTracks.length} audio=${audioTracks.length}`);
+        
+        if (videoTracks.length > 0) {
+          stream = acquired;
+          break;
+        }
+        
+        // 비디오 없음 — 트랙 정리 후 재시도
+        console.warn(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ No video track (attempt ${attempt + 1}/${MAX_VIDEO_RETRIES}), retrying in ${VIDEO_RETRY_DELAY}ms...`);
+        acquired.getTracks().forEach(t => t.stop());
+        
+        if (attempt < MAX_VIDEO_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, VIDEO_RETRY_DELAY));
+        }
+      }
+      
+      if (!stream) {
+        console.error(`[AutoBroadcaster:${instanceIdRef.current}] ❌ Failed to acquire video track after ${MAX_VIDEO_RETRIES} attempts`);
+        throw new Error("No video track available");
+      }
       
       const audioTracks = stream.getAudioTracks();
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎤 Audio tracks: ${audioTracks.length}`);
