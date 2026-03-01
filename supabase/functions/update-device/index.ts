@@ -60,11 +60,26 @@ Deno.serve(async (req) => {
       };
     }
 
-    // Sync name ↔ device_name
+    // Sync name ↔ device_name (both columns exist in schema)
     if (fieldsToUpdate.device_name && !fieldsToUpdate.name) {
       fieldsToUpdate.name = fieldsToUpdate.device_name;
     } else if (fieldsToUpdate.name && !fieldsToUpdate.device_name) {
       fieldsToUpdate.device_name = fieldsToUpdate.name;
+    }
+
+    // Whitelist: only allow known columns to prevent schema cache errors
+    const allowedColumns = new Set([
+      "device_id", "device_name", "device_type", "status", "name",
+      "is_monitoring", "is_camera_connected", "is_network_connected",
+      "is_streaming_requested", "is_charging", "battery_level",
+      "last_seen_at", "metadata", "user_id", "ip_address", "os_info",
+      "app_version", "latitude", "longitude", "location_updated_at",
+    ]);
+    for (const key of Object.keys(fieldsToUpdate)) {
+      if (!allowedColumns.has(key)) {
+        console.warn(`update-device: removing unknown column '${key}'`);
+        delete fieldsToUpdate[key];
+      }
     }
 
     const { data, error } = await supabase
