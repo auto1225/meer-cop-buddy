@@ -7,6 +7,7 @@ import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { fetchDevicesViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { useTranslation } from "@/lib/i18n";
+import { channelManager } from "@/lib/channelManager";
 
 interface LocationMapModalProps {
   isOpen: boolean;
@@ -32,7 +33,6 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
   const mapInitializedRef = useRef(false);
   const { t } = useTranslation();
 
-  // ── 공유 DB 직접 호출 헬퍼 (검증된 방식 복구) ──
   const sharedFetch = useCallback(async (fnName: string, body: Record<string, unknown>) => {
     const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/${fnName}`, {
       method: "POST",
@@ -43,7 +43,6 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     return res.json();
   }, []);
 
-  // Reverse geocode coordinates to address
   const fetchAddress = useCallback(async (lat: number, lng: number) => {
     setAddressLoading(true);
     setAddress(null);
@@ -53,16 +52,26 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
         { signal: AbortSignal.timeout(8000) }
       );
       const data = await res.json();
-      if (data.display_name) {
-        setAddress(data.display_name);
-      }
-    } catch {
-      console.warn("[LocationMap] Reverse geocoding failed");
-    }
+      if (data.display_name) setAddress(data.display_name);
+    } catch { /* silent */ }
     setAddressLoading(false);
   }, []);
 
-  // Send locate request to smartphone via BOTH local and shared DBs
+  // ── 위치 수신 처리 (공통) ──
+  const acceptLocation = useCallback((lat: number, lng: number, source: string | null, fromLabel: string) => {
+    if (locationReceivedRef.current) return; // 중복 방지
+    locationReceivedRef.current = true;
+    setCoords({ lat, lng });
+    setUpdatedAt(new Date().toISOString());
+    setLocationSource(source);
+    setIsLoading(false);
+    setError(null);
+    fetchAddress(lat, lng);
+    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    console.log(`[LocationMap] ✅ Location received from ${fromLabel}: ${lat}, ${lng}`);
+  }, [fetchAddress]);
+
   const requestSmartphoneLocation = useCallback(async () => {
     if (!smartphoneDeviceId) {
       setError(t("location.noSmartphone"));
@@ -76,66 +85,62 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
     locationReceivedRef.current = false;
     mapInitializedRef.current = false;
 
-    try {
-      const savedAuth = getSavedAuth();
-      const userId = savedAuth?.user_id;
+    const savedAuth = getSavedAuth();
+    const userId = savedAuth?.user_id;
+    const requestTimestamp = new Date().toISOString();
 
-      // ── 1) 공유 DB에서 스마트폰 기기 조회 ──
-      let sharedDevice: any = null;
+    // ── 1) Broadcast로 즉시 위치 요청 (< 100ms 전달) ──
+    if (userId) {
+      const channelName = `user-commands-${userId}`;
+      const channel = channelManager.get(channelName);
+      if (channel) {
+        channel.send({
+          type: "broadcast",
+          event: "locate_request",
+          payload: {
+            target_device_id: smartphoneDeviceId,
+            requested_at: requestTimestamp,
+          },
+        }).then(() => console.log("[LocationMap] 📡 Broadcast locate_request sent"))
+          .catch(e => console.warn("[LocationMap] Broadcast send failed:", e));
+      }
+    }
+
+    // ── 2) DB에도 locate_requested 기록 (폴백) ──
+    try {
       let sharedDeviceId = smartphoneDeviceId;
+      let localDeviceId = smartphoneDeviceId;
+
       if (userId) {
+        // 공유 DB
         try {
           const data = await sharedFetch("get-devices", { user_id: userId });
           const devices = data.devices || data || [];
-          sharedDevice = devices.find((d: any) => d.device_type === "smartphone");
-          if (sharedDevice) {
-            sharedDeviceId = sharedDevice.id;
-            if (sharedDevice.device_name) setDeviceName(sharedDevice.device_name);
+          const sp = devices.find((d: any) => d.device_type === "smartphone");
+          if (sp) {
+            sharedDeviceId = sp.id;
+            if (sp.device_name || sp.name) setDeviceName(sp.device_name || sp.name);
           }
-        } catch (e) {
-          console.warn("[LocationMap] Shared DB get-devices failed:", e);
-        }
-      }
+        } catch { /* silent */ }
 
-      // ── 2) 로컬 DB에서도 스마트폰 기기 조회 ──
-      let localDevice: any = null;
-      let localDeviceId = smartphoneDeviceId;
-      if (userId) {
+        // 로컬 DB
         try {
           const localDevices = await fetchDevicesViaEdge(userId);
-          localDevice = localDevices.find((d: any) => d.device_type === "smartphone");
-          if (localDevice) {
-            localDeviceId = localDevice.id;
-            if (localDevice.device_name && !sharedDevice) setDeviceName(localDevice.device_name);
-          }
-        } catch (e) {
-          console.warn("[LocationMap] Local DB get-devices failed:", e);
-        }
+          const sp = localDevices.find((d: any) => d.device_type === "smartphone");
+          if (sp) localDeviceId = sp.id;
+        } catch { /* silent */ }
       }
 
-      const requestTimestamp = new Date().toISOString();
-
-      // ── 3) 이중 쓰기: 양쪽 DB에 locate_requested 기록 ──
-      // 공유 DB
+      // DB에 locate_requested 기록 (fire-and-forget)
       sharedFetch("update-device", {
         device_id: sharedDeviceId,
         updates: { metadata: { locate_requested: requestTimestamp } },
-      }).catch(e => console.warn("[LocationMap] Shared locate_requested write failed:", e));
-
-      // 로컬 DB
+      }).catch(() => {});
       updateDeviceViaEdge(localDeviceId, {
         metadata: { locate_requested: requestTimestamp },
-      }).catch(e => console.warn("[LocationMap] Local locate_requested write failed:", e));
+      }).catch(() => {});
 
-      console.log("[LocationMap] Sent locate request to BOTH DBs:", requestTimestamp, 
-        "shared:", sharedDeviceId, "local:", localDeviceId);
-
-      // ── 4) 이중 폴링: 양쪽 DB에서 응답 대기 ──
-      // Track initial coordinates to detect changes
-      const initialLat = sharedDevice?.latitude || localDevice?.latitude || null;
-      const initialLng = sharedDevice?.longitude || localDevice?.longitude || null;
-      const initialLocUpdatedAt = sharedDevice?.location_updated_at || localDevice?.location_updated_at || null;
-
+      // ── 3) DB 폴링 (Broadcast 실패 시 폴백, 3초 간격) ──
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = setInterval(async () => {
         if (locationReceivedRef.current || !userId) {
@@ -143,112 +148,114 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
           return;
         }
 
-        // Helper: check if device has a NEW location response
-        const hasNewLocation = (device: any): boolean => {
-          if (!device?.latitude || !device?.longitude) return false;
-          const meta = device.metadata as Record<string, unknown> | null;
-          
-          // Case 1: locate_requested was cleared AND has coordinates
-          if (meta && !meta.locate_requested) return true;
-          
-          // Case 2: coordinates changed since request
-          if (device.latitude !== initialLat || device.longitude !== initialLng) return true;
-          
-          // Case 3: location_updated_at is newer than our request
-          if (device.location_updated_at && device.location_updated_at > requestTimestamp) return true;
-          
-          return false;
-        };
-
-        const acceptLocation = (device: any, source: string) => {
-          const meta = (device.metadata as Record<string, unknown>) || {};
-          locationReceivedRef.current = true;
-          setCoords({ lat: device.latitude, lng: device.longitude });
-          setUpdatedAt(device.location_updated_at || null);
-          setLocationSource((meta.location_source as string) || null);
-          setIsLoading(false);
-          fetchAddress(device.latitude, device.longitude);
-          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-          if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-          console.log(`[LocationMap] ✅ Location received from ${source}`);
-        };
-
-        // 공유 DB 폴링
+        // 공유 DB 체크
         try {
           const data = await sharedFetch("get-devices", { user_id: userId });
           const devices = data.devices || data || [];
           const updated = devices.find((d: any) => d.id === sharedDeviceId);
-          if (updated && hasNewLocation(updated)) {
-            acceptLocation(updated, "SHARED DB");
-            return;
+          if (updated?.latitude && updated?.longitude) {
+            const meta = (updated.metadata as Record<string, unknown>) || {};
+            if (!meta.locate_requested && updated.location_updated_at > requestTimestamp) {
+              acceptLocation(updated.latitude, updated.longitude, (meta.location_source as string) || null, "SHARED DB");
+              return;
+            }
           }
         } catch { /* silent */ }
 
-        // 로컬 DB 폴링
+        // 로컬 DB 체크
         try {
           const localDevices = await fetchDevicesViaEdge(userId);
           const updated = localDevices.find((d: any) => d.id === localDeviceId);
-          if (updated && hasNewLocation(updated)) {
-            acceptLocation(updated, "LOCAL DB");
-            return;
+          if (updated?.latitude && updated?.longitude) {
+            const meta = (updated.metadata as Record<string, unknown>) || {};
+            if (!meta.locate_requested && updated.location_updated_at > requestTimestamp) {
+              acceptLocation(updated.latitude, updated.longitude, (meta.location_source as string) || null, "LOCAL DB");
+              return;
+            }
           }
         } catch { /* silent */ }
-      }, 2000);
+      }, 3000);
 
-      // 20초 타임아웃: 마지막 알려진 위치 표시
-      timeoutRef.current = setTimeout(() => {
-        const fallbackDevice = sharedDevice || localDevice;
-        if (fallbackDevice?.latitude && fallbackDevice?.longitude) {
-          const meta = (fallbackDevice?.metadata as Record<string, unknown>) || {};
-          setCoords({ lat: fallbackDevice.latitude, lng: fallbackDevice.longitude });
-          setUpdatedAt(fallbackDevice.location_updated_at || null);
-          setLocationSource((meta.location_source as string) || null);
-          fetchAddress(fallbackDevice.latitude, fallbackDevice.longitude);
-          setError(t("location.lastKnown"));
-        } else {
-          setError(t("location.noResponse"));
-        }
+      // ── 4) 15초 타임아웃 (이전 20초→15초로 단축) ──
+      timeoutRef.current = setTimeout(async () => {
+        if (locationReceivedRef.current) return;
+
+        // 마지막 알려진 위치 표시
+        try {
+          if (userId) {
+            const data = await sharedFetch("get-devices", { user_id: userId });
+            const devices = data.devices || data || [];
+            const sp = devices.find((d: any) => d.device_type === "smartphone");
+            if (sp?.latitude && sp?.longitude) {
+              const meta = (sp.metadata as Record<string, unknown>) || {};
+              setCoords({ lat: sp.latitude, lng: sp.longitude });
+              setUpdatedAt(sp.location_updated_at || null);
+              setLocationSource((meta.location_source as string) || null);
+              fetchAddress(sp.latitude, sp.longitude);
+              setError(t("location.lastKnown"));
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch { /* silent */ }
+        setError(t("location.noResponse"));
         setIsLoading(false);
-      }, 20000);
+      }, 15000);
 
     } catch (err) {
       console.error("[LocationMap] Error:", err);
       setError(t("location.error"));
       setIsLoading(false);
     }
-  }, [smartphoneDeviceId, t, sharedFetch, fetchAddress]);
+  }, [smartphoneDeviceId, t, sharedFetch, fetchAddress, acceptLocation]);
 
+  // ── Broadcast 리스너: location_response 수신 ──
+  useEffect(() => {
+    if (!isOpen) return;
+    const savedAuth = getSavedAuth();
+    if (!savedAuth?.user_id) return;
+
+    const channelName = `user-commands-${savedAuth.user_id}`;
+    const channel = channelManager.get(channelName);
+    if (!channel) return;
+
+    const handler = (payload: any) => {
+      const p = payload?.payload;
+      if (!p?.lat || !p?.lng) return;
+      console.log("[LocationMap] 📡 Broadcast location_response received:", p);
+      acceptLocation(p.lat, p.lng, p.source || null, "BROADCAST");
+    };
+
+    channel.on("broadcast", { event: "location_response" }, handler);
+    console.log("[LocationMap] 📡 Listening for location_response broadcast");
+
+    return () => {
+      // Channel lifecycle managed by Index.tsx, no removal needed
+    };
+  }, [isOpen, acceptLocation]);
+
+  // ── 모달 열릴 때 위치 요청 시작 ──
   useEffect(() => {
     if (!isOpen) return;
     requestSmartphoneLocation();
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     };
   }, [isOpen, requestSmartphoneLocation]);
 
+  // ── 지도 렌더링 ──
   useEffect(() => {
     if (!isOpen || !coords || !mapRef.current) return;
 
     if (mapInitializedRef.current && mapInstanceRef.current) {
-      if (markerRef.current) {
-        markerRef.current.setLatLng([coords.lat, coords.lng]);
-      }
+      if (markerRef.current) markerRef.current.setLatLng([coords.lat, coords.lng]);
       mapInstanceRef.current.setView([coords.lat, coords.lng], 16);
       return;
     }
 
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
+    if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
 
     const map = L.map(mapRef.current).setView([coords.lat, coords.lng], 16);
     mapInstanceRef.current = map;
@@ -263,8 +270,7 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
       html: `<div style="
         width: 28px; height: 28px; 
         background: linear-gradient(135deg, #E8F84A, #c4d63e); 
-        border: 3px solid white; 
-        border-radius: 50%; 
+        border: 3px solid white; border-radius: 50%; 
         box-shadow: 0 2px 12px rgba(232,248,74,0.5);
         display: flex; align-items: center; justify-content: center;
       "><svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#1e3a5f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><rect x='5' y='2' width='14' height='20' rx='2' ry='2'/><line x1='12' y1='18' x2='12' y2='18'/></svg></div>`,
@@ -274,10 +280,10 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
 
     markerRef.current = L.marker([coords.lat, coords.lng], { icon }).addTo(map);
     markerRef.current.bindPopup(`📱 ${deviceName} ${t("location.popup")}`).openPopup();
-
     setTimeout(() => map.invalidateSize(), 100);
   }, [isOpen, coords, deviceName, t]);
 
+  // ── 지도 정리 ──
   useEffect(() => {
     if (!isOpen && mapInstanceRef.current) {
       mapInstanceRef.current.remove();
@@ -317,21 +323,13 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
+            <Button variant="ghost" size="icon"
               className="h-7 w-7 text-white/70 hover:bg-white/15 rounded-lg"
-              onClick={requestSmartphoneLocation}
-              disabled={isLoading}
-            >
+              onClick={requestSmartphoneLocation} disabled={isLoading}>
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-white/70 hover:bg-white/15 rounded-lg"
-              onClick={onClose}
-            >
+            <Button variant="ghost" size="icon"
+              className="h-7 w-7 text-white/70 hover:bg-white/15 rounded-lg" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -367,7 +365,6 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
                 <p className="text-[11px] text-white/80 font-bold leading-tight">📍 {address}</p>
               ) : null}
             </div>
-
             <p className="text-xs text-white/70 font-bold text-center">
               {t("location.latitude")}: {coords.lat.toFixed(6)} | {t("location.longitude")}: {coords.lng.toFixed(6)}
             </p>
