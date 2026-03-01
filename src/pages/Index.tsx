@@ -183,6 +183,8 @@ const Index = ({ onExpired }: IndexProps) => {
   const [appLanguage, setAppLanguage] = useState<string>(() => {
     return localStorage.getItem('meercop-language') || "ko";
   });
+  // Guard: prevent metadata useEffect from reverting broadcast-applied settings
+  const broadcastOverrideUntilRef = useRef<number>(0);
   // Alarm system
   const { 
     isAlarmEnabled, 
@@ -405,6 +407,12 @@ const Index = ({ onExpired }: IndexProps) => {
   useEffect(() => {
     if (!currentDevice?.id) return;
 
+    // ✅ 브로드캐스트가 최근에 설정을 적용했으면 DB 메타데이터로 덮어쓰기 방지
+    if (Date.now() < broadcastOverrideUntilRef.current) {
+      console.log("[Index] ⏭️ Skipping metadata re-apply (broadcast override active)");
+      return;
+    }
+
     const meta = (currentDevice?.metadata as Record<string, unknown> | null) || null;
     console.log("[Index] 📋 Current metadata from DB:", JSON.stringify(meta));
 
@@ -617,6 +625,9 @@ const Index = ({ onExpired }: IndexProps) => {
       channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
         console.log("[Index] 📲 Broadcast settings_updated received:", payload.payload);
 
+        // ✅ 브로드캐스트 가드 활성화 — 10초간 metadata useEffect의 덮어쓰기 방지
+        broadcastOverrideUntilRef.current = Date.now() + 10000;
+
         const payloadObj = (payload.payload && typeof payload.payload === "object")
           ? (payload.payload as Record<string, unknown>)
           : {};
@@ -721,8 +732,8 @@ const Index = ({ onExpired }: IndexProps) => {
             .catch((e) => console.warn("[Index] ⚠️ Failed to persist settings to local DB:", e));
         }
 
-        // DB도 함께 갱신
-        refetch();
+        // ⚠️ refetch 제거: DB 업데이트가 비동기적이므로 즉시 refetch하면 
+        // 아직 반영되지 않은 이전 값을 읽어 깜빡임 발생
       });
 
       channel.on('broadcast', { event: 'remote_alarm_off' }, () => {
