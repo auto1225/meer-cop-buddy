@@ -84,7 +84,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     const r = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-      body: JSON.stringify({ device_id: sharedId, name: newName, device_name: newName }),
+      body: JSON.stringify({ device_id: sharedId, name: newName }),
     });
 
     const payload = await r.json().catch(() => null);
