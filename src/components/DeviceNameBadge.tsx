@@ -3,7 +3,7 @@ import { Pencil, Check, X } from "lucide-react";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { updateDeviceViaEdge, fetchDevicesViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
-import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
+import { getSharedDeviceId, setSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n";
 
@@ -31,6 +31,54 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       inputRef.current?.select();
     }
   }, [isEditing]);
+
+  const resolveSharedDeviceId = async (
+    localId: string,
+    userId?: string,
+    localCompositeId?: string,
+    prevName?: string
+  ): Promise<string> => {
+    const mapped = getSharedDeviceId(localId);
+    if (mapped) return mapped;
+    if (!userId) return localId;
+
+    try {
+      const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!res.ok) return localId;
+
+      const data = await res.json();
+      const sharedDevices = (data.devices || data || []) as Array<Record<string, any>>;
+      const normalizedPrevName = (prevName || "").trim().toLowerCase();
+
+      const byComposite = localCompositeId
+        ? sharedDevices.find((d) => d?.device_id === localCompositeId)
+        : undefined;
+
+      const byPrevName = normalizedPrevName
+        ? sharedDevices.find((d) => {
+            const n = (d?.name || d?.device_name || "").toString().trim().toLowerCase();
+            return n === normalizedPrevName;
+          })
+        : undefined;
+
+      const laptops = sharedDevices.filter((d) => (d?.device_type || "").toString().toLowerCase() === "laptop");
+      const bySingleLaptop = laptops.length === 1 ? laptops[0] : undefined;
+
+      const resolved = byComposite?.id || byPrevName?.id || bySingleLaptop?.id;
+      if (resolved) {
+        setSharedDeviceId(localId, resolved);
+        return resolved;
+      }
+    } catch (e) {
+      console.warn("[DeviceNameBadge] Shared ID resolve error:", e);
+    }
+
+    return localId;
+  };
 
   const handleSave = async () => {
     const trimmed = editValue.trim();
@@ -70,16 +118,30 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
         await updateDeviceViaEdge(deviceId, { name: trimmed, device_name: trimmed });
 
         // 공유 DB에도 이름 동기화 (스마트폰이 공유 DB를 바라보므로)
-        // 공유 DB는 updates 래퍼 없이 top-level 필드로 전송
-        const sharedId = getSharedDeviceId(deviceId) || deviceId;
+        // shared ID 매핑이 아직 없으면 조회로 강제 해석
+        const sharedId = await resolveSharedDeviceId(
+          deviceId,
+          saved?.user_id,
+          saved?.device_id,
+          deviceName
+        );
+
         fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-          body: JSON.stringify({ device_id: sharedId, name: trimmed }),
+          body: JSON.stringify({ device_id: sharedId, name: trimmed, device_name: trimmed }),
         })
-          .then(r => r.ok
-            ? console.log("[DeviceNameBadge] ✅ Shared DB name synced:", trimmed, "sharedId:", sharedId)
-            : r.text().then(t => console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", t)))
+          .then(async (r) => {
+            const payload = await r.json().catch(() => null);
+            const updated = typeof payload?.updated === "number" ? payload.updated : undefined;
+            const ok = r.ok && (updated === undefined || updated > 0 || !!payload?.device);
+
+            if (ok) {
+              console.log("[DeviceNameBadge] ✅ Shared DB name synced:", trimmed, "sharedId:", sharedId, "payload:", payload);
+            } else {
+              console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", payload);
+            }
+          })
           .catch(e => console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync error:", e));
       }
 
