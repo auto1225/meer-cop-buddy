@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { updateDeviceViaEdge, fetchDevicesViaEdge } from "@/lib/deviceApi";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n";
 
@@ -66,6 +68,18 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
       if (deviceId) {
         await updateDeviceViaEdge(deviceId, { name: trimmed, device_name: trimmed });
+
+        // 공유 DB에도 이름 동기화 (스마트폰이 공유 DB를 바라보므로)
+        const sharedId = getSharedDeviceId(deviceId) || deviceId;
+        fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+          body: JSON.stringify({ device_id: sharedId, updates: { name: trimmed, device_name: trimmed } }),
+        })
+          .then(r => r.ok
+            ? console.log("[DeviceNameBadge] ✅ Shared DB name synced:", trimmed)
+            : r.text().then(t => console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", t)))
+          .catch(e => console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync error:", e));
       }
 
       if (saved) {
