@@ -42,19 +42,36 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
-      // Update last_seen and name
+      // Preserve user-saved name: only update name if existing name is empty/default
+      const existingName = existing.device_name || existing.name || "";
+      const isDefaultName = !existingName || existingName === "My Laptop" || existingName === "My Smartphone" || existingName === "Unknown";
+      const preservedName = isDefaultName ? finalName : existingName;
+
+      const updateFields: Record<string, unknown> = {
+        last_seen_at: new Date().toISOString(),
+        user_id: finalUserId,
+      };
+      // Only overwrite name if the incoming name is NOT a default AND differs from existing
+      if (isDefaultName || (finalName !== "My Laptop" && finalName !== "My Smartphone" && finalName !== existingName)) {
+        updateFields.device_name = isDefaultName && finalName !== "My Laptop" && finalName !== "My Smartphone" ? finalName : preservedName;
+        updateFields.name = updateFields.device_name;
+      }
+
       await supabase
         .from("devices")
-        .update({
-          last_seen_at: new Date().toISOString(),
-          device_name: finalName,
-          name: finalName,
-          user_id: finalUserId,
-        })
+        .update(updateFields)
         .eq("id", existing.id);
 
+      const returnDevice = { 
+        ...existing, 
+        device_name: (updateFields.device_name as string) || existingName, 
+        name: (updateFields.name as string) || existingName, 
+        user_id: finalUserId,
+        last_seen_at: updateFields.last_seen_at,
+      };
+
       return new Response(
-        JSON.stringify({ device: { ...existing, device_name: finalName, name: finalName, user_id: finalUserId } }),
+        JSON.stringify({ device: returnDevice }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
