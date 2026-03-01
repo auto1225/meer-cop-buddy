@@ -70,14 +70,15 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
         await updateDeviceViaEdge(deviceId, { name: trimmed, device_name: trimmed });
 
         // 공유 DB에도 이름 동기화 (스마트폰이 공유 DB를 바라보므로)
+        // 공유 DB는 updates 래퍼 없이 top-level 필드로 전송
         const sharedId = getSharedDeviceId(deviceId) || deviceId;
         fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-          body: JSON.stringify({ device_id: sharedId, updates: { name: trimmed, device_name: trimmed } }),
+          body: JSON.stringify({ device_id: sharedId, name: trimmed }),
         })
           .then(r => r.ok
-            ? console.log("[DeviceNameBadge] ✅ Shared DB name synced:", trimmed)
+            ? console.log("[DeviceNameBadge] ✅ Shared DB name synced:", trimmed, "sharedId:", sharedId)
             : r.text().then(t => console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", t)))
           .catch(e => console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync error:", e));
       }
