@@ -228,5 +228,13 @@
   "alarm.loudKlaxon": "📣 Clacson forte",
   "alarm.tripleThreat": "⚡ Tripla minaccia",
   "event.cameraMotion": "Movimento fotocamera rilevato (Tasso di cambiamento",
-  "event.detected": "evento rilevato"
+  "event.detected": "evento rilevato",
+  "sensor.micThreshold": "Sensibilità microfono (dB)",
+  "sensor.micThresholdDesc": "L'allarme si attiva quando il suono supera il livello di decibel impostato.",
+  "sensor.micWhisper": "Sussurro",
+  "sensor.micConversation": "Conversazione",
+  "sensor.micShout": "Urlo",
+  "sensor.micAirplane": "Aereo",
+  "sensor.micWarning": "⚠️ Valori bassi possono causare falsi allarmi in ambienti sensibili.",
+  "alert.microphone": "Suono rilevato dal microfono!"
 }
