@@ -101,6 +101,69 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     return false;
   };
 
+  const sendNameChangedBroadcast = async (
+    userId: string,
+    payload: {
+      target_device_id: string;
+      target_shared_device_id: string;
+      old_name: string;
+      new_name: string;
+      timestamp: string;
+    }
+  ): Promise<void> => {
+    const channelName = `user-commands-${userId}`;
+    const cmdChannel = channelManager.get(channelName) ?? channelManager.getOrCreate(channelName);
+
+    const sendBothFormats = async () => {
+      await Promise.allSettled([
+        // 표준 포맷
+        cmdChannel.send({
+          type: "broadcast",
+          event: "name_changed",
+          payload,
+        }),
+        // 하위 호환 포맷
+        cmdChannel.send({
+          type: "broadcast",
+          event: "command",
+          payload: {
+            type: "name_changed",
+            ...payload,
+          },
+        }),
+      ]);
+    };
+
+    const state = (cmdChannel as unknown as { state?: string }).state;
+    if (state === "joined") {
+      await sendBothFormats();
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn("[DeviceNameBadge] ⚠️ user-commands subscribe timeout, skipping name_changed broadcast");
+        resolve();
+      }, 2000);
+
+      cmdChannel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          clearTimeout(timeout);
+          sendBothFormats()
+            .catch((e) => console.warn("[DeviceNameBadge] Broadcast send failed:", e))
+            .finally(() => resolve());
+          return;
+        }
+
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          clearTimeout(timeout);
+          console.warn("[DeviceNameBadge] ⚠️ user-commands subscribe failed:", status);
+          resolve();
+        }
+      });
+    });
+  };
+
   const handleSave = async () => {
     const trimmed = editValue.trim();
     if (!trimmed) return;
@@ -154,23 +217,13 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
         // 실시간 브로드캐스트: 대상 기기 식별자 포함 (스마트폰에서 다중 노트북 구분 가능)
         if (saved?.user_id) {
-          const cmdChannel = channelManager.get(`user-commands-${saved.user_id}`);
-          if (cmdChannel) {
-            cmdChannel.send({
-              type: "broadcast",
-              event: "command",
-              payload: {
-                type: "name_changed",
-                target_device_id: deviceId,
-                target_shared_device_id: sharedId,
-                old_name: deviceName,
-                new_name: trimmed,
-                timestamp: new Date().toISOString(),
-              },
-            }).catch(() => {});
-          } else {
-            console.warn("[DeviceNameBadge] ⚠️ user-commands channel not found, name_changed broadcast skipped");
-          }
+          await sendNameChangedBroadcast(saved.user_id, {
+            target_device_id: deviceId,
+            target_shared_device_id: sharedId,
+            old_name: deviceName,
+            new_name: trimmed,
+            timestamp: new Date().toISOString(),
+          });
         }
 
         if (!sharedOk) {
