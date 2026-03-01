@@ -111,10 +111,13 @@ export function I18nProvider({ children, initialLang }: { children: React.ReactN
   useEffect(() => {
     if (initialLang) {
       const normalized = normalizeLang(initialLang);
-      if (normalized !== lang) {
-        console.log("[i18n] Language changed from external:", initialLang, "→", normalized);
-        setLang(normalized);
-      }
+      setLang(prev => {
+        if (normalized !== prev) {
+          console.log("[i18n] Language changed from external:", initialLang, "→", normalized);
+          return normalized;
+        }
+        return prev;
+      });
     }
   }, [initialLang]);
 
