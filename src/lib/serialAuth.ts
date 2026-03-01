@@ -85,11 +85,15 @@ export async function validateSerial(
     console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 실패 (계속 진행):", err);
   }
 
+  // Prioritize user-provided deviceName over server default
+  const isServerDefault = !s.device_name || s.device_name === "My Laptop" || s.device_name === "My Smartphone";
+  const resolvedName = isServerDefault ? deviceName : s.device_name;
+
   const authData: SerialAuthData = {
     serial_key: s.serial_key || key,
     device_id: s.id || s.device_id || "",
     user_id: s.user_id || "",
-    device_name: s.device_name || deviceName,
+    device_name: resolvedName,
     authenticated_at: new Date().toISOString(),
     plan_type: s.plan_type || "free",
     expires_at: s.expires_at || null,
@@ -141,7 +145,7 @@ async function ensureSharedDeviceRegistration(
     // 로컬 Edge Function으로 등록 시도
     const registered = await registerDeviceViaEdge({
       user_id: userId,
-      device_name: deviceName || "My Laptop",
+      device_name: deviceName || "Laptop1",
       device_type: "laptop",
     });
 
@@ -164,7 +168,7 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
 
     const ensuredDeviceId = await ensureSharedDeviceRegistration(
       s.user_id || saved.user_id,
-      saved.device_name || s.device_name || "My Laptop",
+      saved.device_name || s.device_name || "Laptop1",
       s.id || s.device_id || saved.device_id
     );
 
