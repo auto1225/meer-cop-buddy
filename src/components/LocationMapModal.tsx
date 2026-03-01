@@ -117,16 +117,14 @@ export function LocationMapModal({ isOpen, onClose, smartphoneDeviceId }: Locati
 
       // ── 3) 이중 쓰기: 양쪽 DB에 locate_requested 기록 ──
       // 공유 DB
-      const sharedMeta = (sharedDevice?.metadata as Record<string, unknown>) || {};
       sharedFetch("update-device", {
         device_id: sharedDeviceId,
-        updates: { metadata: { ...sharedMeta, locate_requested: requestTimestamp } },
+        updates: { metadata: { locate_requested: requestTimestamp } },
       }).catch(e => console.warn("[LocationMap] Shared locate_requested write failed:", e));
 
       // 로컬 DB
-      const localMeta = (localDevice?.metadata as Record<string, unknown>) || {};
       updateDeviceViaEdge(localDeviceId, {
-        metadata: { ...localMeta, locate_requested: requestTimestamp },
+        metadata: { locate_requested: requestTimestamp },
       }).catch(e => console.warn("[LocationMap] Local locate_requested write failed:", e));
 
       console.log("[LocationMap] Sent locate request to BOTH DBs:", requestTimestamp, 

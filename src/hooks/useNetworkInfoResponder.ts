@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
-import { getSavedAuth } from "@/lib/serialAuth";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 
 /**
  * Listens for "network_info" commands from the smartphone app via metadata.network_info_requested.
@@ -13,7 +12,7 @@ export function useNetworkInfoResponder(deviceId?: string, metadata?: Record<str
   const handleRequest = useCallback(async (requestedAt: string) => {
     if (!deviceId || isGathering.current) return;
     if (lastRequestRef.current === requestedAt) return;
-    
+
     isGathering.current = true;
     lastRequestRef.current = requestedAt;
     console.log("[NetworkInfoResponder] Network info requested");
@@ -30,16 +29,10 @@ export function useNetworkInfoResponder(deviceId?: string, metadata?: Record<str
     }
 
     try {
-      const savedAuth = getSavedAuth();
-      const userId = savedAuth?.user_id;
-      const device = userId ? await fetchDeviceViaEdge(deviceId, userId) : null;
-      const existingMeta = (device?.metadata as Record<string, unknown>) || {};
-
       await updateDeviceViaEdge(deviceId, {
         ip_address: ip,
         is_network_connected: navigator.onLine,
         metadata: {
-          ...existingMeta,
           network_info: {
             type: connection?.type || "unknown",
             downlink: connection?.downlink ?? null,

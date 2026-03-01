@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { supabaseShared } from "@/lib/supabase";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 
 const STOLEN_STATE_KEY = "meercop_stolen_state";
 
@@ -149,26 +150,14 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
       const coords = await getCurrentPosition();
       if (coords) {
         try {
-          const { data: existing } = await supabaseShared
-            .from("devices")
-            .select("metadata")
-            .eq("id", devId)
-            .single();
-
-          const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
-          
-          await supabaseShared
-            .from("devices")
-            .update({
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              location_updated_at: new Date().toISOString(),
-              metadata: {
-                ...existingMeta,
-                last_location_source: "steal_recovery_tracking",
-              },
-            })
-            .eq("id", devId);
+          await updateDeviceViaEdge(devId, {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            location_updated_at: new Date().toISOString(),
+            metadata: {
+              last_location_source: "steal_recovery_tracking",
+            },
+          });
 
           console.log("[StealRecovery] 📍 Location updated:", coords.latitude, coords.longitude);
         } catch (e) {
@@ -194,22 +183,13 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
       // 1. GPS 위치 확인
       const coords = await getCurrentPosition();
       
-      // 2. DB에 위치 + 상태 업데이트 (metadata 병합)
-      const { data: existing } = await supabaseShared
-        .from("devices")
-        .select("metadata")
-        .eq("id", devId)
-        .single();
-
-      const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
-      
+      // 2. DB에 위치 + 상태 업데이트 (metadata patch)
       const updatePayload: Record<string, unknown> = {
         status: "online",
         is_network_connected: true,
         updated_at: new Date().toISOString(),
         is_streaming_requested: true, // 스트리밍 자동 시작
         metadata: {
-          ...existingMeta,
           steal_recovery: {
             recovered_at: new Date().toISOString(),
             lost_at: stolenState.lostAt,
@@ -225,10 +205,7 @@ export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTrigg
         updatePayload.location_updated_at = new Date().toISOString();
       }
 
-      await supabaseShared
-        .from("devices")
-        .update(updatePayload)
-        .eq("id", devId);
+      await updateDeviceViaEdge(devId, updatePayload);
 
       console.log("[StealRecovery] ✅ DB updated with location + streaming request");
 

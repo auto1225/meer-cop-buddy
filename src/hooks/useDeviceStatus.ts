@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
-import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
-import { getSavedAuth } from "@/lib/serialAuth";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -428,18 +427,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         // IP 조회 실패는 정상 동작에 영향 없음 — 의도적으로 무시
       }
 
-      // Merge network_info into metadata
-      try {
-        const savedAuth = getSavedAuth();
-        const uid = savedAuth?.user_id;
-        const device = uid ? await fetchDeviceViaEdge(deviceId, uid) : null;
-        const existingMeta = (device?.metadata as Record<string, unknown>) || {};
-        updates.metadata = { ...existingMeta, network_info: networkInfo };
-      } catch (err) {
-        // metadata fetch 실패 시 network_info만 단독 전송
-        console.warn("[DeviceStatus] Metadata fetch failed, sending standalone:", err);
-        updates.metadata = { network_info: networkInfo };
-      }
+      // Send network_info as metadata patch (server merges with latest metadata)
+      updates.metadata = { network_info: networkInfo };
 
       // Gather location (non-blocking)
       try {

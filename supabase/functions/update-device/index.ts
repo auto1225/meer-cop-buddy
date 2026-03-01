@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
     const id = device_id;
     // Support both { device_id, updates: {...} } and { device_id, key: val }
-    const fieldsToUpdate = updates || directUpdates;
+    const fieldsToUpdate: Record<string, unknown> = (updates || directUpdates) as Record<string, unknown>;
 
     if (!id) {
       return new Response(
@@ -33,6 +33,32 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Merge metadata patch with latest DB metadata to prevent stale overwrite
+    if (fieldsToUpdate.metadata && typeof fieldsToUpdate.metadata === "object" && !Array.isArray(fieldsToUpdate.metadata)) {
+      const { data: existing, error: existingError } = await supabase
+        .from("devices")
+        .select("metadata")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (existingError) {
+        console.error("update-device metadata fetch error:", existingError);
+        return new Response(
+          JSON.stringify({ error: existingError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const existingMeta = (existing?.metadata && typeof existing.metadata === "object")
+        ? (existing.metadata as Record<string, unknown>)
+        : {};
+
+      fieldsToUpdate.metadata = {
+        ...existingMeta,
+        ...(fieldsToUpdate.metadata as Record<string, unknown>),
+      };
+    }
 
     // Sync name ↔ device_name
     if (fieldsToUpdate.device_name && !fieldsToUpdate.name) {
