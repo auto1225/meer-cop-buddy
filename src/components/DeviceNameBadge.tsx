@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { getSavedAuth } from "@/lib/serialAuth";
 import { updateDeviceViaEdge, fetchDevicesViaEdge } from "@/lib/deviceApi";
-import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "@/lib/supabase";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { channelManager } from "@/lib/channelManager";
 import { getSharedDeviceId, setSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n";
@@ -153,18 +154,23 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
         // 실시간 브로드캐스트: 대상 기기 식별자 포함 (스마트폰에서 다중 노트북 구분 가능)
         if (saved?.user_id) {
-          supabaseShared.channel(`user-commands-${saved.user_id}`).send({
-            type: "broadcast",
-            event: "command",
-            payload: {
-              type: "name_changed",
-              target_device_id: deviceId,
-              target_shared_device_id: sharedId,
-              old_name: deviceName,
-              new_name: trimmed,
-              timestamp: new Date().toISOString(),
-            },
-          }).catch(() => {});
+          const cmdChannel = channelManager.get(`user-commands-${saved.user_id}`);
+          if (cmdChannel) {
+            cmdChannel.send({
+              type: "broadcast",
+              event: "command",
+              payload: {
+                type: "name_changed",
+                target_device_id: deviceId,
+                target_shared_device_id: sharedId,
+                old_name: deviceName,
+                new_name: trimmed,
+                timestamp: new Date().toISOString(),
+              },
+            }).catch(() => {});
+          } else {
+            console.warn("[DeviceNameBadge] ⚠️ user-commands channel not found, name_changed broadcast skipped");
+          }
         }
 
         if (!sharedOk) {
