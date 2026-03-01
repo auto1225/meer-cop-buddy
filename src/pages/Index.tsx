@@ -901,7 +901,7 @@ const Index = ({ onExpired }: IndexProps) => {
 
         {/* Device Name Badge */}
         <DeviceNameBadge 
-          deviceName={currentDevice?.device_name || savedAuth?.device_name || "Laptop1"}
+          deviceName={currentDevice?.name || currentDevice?.device_name || savedAuth?.device_name || "Laptop1"}
           deviceId={currentDevice?.id}
           onNameChanged={() => refetch()}
         />

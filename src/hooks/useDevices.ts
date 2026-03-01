@@ -27,6 +27,7 @@ export interface DeviceCompat {
   id: string;
   device_id: string;
   device_name: string;
+  name?: string;
   device_type: string;
   status: string;
   last_seen_at: string | null;
@@ -44,13 +45,14 @@ export interface DeviceCompat {
 function toCompatDevice(d: Device): DeviceCompat {
   const effectiveOnline = d.status === "online" || (d.is_monitoring === true && d.status !== "offline");
   // Filter out default/placeholder names — prefer the most specific name
-  const rawName = d.device_name || d.name || "";
+  const rawName = d.name || d.device_name || "";
   const isDefault = !rawName || rawName === "My Laptop" || rawName === "My Smartphone" || rawName === "Unknown";
   const displayName = isDefault ? (d.name || d.device_name || "Laptop1") : rawName;
   return {
     id: d.id,
     device_id: d.device_id || d.id,
     device_name: displayName,
+    name: d.name || d.device_name || displayName,
     device_type: d.device_type,
     status: effectiveOnline ? "online" : "offline",
     last_seen_at: d.last_seen_at,
