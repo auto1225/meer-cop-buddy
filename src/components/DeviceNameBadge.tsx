@@ -112,21 +112,36 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     try {
       const saved = getSavedAuth();
 
+      // 다중 노트북 환경에서 이름 충돌 방지: 현재 기기 제외 + 컴퓨터 계열만 검사
+      if (saved?.user_id && deviceId) {
+        const normalized = trimmed.toLowerCase();
+        const allDevices = await fetchDevicesViaEdge(saved.user_id);
+
+        const duplicate = allDevices.find((d) => {
+          const did = d.id || d.device_id;
+          const isSameDevice = !!did && did === deviceId;
+          if (isSameDevice) return false;
+
+          const type = (d.device_type || "").toString().toLowerCase();
+          const isComputer = ["laptop", "desktop", "notebook"].includes(type);
+          if (!isComputer) return false;
+
+          const candidate = (d.name || d.device_name || "").toString().trim().toLowerCase();
+          return candidate === normalized;
+        });
+
+        if (duplicate) {
+          toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
+          setIsSaving(false);
+          return;
+        }
+      }
+
       if (deviceId) {
+        // ✅ 현재 노트북 1대만 이름 변경 (다른 기기는 절대 덮어쓰지 않음)
         await updateDeviceViaEdge(deviceId, { name: trimmed });
 
-        // 같은 user_id의 모든 기기 이름도 동기화 (스마트폰 포함)
-        if (saved?.user_id) {
-          const allDevices = await fetchDevicesViaEdge(saved.user_id);
-          for (const d of allDevices) {
-            const did = d.id || d.device_id;
-            if (did && did !== deviceId) {
-              updateDeviceViaEdge(did, { name: trimmed }).catch(() => {});
-            }
-          }
-        }
-
-        // 공유 DB에도 이름 동기화 (스마트폰이 공유 DB를 바라보므로)
+        // 공유 DB의 동일 기기(매핑된 sharedId)만 동기화
         const sharedId = await resolveSharedDeviceId(
           deviceId,
           saved?.user_id,
@@ -136,33 +151,16 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
         const sharedOk = await syncSharedName(sharedId, trimmed);
 
-        // 공유 DB의 모든 기기도 동기화
-        if (saved?.user_id) {
-          try {
-            const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-              body: JSON.stringify({ user_id: saved.user_id }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              const sharedDevices = (data.devices || data || []) as Array<Record<string, any>>;
-              for (const sd of sharedDevices) {
-                if (sd.id && sd.id !== sharedId) {
-                  syncSharedName(sd.id, trimmed).catch(() => {});
-                }
-              }
-            }
-          } catch {}
-        }
-
-        // 실시간 브로드캐스트로 스마트폰에 이름 변경 알림
+        // 실시간 브로드캐스트: 대상 기기 식별자 포함 (스마트폰에서 다중 노트북 구분 가능)
         if (saved?.user_id) {
           supabaseShared.channel(`user-commands-${saved.user_id}`).send({
             type: "broadcast",
             event: "command",
             payload: {
               type: "name_changed",
+              target_device_id: deviceId,
+              target_shared_device_id: sharedId,
+              old_name: deviceName,
               new_name: trimmed,
               timestamp: new Date().toISOString(),
             },
