@@ -93,16 +93,28 @@ interface UseStealRecoveryOptions {
   userId?: string;
   isAlarming: boolean;
   onRecoveryTriggered?: () => void;
+  /** 브라우저 새로고침/재실행 시 경보 상태가 남아있으면 호출 */
+  onAlarmRestore?: (state: StolenState) => void;
 }
 
-export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTriggered }: UseStealRecoveryOptions) {
+export function useStealRecovery({ deviceId, userId, isAlarming, onRecoveryTriggered, onAlarmRestore }: UseStealRecoveryOptions) {
   const trackingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const trackingStepRef = useRef(0); // 지수 백오프 단계
   const isRecoveringRef = useRef(false);
   const deviceIdRef = useRef(deviceId);
   deviceIdRef.current = deviceId;
 
-  // 네트워크 끊김 감지 → stolen state 기록
+  // 🔄 마운트 시 경보 복원: 브라우저 새로고침/재실행 후에도 경보 자동 재개
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    const stolenState = getStolenState();
+    if (stolenState?.isActive) {
+      restoredRef.current = true;
+      console.log("[StealRecovery] 🔄 Browser restarted with active alarm — restoring alert!");
+      onAlarmRestore?.(stolenState);
+    }
+  }, [onAlarmRestore]);
   useEffect(() => {
     if (!isAlarming) return;
 

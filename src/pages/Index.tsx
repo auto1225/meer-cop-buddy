@@ -401,6 +401,12 @@ const Index = ({ onExpired }: IndexProps) => {
       console.log("[Index] 🔄 Steal recovery triggered — alarm re-activated");
       startAlarm();
     },
+    onAlarmRestore: (state) => {
+      console.log("[Index] 🔄 Browser restarted — restoring alarm from stolen state:", state.alertEventType);
+      setCurrentEventType(state.alertEventType);
+      isAlertActiveRef.current = true;
+      startAlarm();
+    },
   });
 
   // Listen for settings changes from smartphone via metadata
