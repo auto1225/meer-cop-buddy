@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, User, HelpCircle, LogOut, Key, UserCircle } from "lucide-react";
+import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
@@ -56,7 +56,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             onClick={onClose}
             className="text-white/80 hover:bg-white/15 h-8 w-8 rounded-xl"
           >
-            <X className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
           </Button>
         </div>
 
