@@ -113,7 +113,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       const saved = getSavedAuth();
 
       if (deviceId) {
-        await updateDeviceViaEdge(deviceId, { name: trimmed, device_name: trimmed });
+        await updateDeviceViaEdge(deviceId, { name: trimmed });
 
         // 같은 user_id의 모든 기기 이름도 동기화 (스마트폰 포함)
         if (saved?.user_id) {
@@ -121,7 +121,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
           for (const d of allDevices) {
             const did = d.id || d.device_id;
             if (did && did !== deviceId) {
-              updateDeviceViaEdge(did, { name: trimmed, device_name: trimmed }).catch(() => {});
+              updateDeviceViaEdge(did, { name: trimmed }).catch(() => {});
             }
           }
         }
