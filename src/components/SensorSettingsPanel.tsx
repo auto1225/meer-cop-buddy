@@ -47,7 +47,7 @@ const SENSOR_ICONS: Record<string, React.ElementType> = {
 };
 
 const SENSOR_KEYS: (keyof SensorToggles)[] = [
-  "cameraMotion", "lid", "microphone", "keyboard", "mouse", "usb", "power",
+  "cameraMotion", "lid", /* "microphone", */ "keyboard", "mouse", "usb", "power",
 ];
 
 function CustomSoundUploader({ onSoundAdded }: { onSoundAdded: (sound: CustomAlarmSound) => void }) {
