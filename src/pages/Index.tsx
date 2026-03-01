@@ -757,6 +757,7 @@ const Index = ({ onExpired }: IndexProps) => {
         setCurrentEventType(undefined);
         setShowPinKeypad(false);
         markAlertCleared();
+        isAlertActiveRef.current = false; // ✅ 다음 감지 허용
       });
 
       channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
