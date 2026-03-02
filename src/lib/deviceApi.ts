@@ -169,10 +169,11 @@ export async function registerDeviceViaEdge(
     user_id: string;
     device_name: string;
     device_type: string;
+    serial_key?: string;
   },
   options?: { throwOnFailure?: boolean }
 ): Promise<DeviceRow | null> {
-  const body = {
+  const body: Record<string, unknown> = {
     user_id: params.user_id,
     name: params.device_name,
     device_name: params.device_name,
@@ -180,6 +181,9 @@ export async function registerDeviceViaEdge(
     status: "offline",
     metadata: {},
   };
+  if (params.serial_key) {
+    body.serial_key = params.serial_key;
+  }
 
   // 1) 로컬 Lovable Cloud 우선 (이 프로젝트의 DB)
   let localResult: DeviceRow | null = null;

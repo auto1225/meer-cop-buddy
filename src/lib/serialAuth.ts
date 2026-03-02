@@ -79,6 +79,7 @@ export async function validateSerial(
       user_id: userId,
       device_name: deviceName,
       device_type: "laptop",
+      serial_key: key,
     });
     console.log("[serialAuth] ✅ 공유 DB 기기 등록 완료:", registered);
   } catch (err) {
@@ -128,7 +129,8 @@ export function isSerialAuthenticated(): boolean {
 async function ensureSharedDeviceRegistration(
   userId: string,
   deviceName: string,
-  currentDeviceId: string
+  currentDeviceId: string,
+  serialKey?: string
 ): Promise<string> {
   if (!userId) return currentDeviceId;
 
@@ -147,6 +149,7 @@ async function ensureSharedDeviceRegistration(
       user_id: userId,
       device_name: deviceName || "Laptop1",
       device_type: "laptop",
+      serial_key: serialKey,
     });
 
     console.log("[serialAuth] ✅ 재검증 중 공유 DB 기기 등록 결과:", registered);
@@ -169,7 +172,8 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
     const ensuredDeviceId = await ensureSharedDeviceRegistration(
       s.user_id || saved.user_id,
       saved.device_name || s.device_name || "Laptop1",
-      s.id || s.device_id || saved.device_id
+      s.id || s.device_id || saved.device_id,
+      saved.serial_key
     );
 
     const normalizedDeviceId =
