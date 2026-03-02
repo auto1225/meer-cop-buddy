@@ -80,12 +80,15 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
     setError("");
 
     try {
+      const authData = await validateSerial(serialKey, deviceName.trim());
+
+      // 로그인 성공 후에만 기억하기 데이터 저장/삭제
       if (rememberMe) {
         localStorage.setItem(REMEMBER_KEY, JSON.stringify({ parts, deviceName: deviceName.trim() }));
       } else {
         localStorage.removeItem(REMEMBER_KEY);
       }
-      const authData = await validateSerial(serialKey, deviceName.trim());
+
       onSuccess(authData.device_id, authData.user_id);
     } catch (err: any) {
       setError(err.message || t("auth.authFailed"));
