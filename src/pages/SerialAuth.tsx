@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { validateSerial, clearAuth } from "@/lib/serialAuth";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LogOut } from "lucide-react";
 import {
@@ -27,7 +26,6 @@ interface SerialAuthProps {
 
 function SerialAuthInner({ onSuccess }: SerialAuthProps) {
   const [parts, setParts] = useState(["", "", ""]);
-  const [deviceName, setDeviceName] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,9 +37,8 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
     try {
       const saved = localStorage.getItem(REMEMBER_KEY);
       if (saved) {
-        const { parts: savedParts, deviceName: savedName } = JSON.parse(saved);
+        const { parts: savedParts } = JSON.parse(saved);
         if (savedParts) setParts(savedParts);
-        if (savedName) setDeviceName(savedName);
         setRememberMe(true);
       }
     } catch {}
@@ -71,20 +68,16 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
       setError(t("auth.serialError"));
       return;
     }
-    if (!deviceName.trim()) {
-      setError(t("auth.nameError"));
-      return;
-    }
 
     setLoading(true);
     setError("");
 
     try {
-      const authData = await validateSerial(serialKey, deviceName.trim());
+      const authData = await validateSerial(serialKey);
 
       // 로그인 성공 후에만 기억하기 데이터 저장/삭제
       if (rememberMe) {
-        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ parts, deviceName: deviceName.trim() }));
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ parts }));
       } else {
         localStorage.removeItem(REMEMBER_KEY);
       }
@@ -103,7 +96,6 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
     clearAuth();
     localStorage.removeItem(REMEMBER_KEY);
     setParts(["", "", ""]);
-    setDeviceName("");
     setRememberMe(false);
     setShowExitDialog(false);
     window.close();
@@ -130,15 +122,7 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
             <img src={meercopLogo} alt="MeerCOP" className="h-14 object-contain" />
           </div>
 
-          <p className="text-white/80 text-xs text-center mb-4">{t("auth.checkSerial")}</p>
-
-          <Input
-            value={deviceName}
-            onChange={(e) => setDeviceName(e.target.value)}
-            placeholder={t("auth.deviceName")}
-            disabled={loading}
-            className="w-full max-w-[240px] h-9 mb-3 backdrop-blur-xl bg-white/15 border border-white/25 rounded-full text-white placeholder:text-white/40 text-center text-sm font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
-          />
+          <p className="text-white/80 text-xs text-center mb-6">{t("auth.checkSerial")}</p>
 
           <div className="flex items-center gap-2 mb-4">
             {parts.map((part, i) => (
