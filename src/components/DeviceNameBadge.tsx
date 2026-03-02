@@ -320,15 +320,26 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     );
   }
 
+  const isDefaultName = !deviceName || /^(Laptop\d*|My Laptop|Unknown)$/i.test(deviceName.trim());
+
   return (
-    <div className="flex justify-center py-1 mt-4">
+    <div className="flex flex-col items-center py-1 mt-4 gap-1">
       <button
         onClick={() => setIsEditing(true)}
-        className="flex items-center gap-1.5 backdrop-blur-xl bg-white/15 border border-white/25 hover:bg-white/25 transition-colors px-3 py-1.5 rounded-full shadow-lg"
+        className={`flex items-center gap-1.5 backdrop-blur-xl border hover:bg-white/25 transition-colors px-3 py-1.5 rounded-full shadow-lg ${
+          isDefaultName
+            ? "bg-amber-500/20 border-amber-400/40 animate-pulse"
+            : "bg-white/15 border-white/25"
+        }`}
       >
         <span className="text-white font-extrabold text-[11px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{deviceName}</span>
         <Pencil className="h-3 w-3 text-white/70" />
       </button>
+      {isDefaultName && (
+        <p className="text-[10px] text-amber-300/90 font-semibold text-center px-4 animate-fade-in">
+          {t("device.nameRequired")}
+        </p>
+      )}
     </div>
   );
 }

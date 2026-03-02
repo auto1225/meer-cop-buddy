@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Имя устройства изменено.",
   "device.changeFailed": "Ошибка изменения",
   "device.changeFailedDesc": "Не удалось изменить имя.",
+  "device.nameRequired": "📲 Введите имя устройства для подключения к смартфону",
   "lock.title": "🔒 Устройство заблокировано",
   "lock.desc": "Удалённая блокировка активирована со смартфона.",
   "message.default": "Сообщение получено.",

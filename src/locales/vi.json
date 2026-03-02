@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Tên thiết bị đã được thay đổi.",
   "device.changeFailed": "Đổi tên thất bại",
   "device.changeFailedDesc": "Không thể thay đổi tên.",
+  "device.nameRequired": "📲 Nhập tên thiết bị để kết nối với điện thoại",
   "lock.title": "🔒 Thiết bị đã khóa",
   "lock.desc": "Khóa từ xa đã được kích hoạt từ điện thoại.",
   "message.default": "Đã nhận tin nhắn.",

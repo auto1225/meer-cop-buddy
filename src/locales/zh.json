@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "设备名称已更改。",
   "device.changeFailed": "更改失败",
   "device.changeFailedDesc": "名称更改失败。",
+  "device.nameRequired": "📲 请输入设备名称以连接智能手机",
   "lock.title": "🔒 设备锁定",
   "lock.desc": "智能手机已启用远程锁定。",
   "message.default": "收到消息。",

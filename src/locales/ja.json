@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "デバイス名が変更されました。",
   "device.changeFailed": "変更失敗",
   "device.changeFailedDesc": "名前の変更に失敗しました。",
+  "device.nameRequired": "📲 スマートフォンと接続するにはデバイス名を入力してください",
   "lock.title": "🔒 デバイスロック",
   "lock.desc": "スマートフォンからリモートロックが有効になりました。",
   "message.default": "メッセージが届きました。",

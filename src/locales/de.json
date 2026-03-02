@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Gerätename wurde geändert.",
   "device.changeFailed": "Änderung fehlgeschlagen",
   "device.changeFailedDesc": "Name konnte nicht geändert werden.",
+  "device.nameRequired": "📲 Geben Sie einen Gerätenamen ein, um sich mit Ihrem Smartphone zu verbinden",
   "lock.title": "🔒 Gerät gesperrt",
   "lock.desc": "Fernsperre vom Smartphone aktiviert.",
   "message.default": "Nachricht empfangen.",

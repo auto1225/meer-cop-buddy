@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "ชื่ออุปกรณ์ถูกเปลี่ยนแล้ว",
   "device.changeFailed": "เปลี่ยนไม่สำเร็จ",
   "device.changeFailedDesc": "ไม่สามารถเปลี่ยนชื่อได้",
+  "device.nameRequired": "📲 กรอกชื่ออุปกรณ์เพื่อเชื่อมต่อกับสมาร์ทโฟน",
   "lock.title": "🔒 ล็อกอุปกรณ์",
   "lock.desc": "ล็อกระยะไกลถูกเปิดใช้จากสมาร์ทโฟน",
   "message.default": "ได้รับข้อความ",

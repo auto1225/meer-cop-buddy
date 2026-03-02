@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "기기 이름이 변경되었습니다.",
   "device.changeFailed": "변경 실패",
   "device.changeFailedDesc": "이름 변경에 실패했습니다.",
+  "device.nameRequired": "📲 기기 이름을 입력해야 스마트폰과 연결됩니다",
   "lock.title": "🔒 기기 잠금",
   "lock.desc": "스마트폰에서 원격 잠금이 활성화되었습니다.",
   "message.default": "메시지가 도착했습니다.",

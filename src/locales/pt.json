@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "O nome do dispositivo foi alterado.",
   "device.changeFailed": "Falha na alteração",
   "device.changeFailedDesc": "Não foi possível alterar o nome.",
+  "device.nameRequired": "📲 Digite um nome de dispositivo para conectar ao smartphone",
   "lock.title": "🔒 Dispositivo bloqueado",
   "lock.desc": "Bloqueio remoto ativado pelo smartphone.",
   "message.default": "Mensagem recebida.",

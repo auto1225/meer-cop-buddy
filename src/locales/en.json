@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Device name has been changed.",
   "device.changeFailed": "Change Failed",
   "device.changeFailedDesc": "Failed to change device name.",
+  "device.nameRequired": "📲 Enter a device name to connect with your smartphone",
   "lock.title": "🔒 Device Locked",
   "lock.desc": "Remote lock activated from smartphone.",
   "message.default": "Message received.",

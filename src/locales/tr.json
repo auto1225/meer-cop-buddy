@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Cihaz adı değiştirildi.",
   "device.changeFailed": "Değiştirme başarısız",
   "device.changeFailedDesc": "Ad değiştirilemedi.",
+  "device.nameRequired": "📲 Akıllı telefonunuza bağlanmak için cihaz adı girin",
   "lock.title": "🔒 Cihaz kilitli",
   "lock.desc": "Akıllı telefondan uzaktan kilit etkinleştirildi.",
   "message.default": "Mesaj alındı.",
