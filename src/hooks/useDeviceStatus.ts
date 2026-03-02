@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { getSavedAuth } from "@/lib/serialAuth";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { RealtimeChannel } from "@supabase/supabase-js";
@@ -25,6 +26,7 @@ interface PresenceState {
   battery_level: number | null;
   is_charging: boolean;
   last_seen_at: string;
+  serial_key?: string;
 }
 
 export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, userId?: string) {
@@ -60,6 +62,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     // 카메라 상태는 커스텀 이벤트로부터 최신 값 참조
     const isCameraConnected = status.isCameraAvailable;
 
+    const savedAuth = getSavedAuth();
     const presenceState: PresenceState = {
       device_id: currentDeviceId,
       status: "online",
@@ -68,6 +71,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       battery_level: batteryLevel,
       is_charging: isCharging,
       last_seen_at: new Date().toISOString(),
+      ...(savedAuth?.serial_key ? { serial_key: savedAuth.serial_key } : {}),
     };
 
     try {
@@ -184,6 +188,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
                   // Battery API 미지원
                 }
               }
+              const initAuth = getSavedAuth();
               await channel.track({
                 device_id: deviceId,
                 status: "online",
@@ -192,6 +197,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
                 battery_level: batteryLevel,
                 is_charging: isCharging,
                 last_seen_at: new Date().toISOString(),
+                ...(initAuth?.serial_key ? { serial_key: initAuth.serial_key } : {}),
               });
               console.log("[DeviceStatus] Presence synced (battery:", batteryLevel, "%)");
             } catch (e) {
@@ -363,6 +369,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
             } catch { /* ignore */ }
           }
           try {
+            const camAuth = getSavedAuth();
             await channelRef.current?.track({
               device_id: deviceIdRef.current,
               status: "online",
@@ -371,6 +378,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
               battery_level: batteryLevel,
               is_charging: isCharging,
               last_seen_at: new Date().toISOString(),
+              ...(camAuth?.serial_key ? { serial_key: camAuth.serial_key } : {}),
             });
             console.log("[DeviceStatus] Presence re-synced with camera:", isConnected);
           } catch (e) {
