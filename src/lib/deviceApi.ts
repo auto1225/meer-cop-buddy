@@ -184,7 +184,7 @@ export async function registerDeviceViaEdge(
     name: params.device_name,
     device_name: params.device_name,
     device_type: params.device_type,
-    status: "offline",
+    status: "online",
     metadata,
   };
   if (params.serial_key) {

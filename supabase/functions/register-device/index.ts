@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
       const updateFields: Record<string, unknown> = {
         last_seen_at: new Date().toISOString(),
         user_id: finalUserId,
+        status: "online",
       };
       if (isDefaultName || (finalName !== "My Laptop" && finalName !== "My Smartphone" && finalName !== existingName)) {
         updateFields.device_name = isDefaultName && finalName !== "My Laptop" && finalName !== "My Smartphone" ? finalName : preservedName;
@@ -105,7 +106,7 @@ Deno.serve(async (req) => {
           device_name: finalName,
           name: finalName,
           device_type: finalType,
-          status: status || "offline",
+          status: "online",
           is_monitoring: false,
           is_camera_connected: false,
           is_network_connected: false,
