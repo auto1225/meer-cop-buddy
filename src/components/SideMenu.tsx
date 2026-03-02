@@ -28,7 +28,6 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
       // proceed anyway
     }
     onClose();
-    window.location.reload();
   };
 
   if (!isOpen) return null;

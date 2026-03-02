@@ -53,7 +53,7 @@ async function callRegisterDevice(serialKey: string, deviceName: string) {
 // 시리얼 넘버 검증 & 기기 등록
 export async function validateSerial(
   serialKey: string,
-  deviceName: string = "My Laptop"
+  deviceName: string = "Laptop"
 ): Promise<SerialAuthData> {
   const key = serialKey.trim().toUpperCase();
 
