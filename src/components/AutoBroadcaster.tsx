@@ -3,6 +3,7 @@ import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "@/lib/supabase";
 import { setSharedDeviceId as setSharedDeviceIdGlobal } from "@/lib/sharedDeviceIdMap";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
+import { getVideoConstraints } from "@/lib/webrtc/qualityPresets";
 
 interface AutoBroadcasterProps {
   deviceId: string | undefined;
@@ -112,6 +113,19 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     try {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera (attempt ${retryCountRef.current + 1}) signalingId=${sharedDeviceIdRef.current}`);
       
+      // DB에서 streaming_quality 메타데이터 읽기
+      let videoConstraints: MediaTrackConstraints = getVideoConstraints(); // 기본값 vga
+      try {
+        const localDevice = await fetchDeviceViaEdge(deviceId!, userId);
+        const quality = (localDevice?.metadata as any)?.streaming_quality;
+        if (quality) {
+          videoConstraints = getVideoConstraints(quality);
+          console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎛️ Quality from DB: ${quality}`, videoConstraints);
+        }
+      } catch (e) {
+        console.warn(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ Failed to read quality, using default`);
+      }
+
       // 비디오 트랙이 포함될 때까지 재시도 (카메라 하드웨어 초기화 대기)
       const MAX_VIDEO_RETRIES = 5;
       const VIDEO_RETRY_DELAY = 2000;
@@ -119,7 +133,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       
       for (let attempt = 0; attempt < MAX_VIDEO_RETRIES; attempt++) {
         const acquired = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 15, max: 30 }, facingMode: "user" },
+          video: videoConstraints,
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
         
@@ -185,7 +199,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     } finally {
       isStartingRef.current = false;
     }
-  }, [deviceId, startBroadcasting, stopBroadcasting, clearRetryTimer]);
+  }, [deviceId, userId, startBroadcasting, stopBroadcasting, clearRetryTimer]);
 
   const scheduleRetry = useCallback(() => {
     clearRetryTimer();
