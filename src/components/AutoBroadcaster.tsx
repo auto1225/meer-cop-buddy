@@ -410,6 +410,48 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     return () => window.removeEventListener("broadcast-needs-restart", handleNeedsRestart);
   }, [deviceId, stopCameraAndBroadcast, startCameraAndBroadcast]);
 
+  // ── settings_updated 수신 시 화질 변경 감지 → 스트림 재시작 ──
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabaseShared.channel(`auto-broadcaster-commands-${userId}`);
+    channel
+      .on("broadcast", { event: "settings_updated" }, async ({ payload }: any) => {
+        const quality = payload?.settings?.streaming_quality;
+        if (!quality) return;
+        console.log(`[AutoBroadcaster] 🎬 Quality changed to "${quality}" via settings_updated`);
+        if (!isBroadcastingRef.current) {
+          console.log(`[AutoBroadcaster] ⏭️ Not broadcasting, will apply on next start`);
+          return;
+        }
+        // 스트림 완전 재시작으로 새 해상도 적용
+        await stopCameraAndBroadcast();
+        await new Promise(r => setTimeout(r, 1000));
+        if (isStreamingRequestedRef.current) {
+          retryCountRef.current = 0;
+          startCameraAndBroadcast();
+        }
+      })
+      .on("broadcast", { event: "command" }, async ({ payload }: any) => {
+        if (payload?.type !== "settings_updated") return;
+        const quality = payload?.settings?.streaming_quality;
+        if (!quality) return;
+        console.log(`[AutoBroadcaster] 🎬 Quality changed to "${quality}" via command wrapper`);
+        if (!isBroadcastingRef.current) return;
+        await stopCameraAndBroadcast();
+        await new Promise(r => setTimeout(r, 1000));
+        if (isStreamingRequestedRef.current) {
+          retryCountRef.current = 0;
+          startCameraAndBroadcast();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabaseShared.removeChannel(channel);
+    };
+  }, [userId, stopCameraAndBroadcast, startCameraAndBroadcast]);
+
   // React to streaming request + signalingDeviceId changes
   useEffect(() => {
     console.log(`[AutoBroadcaster] 📊 State: streaming=${isStreamingRequested} broadcasting=${isBroadcasting} signalingId=${signalingDeviceId}`);
