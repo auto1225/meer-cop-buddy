@@ -113,14 +113,35 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     try {
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎥 Starting camera (attempt ${retryCountRef.current + 1}) signalingId=${sharedDeviceIdRef.current}`);
       
-      // DB에서 streaming_quality 메타데이터 읽기
+      // 공유 DB에서 streaming_quality 메타데이터 읽기 (스마트폰이 공유 DB에 저장함)
       let videoConstraints: MediaTrackConstraints = getVideoConstraints(); // 기본값 vga
       try {
-        const localDevice = await fetchDeviceViaEdge(deviceId!, userId);
-        const quality = (localDevice?.metadata as any)?.streaming_quality;
-        if (quality) {
-          videoConstraints = getVideoConstraints(quality);
-          console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎛️ Quality from DB: ${quality}`, videoConstraints);
+        // 1차: 공유 DB에서 읽기 (streaming_quality는 여기에 저장됨)
+        if (sharedDeviceIdRef.current) {
+          const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+            body: JSON.stringify({ user_id: userId }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const devices = data.devices || data || [];
+            const sharedDevice = devices.find((d: any) => d.id === sharedDeviceIdRef.current);
+            const quality = (sharedDevice?.metadata as any)?.streaming_quality;
+            if (quality) {
+              videoConstraints = getVideoConstraints(quality);
+              console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎛️ Quality from shared DB: ${quality}`, videoConstraints);
+            }
+          }
+        }
+        // 2차 폴백: 로컬 DB에서 읽기
+        if (videoConstraints === getVideoConstraints()) {
+          const localDevice = await fetchDeviceViaEdge(deviceId!, userId);
+          const quality = (localDevice?.metadata as any)?.streaming_quality;
+          if (quality) {
+            videoConstraints = getVideoConstraints(quality);
+            console.log(`[AutoBroadcaster:${instanceIdRef.current}] 🎛️ Quality from local DB: ${quality}`, videoConstraints);
+          }
         }
       } catch (e) {
         console.warn(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ Failed to read quality, using default`);
@@ -414,7 +435,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
   useEffect(() => {
     if (!userId) return;
 
-    const channel = supabaseShared.channel(`auto-broadcaster-commands-${userId}`);
+    const channel = supabaseShared.channel(`user-commands-quality-${userId}`);
     channel
       .on("broadcast", { event: "settings_updated" }, async ({ payload }: any) => {
         const quality = payload?.settings?.streaming_quality;
