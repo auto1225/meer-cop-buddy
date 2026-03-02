@@ -25,6 +25,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 10;
   const sharedDeviceIdRef = useRef<string>("");
+  const isQualityRestartingRef = useRef(false);
 
   // Sync from parent prop when available
   useEffect(() => {
@@ -455,12 +456,14 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
           console.log(`[AutoBroadcaster] ⏭️ Not broadcasting, will apply on next start`);
           return;
         }
+        isQualityRestartingRef.current = true;
         await stopCameraAndBroadcast();
         await new Promise(r => setTimeout(r, 1000));
         if (isStreamingRequestedRef.current) {
           retryCountRef.current = 0;
-          startCameraAndBroadcast();
+          await startCameraAndBroadcast();
         }
+        isQualityRestartingRef.current = false;
       })
       .on("broadcast", { event: "command" }, async ({ payload }: any) => {
         if (payload?.type !== "settings_updated") return;
@@ -468,12 +471,14 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
         if (!quality || !shouldHandleQualityUpdate(payload)) return;
         console.log(`[AutoBroadcaster] 🎬 Quality changed to "${quality}" via command wrapper`);
         if (!isBroadcastingRef.current) return;
+        isQualityRestartingRef.current = true;
         await stopCameraAndBroadcast();
         await new Promise(r => setTimeout(r, 1000));
         if (isStreamingRequestedRef.current) {
           retryCountRef.current = 0;
-          startCameraAndBroadcast();
+          await startCameraAndBroadcast();
         }
+        isQualityRestartingRef.current = false;
       })
       .subscribe();
 
@@ -484,6 +489,11 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
 
   // React to streaming request + signalingDeviceId changes
   useEffect(() => {
+    // 화질 변경으로 인한 재시작 중에는 스트리밍 상태 변화 무시
+    if (isQualityRestartingRef.current) {
+      console.log(`[AutoBroadcaster] 📊 State: streaming=${isStreamingRequested} broadcasting=${isBroadcasting} (quality restart in progress, skipping)`);
+      return;
+    }
     console.log(`[AutoBroadcaster] 📊 State: streaming=${isStreamingRequested} broadcasting=${isBroadcasting} signalingId=${signalingDeviceId}`);
     if (isStreamingRequested && !isBroadcasting) {
       if (signalingDeviceId) {
