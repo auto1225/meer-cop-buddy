@@ -281,23 +281,39 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     // No match found — register in shared DB
     console.log(`[AutoBroadcaster] ⚠️ No shared device found, registering...`);
     try {
+      // 시리얼 키를 metadata에서 추출하거나 localStorage에서 가져오기
+      const serialKey = (localDevice?.metadata as any)?.serial_key || (() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem("meercop_serial_auth") || "{}");
+          return saved.serial_key || "";
+        } catch { return ""; }
+      })();
+
+      const registerBody: Record<string, unknown> = {
+        user_id: localDevice?.user_id,
+        name: localName,
+        device_name: localName,
+        device_type: localType,
+        status: "online",
+        metadata: {},
+      };
+      if (serialKey) {
+        registerBody.serial_key = serialKey;
+      }
+
       const res = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-        body: JSON.stringify({
-          user_id: localDevice?.user_id,
-          name: localName,
-          device_name: localName,
-          device_type: localType,
-          status: "online",
-          metadata: {},
-        }),
+        body: JSON.stringify(registerBody),
       });
       if (res.ok) {
         const data = await res.json();
         const device = data.device || data;
         console.log(`[AutoBroadcaster] ✅ Registered in shared DB: ${device.id}`);
         return { id: device.id, is_streaming_requested: device.is_streaming_requested ?? false };
+      } else {
+        const errText = await res.text().catch(() => "");
+        console.warn(`[AutoBroadcaster] ⚠️ Shared register failed: ${res.status} ${errText}`);
       }
     } catch (e) {
       console.warn("[AutoBroadcaster] Shared register failed:", e);
