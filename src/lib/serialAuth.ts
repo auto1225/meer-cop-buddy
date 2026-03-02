@@ -149,12 +149,13 @@ async function ensureSharedDeviceRegistration(
       return exists.id || currentDeviceId;
     }
 
-    // 로컬 Edge Function으로 등록 시도
+    // 로컬 Edge Function으로 등록 시도 (재검증 플래그 포함)
     const registered = await registerDeviceViaEdge({
       user_id: userId,
       device_name: deviceName || "Laptop1",
       device_type: "laptop",
       serial_key: serialKey,
+      is_revalidation: true,
     });
 
     console.log("[serialAuth] ✅ 재검증 중 공유 DB 기기 등록 결과:", registered);

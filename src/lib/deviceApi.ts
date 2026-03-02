@@ -170,6 +170,7 @@ export async function registerDeviceViaEdge(
     device_name: string;
     device_type: string;
     serial_key?: string;
+    is_revalidation?: boolean;
   },
   options?: { throwOnFailure?: boolean }
 ): Promise<DeviceRow | null> {
@@ -188,6 +189,9 @@ export async function registerDeviceViaEdge(
   };
   if (params.serial_key) {
     body.serial_key = params.serial_key;
+  }
+  if (params.is_revalidation) {
+    body.is_revalidation = true;
   }
 
   // 1) 로컬 Lovable Cloud 우선 (이 프로젝트의 DB)
