@@ -20,49 +20,68 @@ serve(async (req) => {
       );
     }
 
-    // Create a temporary TURN credential (expires in 1 hour)
-    const createRes = await fetch(
+    // First try to list existing credentials
+    const listRes = await fetch(
       `https://meercop.metered.live/api/v1/turn/credential?secretKey=${secretKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expiryInSeconds: 3600 }),
-      }
+      { method: "GET" }
     );
 
-    if (!createRes.ok) {
-      const text = await createRes.text();
-      console.error("[get-turn-credentials] Create credential error:", createRes.status, text);
-      return new Response(
-        JSON.stringify({ error: "Failed to create TURN credential", status: createRes.status }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let cred: { username: string; password: string } | null = null;
+
+    if (listRes.ok) {
+      const credentials = await listRes.json();
+      if (Array.isArray(credentials) && credentials.length > 0) {
+        // Use the most recent existing credential
+        cred = credentials[credentials.length - 1];
+        console.log("[get-turn-credentials] Reusing existing credential for user:", cred!.username);
+      }
     }
 
-    const cred = await createRes.json();
-    console.log("[get-turn-credentials] Created credential for user:", cred.username);
+    // If no existing credentials, try to create one
+    if (!cred) {
+      const createRes = await fetch(
+        `https://meercop.metered.live/api/v1/turn/credential?secretKey=${secretKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expiryInSeconds: 3600 }),
+        }
+      );
+
+      if (!createRes.ok) {
+        const text = await createRes.text();
+        console.error("[get-turn-credentials] Create credential error:", createRes.status, text);
+        return new Response(
+          JSON.stringify({ error: "Failed to create TURN credential", status: createRes.status }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      cred = await createRes.json();
+      console.log("[get-turn-credentials] Created new credential for user:", cred!.username);
+    }
 
     // Return ICE servers in RTCPeerConnection format
     const iceServers = [
       {
         urls: "turn:standard.relay.metered.ca:80",
-        username: cred.username,
-        credential: cred.password,
+        username: cred!.username,
+        credential: cred!.password,
       },
       {
         urls: "turn:standard.relay.metered.ca:80?transport=tcp",
-        username: cred.username,
-        credential: cred.password,
+        username: cred!.username,
+        credential: cred!.password,
       },
       {
         urls: "turn:standard.relay.metered.ca:443",
-        username: cred.username,
-        credential: cred.password,
+        username: cred!.username,
+        credential: cred!.password,
       },
       {
         urls: "turns:standard.relay.metered.ca:443?transport=tcp",
-        username: cred.username,
-        credential: cred.password,
+        username: cred!.username,
+        credential: cred!.password,
       },
     ];
 
