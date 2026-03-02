@@ -35,20 +35,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ── 시리얼 중복 사용 검증: 같은 시리얼로 online 상태인 다른 기기가 있으면 거부 ──
+    // ── 시리얼 중복 사용 검증: 같은 시리얼로 online 상태인 *다른* 기기가 있으면 거부 ──
+    // 같은 compositeDeviceId는 동일 기기 재접속이므로 허용
     if (serial_key) {
-      const otherCompositeId = compositeDeviceId;
-      const { data: onlineDevices } = await supabase
+      const { data: allOnline } = await supabase
         .from("devices")
-        .select("id, device_id, device_name, name, status")
-        .eq("device_id", otherCompositeId)
+        .select("id, device_id, device_name, name, status, metadata")
         .eq("status", "online")
-        .limit(1);
+        .neq("device_id", compositeDeviceId);
 
-      // 같은 composite ID로 online인 기기가 있으면 → 이미 사용 중
-      if (onlineDevices && onlineDevices.length > 0) {
-        const activeName = onlineDevices[0].device_name || onlineDevices[0].name || "Unknown";
-        console.log(`[register-device] ❌ Serial ${serial_key} already in use by online device: ${activeName}`);
+      const conflicting = (allOnline || []).find((d: any) => {
+        const hasSerialInId = d.device_id?.includes(serial_key);
+        const hasSerialInMeta = d.metadata?.serial_key === serial_key;
+        return hasSerialInId || hasSerialInMeta;
+      });
+
+      if (conflicting) {
+        const activeName = conflicting.device_name || conflicting.name || "Unknown";
+        console.log(`[register-device] ❌ Serial ${serial_key} in use by different device: ${activeName} (${conflicting.device_id})`);
         return new Response(
           JSON.stringify({
             error: "serial_in_use",
