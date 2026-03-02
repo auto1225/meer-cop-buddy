@@ -18,8 +18,15 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const { t } = useTranslation();
 
-  const handleSignOut = () => {
-    signOut();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      // proceed anyway
+    }
     onClose();
     window.location.reload();
   };
@@ -105,10 +112,11 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
           </button>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-500/20 rounded-xl transition-colors text-red-300"
+            disabled={isSigningOut}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-500/20 rounded-xl transition-colors text-red-300 disabled:opacity-50"
           >
             <LogOut className="w-5 h-5" />
-            <span className="text-sm font-bold">{t("menu.logout")}</span>
+            <span className="text-sm font-bold">{isSigningOut ? "..." : t("menu.logout")}</span>
           </button>
         </div>
       </div>

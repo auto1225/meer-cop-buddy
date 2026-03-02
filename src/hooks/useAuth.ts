@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getSavedAuth, clearAuth, revalidateSerial, SerialAuthData } from "@/lib/serialAuth";
 import { startWorkerInterval, stopWorkerInterval } from "@/lib/workerTimer";
+import { updateDeviceViaEdge } from "@/lib/deviceApi";
+import { supabase } from "@/integrations/supabase/client";
 
 const REVALIDATION_INTERVAL = 60 * 60 * 1000; // 1시간
 const REVALIDATION_TIMER_ID = "serial-revalidation";
@@ -58,7 +60,60 @@ export function useAuth() {
     return () => window.removeEventListener("storage", handleStorage);
   }, [checkExpiration]);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    const currentAuth = getSavedAuth();
+    
+    // 1) 스마트폰에 로그아웃 브로드캐스트 전송
+    if (currentAuth?.user_id) {
+      const payload = {
+        device_id: currentAuth.device_id,
+        device_type: "laptop",
+        device_name: currentAuth.device_name,
+        user_id: currentAuth.user_id,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const cmdChannel = supabase.channel(`user-commands-${currentAuth.user_id}`);
+        
+        await new Promise<void>((resolve) => {
+          cmdChannel.subscribe((status) => {
+            if (status === "SUBSCRIBED") {
+              // 두 가지 형식으로 전송 (호환성)
+              Promise.allSettled([
+                cmdChannel.send({ type: "broadcast", event: "device_logout", payload }),
+                cmdChannel.send({ type: "broadcast", event: "command", payload: { type: "device_logout", ...payload } }),
+              ]).then(() => {
+                console.log("[useAuth] ✅ device_logout broadcast sent");
+                setTimeout(() => {
+                  supabase.removeChannel(cmdChannel);
+                  resolve();
+                }, 300); // 전송 완료 대기
+              });
+            } else {
+              // 구독 실패 시에도 진행
+              setTimeout(resolve, 500);
+            }
+          });
+        });
+      } catch (err) {
+        console.warn("[useAuth] ⚠️ Logout broadcast failed:", err);
+      }
+
+      // 2) DB 상태를 offline으로 업데이트
+      try {
+        await updateDeviceViaEdge(currentAuth.device_id, {
+          status: "offline",
+          is_monitoring: false,
+          is_streaming_requested: false,
+        });
+        console.log("[useAuth] ✅ Device set to offline in DB");
+      } catch (err) {
+        console.warn("[useAuth] ⚠️ DB offline update failed:", err);
+      }
+    }
+
+    // 3) 로컬 인증 정보 삭제
     clearAuth();
     stopWorkerInterval(REVALIDATION_TIMER_ID);
     setAuthData(null);
