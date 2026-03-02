@@ -187,6 +187,10 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
         console.warn(`[AutoBroadcaster:${instanceIdRef.current}] ⚠️ No audio track captured!`);
       }
 
+      // 실제 적용된 해상도 로그
+      const actualSettings = stream.getVideoTracks()[0]?.getSettings();
+      console.log(`[AutoBroadcaster:${instanceIdRef.current}] 📐 Actual resolution: ${actualSettings?.width}x${actualSettings?.height} @${actualSettings?.frameRate}fps`);
+
       streamRef.current = stream;
       retryCountRef.current = 0;
       clearRetryTimer();
