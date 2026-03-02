@@ -204,7 +204,12 @@ export async function registerDeviceViaEdge(
       console.log("[deviceApi] ✅ Device registered via local function:", data);
       localResult = (data as any).device || (data as any);
     } else {
-      console.warn("[deviceApi] ⚠️ Local register-device failed:", res.status);
+      const errData = await res.json().catch(() => ({}));
+      // 시리얼 중복 사용 에러는 즉시 throw
+      if (res.status === 409 || (errData as any)?.error === "serial_in_use") {
+        throw new Error((errData as any)?.message || "이 시리얼은 현재 다른 기기에서 사용 중입니다.");
+      }
+      console.warn("[deviceApi] ⚠️ Local register-device failed:", res.status, errData);
     }
   } catch (err) {
     console.warn("[deviceApi] ⚠️ Local register-device network error:", err);

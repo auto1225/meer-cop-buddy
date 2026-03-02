@@ -35,6 +35,31 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // ── 시리얼 중복 사용 검증: 같은 시리얼로 online 상태인 다른 기기가 있으면 거부 ──
+    if (serial_key) {
+      const otherCompositeId = compositeDeviceId;
+      const { data: onlineDevices } = await supabase
+        .from("devices")
+        .select("id, device_id, device_name, name, status")
+        .eq("device_id", otherCompositeId)
+        .eq("status", "online")
+        .limit(1);
+
+      // 같은 composite ID로 online인 기기가 있으면 → 이미 사용 중
+      if (onlineDevices && onlineDevices.length > 0) {
+        const activeName = onlineDevices[0].device_name || onlineDevices[0].name || "Unknown";
+        console.log(`[register-device] ❌ Serial ${serial_key} already in use by online device: ${activeName}`);
+        return new Response(
+          JSON.stringify({
+            error: "serial_in_use",
+            message: `이 시리얼은 현재 다른 기기(${activeName})에서 사용 중입니다. 해당 기기의 연결을 해제한 후 다시 시도해주세요.`,
+            active_device: activeName,
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Check if device already exists for this user + type
     const { data: existing } = await supabase
       .from("devices")

@@ -74,15 +74,20 @@ export async function validateSerial(
   const s = data.serial || data;
   const userId = s.user_id || "";
 
+  let registeredDevice: any = null;
   try {
-    const registered = await registerDeviceViaEdge({
+    registeredDevice = await registerDeviceViaEdge({
       user_id: userId,
       device_name: deviceName,
       device_type: "laptop",
       serial_key: key,
     });
-    console.log("[serialAuth] ✅ 공유 DB 기기 등록 완료:", registered);
-  } catch (err) {
+    console.log("[serialAuth] ✅ 공유 DB 기기 등록 완료:", registeredDevice);
+  } catch (err: any) {
+    // 시리얼 중복 사용 에러는 사용자에게 전달
+    if (err.message?.includes("serial_in_use") || err.message?.includes("사용 중")) {
+      throw err;
+    }
     console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 실패 (계속 진행):", err);
   }
 
