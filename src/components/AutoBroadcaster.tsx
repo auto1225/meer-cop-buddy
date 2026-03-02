@@ -435,17 +435,22 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
   useEffect(() => {
     if (!userId) return;
 
-    const channel = supabaseShared.channel(`user-commands-quality-${userId}`);
+    const shouldHandleQualityUpdate = (payload: any) => {
+      const targetDeviceId = payload?.device_id;
+      if (!targetDeviceId) return true;
+      return targetDeviceId === deviceId || targetDeviceId === sharedDeviceIdRef.current;
+    };
+
+    const channel = supabaseShared.channel(`user-commands-${userId}`);
     channel
       .on("broadcast", { event: "settings_updated" }, async ({ payload }: any) => {
         const quality = payload?.settings?.streaming_quality;
-        if (!quality) return;
+        if (!quality || !shouldHandleQualityUpdate(payload)) return;
         console.log(`[AutoBroadcaster] 🎬 Quality changed to "${quality}" via settings_updated`);
         if (!isBroadcastingRef.current) {
           console.log(`[AutoBroadcaster] ⏭️ Not broadcasting, will apply on next start`);
           return;
         }
-        // 스트림 완전 재시작으로 새 해상도 적용
         await stopCameraAndBroadcast();
         await new Promise(r => setTimeout(r, 1000));
         if (isStreamingRequestedRef.current) {
@@ -456,7 +461,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       .on("broadcast", { event: "command" }, async ({ payload }: any) => {
         if (payload?.type !== "settings_updated") return;
         const quality = payload?.settings?.streaming_quality;
-        if (!quality) return;
+        if (!quality || !shouldHandleQualityUpdate(payload)) return;
         console.log(`[AutoBroadcaster] 🎬 Quality changed to "${quality}" via command wrapper`);
         if (!isBroadcastingRef.current) return;
         await stopCameraAndBroadcast();
@@ -471,7 +476,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     return () => {
       supabaseShared.removeChannel(channel);
     };
-  }, [userId, stopCameraAndBroadcast, startCameraAndBroadcast]);
+  }, [userId, deviceId, stopCameraAndBroadcast, startCameraAndBroadcast]);
 
   // React to streaming request + signalingDeviceId changes
   useEffect(() => {
