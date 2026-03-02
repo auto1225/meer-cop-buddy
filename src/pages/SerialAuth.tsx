@@ -43,8 +43,7 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
         if (saved) {
           const { parts: savedParts } = JSON.parse(saved);
           if (savedParts) {
-            savedPartsRef.current = savedParts;
-            setHasSavedSerial(true);
+            setParts(savedParts);
           }
           setRememberMe(true);
         }
