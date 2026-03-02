@@ -281,10 +281,10 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     // No match found — register in shared DB
     console.log(`[AutoBroadcaster] ⚠️ No shared device found, registering...`);
     try {
-      // 시리얼 키를 metadata에서 추출하거나 localStorage에서 가져오기
+      // 시리얼 키를 metadata에서 추출하거나 sessionStorage에서 가져오기
       const serialKey = (localDevice?.metadata as any)?.serial_key || (() => {
         try {
-          const saved = JSON.parse(localStorage.getItem("meercop_serial_auth") || "{}");
+          const saved = JSON.parse(sessionStorage.getItem("meercop_serial_auth") || "{}");
           return saved.serial_key || "";
         } catch { return ""; }
       })();
