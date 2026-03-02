@@ -215,7 +215,11 @@ export async function registerDeviceViaEdge(
       }
       console.warn("[deviceApi] ⚠️ Local register-device failed:", res.status, errData);
     }
-  } catch (err) {
+  } catch (err: any) {
+    // 시리얼 중복 사용 에러는 반드시 상위로 전달
+    if (err?.message?.includes("serial_in_use") || err?.message?.includes("사용 중")) {
+      throw err;
+    }
     console.warn("[deviceApi] ⚠️ Local register-device network error:", err);
   }
 
