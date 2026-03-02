@@ -3,6 +3,8 @@ import { getSavedAuth, clearAuth, revalidateSerial, SerialAuthData } from "@/lib
 import { startWorkerInterval, stopWorkerInterval } from "@/lib/workerTimer";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { supabase } from "@/integrations/supabase/client";
+import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 
 const REVALIDATION_INTERVAL = 60 * 60 * 1000; // 1시간
 const REVALIDATION_TIMER_ID = "serial-revalidation";
@@ -100,7 +102,7 @@ export function useAuth() {
         console.warn("[useAuth] ⚠️ Logout broadcast failed:", err);
       }
 
-      // 2) DB 상태를 offline으로 업데이트
+      // 2) DB 상태를 offline으로 업데이트 (로컬 + 공유 DB 동기화)
       try {
         await updateDeviceViaEdge(currentAuth.device_id, {
           status: "offline",
@@ -111,6 +113,24 @@ export function useAuth() {
       } catch (err) {
         console.warn("[useAuth] ⚠️ DB offline update failed:", err);
       }
+
+      // 3) 공유 DB에서 기기 삭제 (fire-and-forget)
+      const sharedId = getSharedDeviceId(currentAuth.device_id) || currentAuth.device_id;
+      fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SHARED_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          device_id: sharedId,
+          _action: "delete",
+        }),
+      })
+        .then(res => res.ok
+          ? console.log("[useAuth] ✅ Shared DB device deleted:", sharedId)
+          : res.text().then(t => console.warn("[useAuth] ⚠️ Shared DB delete failed:", t)))
+        .catch(err => console.warn("[useAuth] ⚠️ Shared DB delete error:", err));
     }
 
     // 3) 로컬 인증 정보 삭제
