@@ -101,14 +101,14 @@ export async function validateSerial(
     remaining_days: s.remaining_days ?? null,
   };
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
   return authData;
 }
 
 // 저장된 인증 정보 가져오기
 export function getSavedAuth(): SerialAuthData | null {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = sessionStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
@@ -117,7 +117,7 @@ export function getSavedAuth(): SerialAuthData | null {
 
 // 인증 정보 삭제 (로그아웃)
 export function clearAuth(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem(STORAGE_KEY);
 }
 
 // 인증 여부 확인
@@ -193,7 +193,7 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       device_name: saved.device_name || s.device_name,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     return updated;
   } catch (err) {
     console.warn("[revalidateSerial] Network error:", err);
