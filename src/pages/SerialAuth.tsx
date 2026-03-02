@@ -27,9 +27,11 @@ interface SerialAuthProps {
 function SerialAuthInner({ onSuccess }: SerialAuthProps) {
   const [parts, setParts] = useState(["", "", ""]);
   const [rememberMe, setRememberMe] = useState(false);
+  const [hasSavedSerial, setHasSavedSerial] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const savedPartsRef = useRef<string[] | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { t } = useTranslation();
 
@@ -38,11 +40,16 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
       const saved = localStorage.getItem(REMEMBER_KEY);
       if (saved) {
         const { parts: savedParts } = JSON.parse(saved);
-        if (savedParts) setParts(savedParts);
+        if (savedParts) {
+          savedPartsRef.current = savedParts;
+          setHasSavedSerial(true);
+        }
         setRememberMe(true);
       }
     } catch {}
-    inputRefs.current[0]?.focus();
+    if (!savedPartsRef.current) {
+      inputRefs.current[0]?.focus();
+    }
   }, []);
 
   const handleChange = (index: number, value: string) => {
@@ -63,7 +70,9 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
   };
 
   const handleSubmit = async () => {
-    const serialKey = parts.join("-");
+    // 저장된 시리얼 사용 시 savedPartsRef에서 가져옴
+    const submitParts = hasSavedSerial ? savedPartsRef.current! : parts;
+    const serialKey = submitParts.join("-");
     if (serialKey.replace(/-/g, "").length !== 12) {
       setError(t("auth.serialError"));
       return;
@@ -75,9 +84,8 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
     try {
       const authData = await validateSerial(serialKey);
 
-      // 로그인 성공 후에만 기억하기 데이터 저장/삭제
       if (rememberMe) {
-        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ parts }));
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ parts: submitParts }));
       } else {
         localStorage.removeItem(REMEMBER_KEY);
       }
@@ -88,6 +96,13 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClearSaved = () => {
+    setHasSavedSerial(false);
+    savedPartsRef.current = null;
+    setParts(["", "", ""]);
+    inputRefs.current[0]?.focus();
   };
 
   const handleExit = () => setShowExitDialog(true);
@@ -124,23 +139,44 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
 
           <p className="text-white/80 text-xs text-center mb-6">{t("auth.checkSerial")}</p>
 
-          <div className="flex items-center gap-2 mb-4">
-            {parts.map((part, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input
-                  ref={(el) => { inputRefs.current[i] = el; }}
-                  value={part}
-                  onChange={(e) => handleChange(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                  maxLength={4}
-                  placeholder="XXXX"
-                  disabled={loading}
-                  className="w-[68px] h-10 px-2 text-center text-sm font-mono font-bold tracking-widest backdrop-blur-xl bg-white/15 border border-white/25 rounded-full text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
-                />
-                {i < 2 && <span className="text-white/60 font-bold">-</span>}
+          {hasSavedSerial ? (
+            <div className="flex flex-col items-center gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                {["••••", "••••", "••••"].map((mask, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="w-[68px] h-10 px-2 flex items-center justify-center text-sm font-mono font-bold tracking-widest backdrop-blur-xl bg-white/15 border border-white/25 rounded-full text-white/70">
+                      {mask}
+                    </div>
+                    {i < 2 && <span className="text-white/60 font-bold">-</span>}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <button
+                onClick={handleClearSaved}
+                className="text-white/50 text-[10px] underline hover:text-white/80 transition-colors"
+              >
+                {t("auth.useNewSerial") || "다른 시리얼 입력"}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mb-4">
+              {parts.map((part, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    ref={(el) => { inputRefs.current[i] = el; }}
+                    value={part}
+                    onChange={(e) => handleChange(i, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(i, e)}
+                    maxLength={4}
+                    placeholder="XXXX"
+                    disabled={loading}
+                    className="w-[68px] h-10 px-2 text-center text-sm font-mono font-bold tracking-widest backdrop-blur-xl bg-white/15 border border-white/25 rounded-full text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
+                  />
+                  {i < 2 && <span className="text-white/60 font-bold">-</span>}
+                </div>
+              ))}
+            </div>
+          )}
 
           <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
             <Checkbox

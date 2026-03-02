@@ -69,6 +69,7 @@
   "auth.exitDesc": "All saved serial number data will be deleted.",
   "auth.cancel": "Cancel",
   "auth.exitBtn": "Exit",
+  "auth.useNewSerial": "Use a different serial",
   "auth.serialError": "Please enter the full serial number.",
   "auth.nameError": "Please enter a device name.",
   "auth.authFailed": "Authentication failed.",
