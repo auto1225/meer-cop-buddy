@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "डिवाइस का नाम बदल दिया गया है।",
   "device.changeFailed": "परिवर्तन विफल",
   "device.changeFailedDesc": "नाम बदलने में विफल।",
+  "device.nameRequired": "📲 स्मार्टफोन से कनेक्ट करने के लिए डिवाइस का नाम दर्ज करें",
   "lock.title": "🔒 डिवाइस लॉक",
   "lock.desc": "स्मार्टफोन से रिमोट लॉक सक्रिय किया गया।",
   "message.default": "संदेश प्राप्त हुआ।",

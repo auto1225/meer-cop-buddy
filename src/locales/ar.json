@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "تم تغيير اسم الجهاز.",
   "device.changeFailed": "فشل التغيير",
   "device.changeFailedDesc": "فشل في تغيير الاسم.",
+  "device.nameRequired": "📲 أدخل اسم الجهاز للاتصال بهاتفك الذكي",
   "lock.title": "🔒 الجهاز مقفل",
   "lock.desc": "تم تفعيل القفل عن بُعد من الهاتف الذكي.",
   "message.default": "تم استلام رسالة.",

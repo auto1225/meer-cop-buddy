@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Nama perangkat telah diubah.",
   "device.changeFailed": "Gagal mengubah",
   "device.changeFailedDesc": "Gagal mengubah nama.",
+  "device.nameRequired": "📲 Masukkan nama perangkat untuk terhubung dengan smartphone",
   "lock.title": "🔒 Perangkat terkunci",
   "lock.desc": "Kunci jarak jauh diaktifkan dari smartphone.",
   "message.default": "Pesan diterima.",

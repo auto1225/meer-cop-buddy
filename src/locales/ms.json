@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Nama peranti telah ditukar.",
   "device.changeFailed": "Pertukaran gagal",
   "device.changeFailedDesc": "Gagal menukar nama.",
+  "device.nameRequired": "📲 Masukkan nama peranti untuk berhubung dengan telefon pintar",
   "lock.title": "🔒 Peranti dikunci",
   "lock.desc": "Kunci jauh diaktifkan dari telefon pintar.",
   "message.default": "Mesej diterima.",

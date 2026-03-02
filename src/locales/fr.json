@@ -45,6 +45,7 @@
   "device.nameChangedDesc": "Le nom de l'appareil a été modifié.",
   "device.changeFailed": "Échec de la modification",
   "device.changeFailedDesc": "Impossible de modifier le nom.",
+  "device.nameRequired": "📲 Entrez un nom d'appareil pour vous connecter à votre smartphone",
   "lock.title": "🔒 Appareil verrouillé",
   "lock.desc": "Verrouillage à distance activé depuis le smartphone.",
   "message.default": "Message reçu.",
