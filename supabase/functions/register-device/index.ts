@@ -18,7 +18,10 @@ Deno.serve(async (req) => {
     const finalName = device_name || name || "My Laptop";
     const finalUserId = user_id;
     const finalType = device_type || "laptop";
-    const compositeDeviceId = `${finalUserId}_${finalType}`;
+    // serial_key가 있으면 고유한 복합 ID 생성 (다중 노트북 지원)
+    const compositeDeviceId = serial_key
+      ? `${finalUserId}_${serial_key}_${finalType}`
+      : `${finalUserId}_${finalType}`;
 
     if (!finalUserId) {
       return new Response(
