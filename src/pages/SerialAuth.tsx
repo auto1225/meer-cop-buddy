@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { validateSerial, clearAuth } from "@/lib/serialAuth";
 import { ResizableContainer } from "@/components/ResizableContainer";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { LogOut } from "lucide-react";
 import {
   AlertDialog,
@@ -26,33 +26,14 @@ interface SerialAuthProps {
 
 function SerialAuthInner({ onSuccess }: SerialAuthProps) {
   const [parts, setParts] = useState(["", "", ""]);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [hasSavedSerial, setHasSavedSerial] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
-  const savedPartsRef = useRef<string[] | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { t } = useTranslation();
 
   useEffect(() => {
-    const isRelogin = sessionStorage.getItem("meercop_relogin") === "1";
-    if (isRelogin) {
-      try {
-        const saved = localStorage.getItem(REMEMBER_KEY);
-        if (saved) {
-          const { parts: savedParts } = JSON.parse(saved);
-          if (savedParts) {
-            setParts(savedParts);
-          }
-          setRememberMe(true);
-        }
-      } catch {}
-      sessionStorage.removeItem("meercop_relogin");
-    }
-    if (!savedPartsRef.current) {
-      inputRefs.current[0]?.focus();
-    }
+    inputRefs.current[0]?.focus();
   }, []);
 
   const handleChange = (index: number, value: string) => {
@@ -73,9 +54,7 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
   };
 
   const handleSubmit = async () => {
-    // 저장된 시리얼 사용 시 savedPartsRef에서 가져옴
-    const submitParts = hasSavedSerial ? savedPartsRef.current! : parts;
-    const serialKey = submitParts.join("-");
+    const serialKey = parts.join("-");
     if (serialKey.replace(/-/g, "").length !== 12) {
       setError(t("auth.serialError"));
       return;
@@ -86,13 +65,6 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
 
     try {
       const authData = await validateSerial(serialKey);
-
-      if (rememberMe) {
-        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ parts: submitParts }));
-      } else {
-        localStorage.removeItem(REMEMBER_KEY);
-      }
-
       onSuccess(authData.device_id, authData.user_id);
     } catch (err: any) {
       setError(err.message || t("auth.authFailed"));
@@ -101,20 +73,12 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
     }
   };
 
-  const handleClearSaved = () => {
-    setHasSavedSerial(false);
-    savedPartsRef.current = null;
-    setParts(["", "", ""]);
-    inputRefs.current[0]?.focus();
-  };
-
   const handleExit = () => setShowExitDialog(true);
 
   const confirmExit = () => {
     clearAuth();
     localStorage.removeItem(REMEMBER_KEY);
     setParts(["", "", ""]);
-    setRememberMe(false);
     setShowExitDialog(false);
     window.close();
     setTimeout(() => { window.location.href = "about:blank"; }, 300);
@@ -142,27 +106,7 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
 
           <p className="text-white/80 text-xs text-center mb-6">{t("auth.checkSerial")}</p>
 
-          {hasSavedSerial ? (
-            <div className="flex flex-col items-center gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                {["••••", "••••", "••••"].map((mask, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className="w-[68px] h-10 px-2 flex items-center justify-center text-sm font-mono font-bold tracking-widest backdrop-blur-xl bg-white/15 border border-white/25 rounded-full text-white/70">
-                      {mask}
-                    </div>
-                    {i < 2 && <span className="text-white/60 font-bold">-</span>}
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={handleClearSaved}
-                className="text-white/50 text-[10px] underline hover:text-white/80 transition-colors"
-              >
-                {t("auth.useNewSerial") || "다른 시리얼 입력"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4">
               {parts.map((part, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input
@@ -179,16 +123,6 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
                 </div>
               ))}
             </div>
-          )}
-
-          <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
-            <Checkbox
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked === true)}
-              className="border-white/50 data-[state=checked]:bg-secondary data-[state=checked]:border-secondary h-3.5 w-3.5"
-            />
-            <span className="text-white/70 text-[11px]">{t("auth.rememberMe")}</span>
-          </label>
 
           {error && <p className="text-red-300 text-xs text-center mb-3">{error}</p>}
 
