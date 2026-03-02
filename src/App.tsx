@@ -44,6 +44,7 @@ const App = () => {
   }, []);
 
   const handleSignOut = useCallback(() => {
+    sessionStorage.setItem("meercop_relogin", "1");
     clearAuth();
     setIsAuthenticated(false);
     setNeedsDeviceName(false);

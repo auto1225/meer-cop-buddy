@@ -36,17 +36,21 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
   const { t } = useTranslation();
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(REMEMBER_KEY);
-      if (saved) {
-        const { parts: savedParts } = JSON.parse(saved);
-        if (savedParts) {
-          savedPartsRef.current = savedParts;
-          setHasSavedSerial(true);
+    const isRelogin = sessionStorage.getItem("meercop_relogin") === "1";
+    if (isRelogin) {
+      try {
+        const saved = localStorage.getItem(REMEMBER_KEY);
+        if (saved) {
+          const { parts: savedParts } = JSON.parse(saved);
+          if (savedParts) {
+            savedPartsRef.current = savedParts;
+            setHasSavedSerial(true);
+          }
+          setRememberMe(true);
         }
-        setRememberMe(true);
-      }
-    } catch {}
+      } catch {}
+      sessionStorage.removeItem("meercop_relogin");
+    }
     if (!savedPartsRef.current) {
       inputRefs.current[0]?.focus();
     }
