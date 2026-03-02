@@ -8,10 +8,6 @@ import { getSharedDeviceId, setSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n";
 
-// 웹사이트(마스터) DB 동기화용
-const MASTER_SUPABASE_URL = "https://peqgmuicrorjvvburqly.supabase.co";
-const MASTER_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcWdtdWljcm9yanZ2YnVycWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDA1NzQsImV4cCI6MjA4NzUxNjU3NH0.e5HYG3dSMqhm4ahT-en-nNX2mD95KM_TdKIlfuzdMc4";
-
 interface DeviceNameBadgeProps {
   deviceName: string;
   deviceId?: string;
@@ -228,23 +224,6 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
             new_name: trimmed,
             timestamp: new Date().toISOString(),
           });
-        }
-
-        // 웹사이트(마스터) DB에도 이름 동기화 (fire-and-forget)
-        if (saved?.serial_key) {
-          fetch(`${MASTER_SUPABASE_URL}/functions/v1/verify-serial`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", apikey: MASTER_SUPABASE_ANON_KEY },
-            body: JSON.stringify({
-              action: "update_device_name",
-              serial_key: saved.serial_key,
-              device_name: trimmed,
-            }),
-          })
-            .then(r => r.ok
-              ? console.log("[DeviceNameBadge] ✅ Master DB name synced:", trimmed)
-              : r.text().then(t => console.warn("[DeviceNameBadge] ⚠️ Master DB sync failed:", t)))
-            .catch(e => console.warn("[DeviceNameBadge] ⚠️ Master DB sync error:", e));
         }
 
         if (!sharedOk) {
