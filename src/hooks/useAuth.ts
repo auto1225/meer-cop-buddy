@@ -113,8 +113,9 @@ export function useAuth() {
       }
     }
 
-    // 3) 로컬 인증 정보 삭제
+    // 3) 로컬 인증 정보 삭제 + 기억하기 데이터도 삭제
     clearAuth();
+    localStorage.removeItem("meercop_remember_input");
     stopWorkerInterval(REVALIDATION_TIMER_ID);
     setAuthData(null);
     setIsExpired(false);
