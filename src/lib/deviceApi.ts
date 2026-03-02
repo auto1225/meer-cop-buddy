@@ -173,13 +173,18 @@ export async function registerDeviceViaEdge(
   },
   options?: { throwOnFailure?: boolean }
 ): Promise<DeviceRow | null> {
+  const metadata: Record<string, unknown> = {};
+  if (params.serial_key) {
+    metadata.serial_key = params.serial_key;
+  }
+
   const body: Record<string, unknown> = {
     user_id: params.user_id,
     name: params.device_name,
     device_name: params.device_name,
     device_type: params.device_type,
     status: "offline",
-    metadata: {},
+    metadata,
   };
   if (params.serial_key) {
     body.serial_key = params.serial_key;
