@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import SerialAuth from "./pages/SerialAuth";
-import DeviceNameEntry from "./components/DeviceNameEntry";
+
 import MotionTest from "./pages/MotionTest";
 import NotFound from "./pages/NotFound";
 import { getSavedAuth, clearAuth } from "@/lib/serialAuth";
@@ -16,7 +16,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!getSavedAuth());
-  const [needsDeviceName, setNeedsDeviceName] = useState(false);
+  
 
   // Global error handler for unhandled promise rejections
   useEffect(() => {
@@ -35,7 +35,6 @@ const App = () => {
       const auth = getSavedAuth();
       if (!auth) {
         setIsAuthenticated(false);
-        setNeedsDeviceName(false);
       }
     };
     // Poll for auth changes (signOut clears localStorage)
@@ -47,28 +46,13 @@ const App = () => {
     sessionStorage.setItem("meercop_relogin", "1");
     clearAuth();
     setIsAuthenticated(false);
-    setNeedsDeviceName(false);
   }, []);
 
   const handleSerialSuccess = useCallback((_deviceId: string, _userId: string) => {
-    // After serial auth, check if device has a real name
-    const auth = getSavedAuth();
-    const name = auth?.device_name || "";
-    const isDefault = !name || name === "My Laptop" || name === "Laptop";
-    
-    if (isDefault) {
-      setNeedsDeviceName(true);
-    } else {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  const handleDeviceNameComplete = useCallback((_name: string) => {
-    setNeedsDeviceName(false);
     setIsAuthenticated(true);
   }, []);
 
-  if (!isAuthenticated && !needsDeviceName) {
+  if (!isAuthenticated) {
     return (
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
@@ -76,20 +60,6 @@ const App = () => {
             <Toaster />
             <Sonner />
             <SerialAuth onSuccess={handleSerialSuccess} />
-          </TooltipProvider>
-        </QueryClientProvider>
-      </ErrorBoundary>
-    );
-  }
-
-  if (needsDeviceName) {
-    return (
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <DeviceNameEntry onComplete={handleDeviceNameComplete} />
           </TooltipProvider>
         </QueryClientProvider>
       </ErrorBoundary>
