@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
       "device_id", "device_type", "status", "name", "device_name",
       "is_monitoring", "is_camera_connected", "is_network_connected",
       "is_streaming_requested", "is_charging", "battery_level",
-      "last_seen_at", "metadata", "user_id", "ip_address", "os_info",
+      "last_seen_at", "updated_at", "metadata", "user_id", "ip_address", "os_info",
       "app_version", "latitude", "longitude", "location_updated_at",
     ]);
     for (const key of Object.keys(fieldsToUpdate)) {
