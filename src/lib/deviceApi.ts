@@ -1,5 +1,6 @@
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "./supabase";
 import { getSharedDeviceId } from "./sharedDeviceIdMap";
+import { getSavedAuth } from "./serialAuth";
 
 /**
  * Edge Function을 통한 디바이스 API
@@ -284,7 +285,18 @@ export async function updateDeviceViaEdge(
 
   // 2) 공유 DB에도 항상 동기화 (fire-and-forget)
   // 공유DB에서는 매핑된 shared ID를 사용 (로컬 ID와 다를 수 있음)
-  const sharedId = getSharedDeviceId(deviceId) || deviceId;
+  // 매핑이 없으면 복합 device_id 패턴으로 폴백 (UUID 불일치 방지)
+  let sharedId = getSharedDeviceId(deviceId);
+  if (!sharedId) {
+    const savedAuth = getSavedAuth();
+    if (savedAuth?.user_id && savedAuth?.serial_key) {
+      // 복합 ID 패턴으로 공유 DB에서 device_id 컬럼 매칭 시도
+      sharedId = `${savedAuth.user_id}_${savedAuth.serial_key}_laptop`;
+      console.log(`[deviceApi] 🔗 No shared ID mapping, using composite: ${sharedId}`);
+    } else {
+      sharedId = deviceId;
+    }
+  }
   fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
