@@ -34,12 +34,16 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Detect if id is a UUID or a composite ID (e.g. userId_serial_type)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const matchCol = isUuid ? "id" : "device_id";
+
     // Merge metadata patch with latest DB metadata to prevent stale overwrite
     if (fieldsToUpdate.metadata && typeof fieldsToUpdate.metadata === "object" && !Array.isArray(fieldsToUpdate.metadata)) {
       const { data: existing, error: existingError } = await supabase
         .from("devices")
         .select("metadata")
-        .eq("id", id)
+        .eq(matchCol, id)
         .maybeSingle();
 
       if (existingError) {
@@ -82,9 +86,6 @@ Deno.serve(async (req) => {
         delete fieldsToUpdate[key];
       }
     }
-
-    // Detect if id is a UUID or a composite ID (e.g. userId_serial_type)
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
     let data: any = null;
     let error: any = null;
