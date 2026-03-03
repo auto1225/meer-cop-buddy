@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
+import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { channelManager } from "@/lib/channelManager";
 import { getSavedAuth } from "@/lib/serialAuth";
 
@@ -80,12 +81,17 @@ export function useLocationResponder(deviceId?: string, metadata?: Record<string
     // Local DB
     updateDeviceViaEdge(targetDeviceId, updates).catch(e =>
       console.warn("[LocationResponder] Local save failed:", e));
-    // Shared DB
-    fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-      body: JSON.stringify({ device_id: targetDeviceId, updates }),
-    }).catch(e => console.warn("[LocationResponder] Shared save failed:", e));
+    // Shared DB (mapped UUID only)
+    const sharedId = getSharedDeviceId(targetDeviceId);
+    if (sharedId) {
+      fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ device_id: sharedId, updates }),
+      }).catch(e => console.warn("[LocationResponder] Shared save failed:", e));
+    } else {
+      console.warn(`[LocationResponder] ⏭️ Skip shared save (no mapped shared UUID): ${targetDeviceId}`);
+    }
   }, []);
 
   // Core handler: get location → broadcast response → save to DBs

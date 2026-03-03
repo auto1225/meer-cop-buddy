@@ -271,14 +271,18 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       };
 
       // 1) 공유 DB (매핑된 shared ID 사용)
-      const sharedId = getSharedDeviceId(deviceId) || deviceId;
-      const sharedBlob = new Blob(
-        [JSON.stringify({ device_id: sharedId, updates })],
-        { type: "application/json" }
-      );
-      const sharedSent = navigator.sendBeacon(
-        `${SHARED_SUPABASE_URL}/functions/v1/update-device`, sharedBlob
-      );
+      const mappedSharedId = getSharedDeviceId(deviceId);
+      const sharedId = mappedSharedId || (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId) ? deviceId : null);
+      let sharedSent = false;
+      if (sharedId) {
+        const sharedBlob = new Blob(
+          [JSON.stringify({ device_id: sharedId, updates })],
+          { type: "application/json" }
+        );
+        sharedSent = navigator.sendBeacon(
+          `${SHARED_SUPABASE_URL}/functions/v1/update-device`, sharedBlob
+        );
+      }
 
       // 2) 로컬 DB (이 프로젝트의 DB — 스마트폰이 읽는 소스)
       const localProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";

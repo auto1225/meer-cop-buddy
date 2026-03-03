@@ -290,22 +290,30 @@ export async function updateDeviceViaEdge(
   if (!sharedId) {
     const savedAuth = getSavedAuth();
     if (savedAuth?.user_id && savedAuth?.serial_key) {
-      // 복합 ID 패턴으로 공유 DB에서 device_id 컬럼 매칭 시도
-      sharedId = `${savedAuth.user_id}_${savedAuth.serial_key}_laptop`;
-      console.log(`[deviceApi] 🔗 No shared ID mapping, using composite: ${sharedId}`);
-    } else {
+      // 복합 ID는 공유 update-device(legacy UUID 매칭)에서 500을 유발할 수 있으므로 매핑 전송 금지
+      const compositeCandidate = `${savedAuth.user_id}_${savedAuth.serial_key}_laptop`;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(compositeCandidate);
+      if (isUuid) {
+        sharedId = compositeCandidate;
+      }
+    } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId)) {
       sharedId = deviceId;
     }
   }
-  fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-    body: JSON.stringify({ device_id: sharedId, updates: sharedUpdates }),
-  })
-    .then(res => res.ok
-      ? console.log(`[deviceApi] ✅ Shared updated device ${sharedId}${sharedId !== deviceId ? ` (local: ${deviceId})` : ""}`)
-      : res.text().then(t => console.warn("[deviceApi] ⚠️ Shared update failed:", t)))
-    .catch(() => {});
+
+  if (!sharedId) {
+    console.warn(`[deviceApi] ⏭️ Skip shared update-device (no mapped shared UUID): ${deviceId}`);
+  } else {
+    fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+      body: JSON.stringify({ device_id: sharedId, updates: sharedUpdates }),
+    })
+      .then(res => res.ok
+        ? console.log(`[deviceApi] ✅ Shared updated device ${sharedId}${sharedId !== deviceId ? ` (local: ${deviceId})` : ""}`)
+        : res.text().then(t => console.warn("[deviceApi] ⚠️ Shared update failed:", t)))
+      .catch(() => {});
+  }
 
   if (localOk) return;
 
