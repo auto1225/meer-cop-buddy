@@ -83,30 +83,44 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Try matching by UUID (id) first, then fall back to device_id column
+    // Detect if id is a UUID or a composite ID (e.g. userId_serial_type)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
     let data: any = null;
     let error: any = null;
 
-    const result1 = await supabase
-      .from("devices")
-      .update(fieldsToUpdate)
-      .eq("id", id)
-      .select()
-      .maybeSingle();
+    if (isUuid) {
+      // Try matching by UUID (id) first, then fall back to device_id column
+      const result1 = await supabase
+        .from("devices")
+        .update(fieldsToUpdate)
+        .eq("id", id)
+        .select()
+        .maybeSingle();
 
-    if (result1.data) {
-      data = result1.data;
-      error = result1.error;
+      if (result1.data) {
+        data = result1.data;
+        error = result1.error;
+      } else {
+        const result2 = await supabase
+          .from("devices")
+          .update(fieldsToUpdate)
+          .eq("device_id", id)
+          .select()
+          .maybeSingle();
+        data = result2.data;
+        error = result2.error;
+      }
     } else {
-      // Fallback: match by device_id column (composite ID like userId_serial_type)
-      const result2 = await supabase
+      // Composite ID: match by device_id column directly (skip UUID column)
+      const result = await supabase
         .from("devices")
         .update(fieldsToUpdate)
         .eq("device_id", id)
         .select()
         .maybeSingle();
-      data = result2.data;
-      error = result2.error;
+      data = result.data;
+      error = result.error;
     }
 
     if (error) {
