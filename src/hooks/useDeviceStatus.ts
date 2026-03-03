@@ -263,22 +263,34 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
 
     const sendOfflineBeacon = () => {
-      // 공유DB에는 매핑된 shared ID 사용
+      const updates = {
+        status: "offline",
+        is_network_connected: false,
+        is_camera_connected: false,
+        updated_at: new Date().toISOString(),
+      };
+
+      // 1) 공유 DB (매핑된 shared ID 사용)
       const sharedId = getSharedDeviceId(deviceId) || deviceId;
-      const url = `${SHARED_SUPABASE_URL}/functions/v1/update-device`;
-      const body = JSON.stringify({
-        device_id: sharedId,
-        updates: {
-          status: "offline",
-          is_network_connected: false,
-          is_camera_connected: false,
-          updated_at: new Date().toISOString(),
-        },
-      });
-      const blob = new Blob([body], { type: "application/json" });
-      
-      const sent = navigator.sendBeacon(url, blob);
-      console.log(`[DeviceStatus] 🚪 sendBeacon offline: ${sent} (sharedId: ${sharedId})`);
+      const sharedBlob = new Blob(
+        [JSON.stringify({ device_id: sharedId, updates })],
+        { type: "application/json" }
+      );
+      const sharedSent = navigator.sendBeacon(
+        `${SHARED_SUPABASE_URL}/functions/v1/update-device`, sharedBlob
+      );
+
+      // 2) 로컬 DB (이 프로젝트의 DB — 스마트폰이 읽는 소스)
+      const localProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";
+      const localBlob = new Blob(
+        [JSON.stringify({ device_id: deviceId, updates })],
+        { type: "application/json" }
+      );
+      const localSent = navigator.sendBeacon(
+        `https://${localProjectId}.supabase.co/functions/v1/update-device`, localBlob
+      );
+
+      console.log(`[DeviceStatus] 🚪 sendBeacon offline: shared=${sharedSent}(${sharedId}) local=${localSent}(${deviceId})`);
     };
 
     const sendStatusUpdate = (isOnline: boolean) => {

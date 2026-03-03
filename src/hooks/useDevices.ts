@@ -245,15 +245,19 @@ export function useDevices(userId?: string) {
       });
 
     // Presence channel for instant online/offline detection
-    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+    // 노트북이 track하는 동일한 Supabase 인스턴스(supabaseShared)와 동일한 채널명 사용
+    let presenceChannel: ReturnType<typeof supabaseShared.channel> | null = null;
     let phonePresenceHandler: ((e: Event) => void) | null = null;
+    let leaveTimerId: ReturnType<typeof setTimeout> | null = null;
     if (userId) {
-      presenceChannel = supabase.channel(`user-presence-${userId}-devices`, {
+      presenceChannel = supabaseShared.channel(`user-presence-${userId}`, {
         config: { presence: { key: "device-watcher" } },
       });
 
-      const getOnlineDeviceIdsFromPresence = (state: Record<string, unknown[]>): Set<string> => {
+      // Presence 상태에서 온라인 기기 ID + serial_key 추출
+      const getPresenceInfo = (state: Record<string, unknown[]>) => {
         const onlineIds = new Set<string>();
+        const onlineSerialKeys = new Set<string>();
         for (const [key, presences] of Object.entries(state)) {
           if (key === "device-watcher") continue;
           onlineIds.add(key);
@@ -261,25 +265,40 @@ export function useDevices(userId?: string) {
             if (p.device_id && typeof p.device_id === "string") {
               onlineIds.add(p.device_id);
             }
+            if (p.serial_key && typeof p.serial_key === "string") {
+              onlineSerialKeys.add(p.serial_key);
+            }
           }
         }
-        return onlineIds;
+        return { onlineIds, onlineSerialKeys };
+      };
+
+      // 3단계 매칭: ID 직접 매칭 → device_id 패턴 매칭 → serial_key 매칭
+      const isDevicePresenceOnline = (
+        d: Device,
+        onlineIds: Set<string>,
+        onlineSerialKeys: Set<string>
+      ): boolean => {
+        if (onlineIds.has(d.id) || onlineIds.has(d.device_id || "")) return true;
+        const serialKey = (d.metadata as Record<string, unknown>)?.serial_key;
+        if (typeof serialKey === "string" && onlineSerialKeys.has(serialKey)) return true;
+        return false;
       };
 
       const applyPresenceToDevices = (state: Record<string, unknown[]>) => {
-        const onlineIds = getOnlineDeviceIdsFromPresence(state);
-        console.log("[useDevices] 📡 Presence online devices:", [...onlineIds]);
+        const { onlineIds, onlineSerialKeys } = getPresenceInfo(state);
+        console.log("[useDevices] 📡 Presence online IDs:", [...onlineIds], "serial_keys:", [...onlineSerialKeys]);
         
         setDevices((prev) => {
           let changed = false;
           const updated = prev.map((d) => {
-            const isPresenceOnline = onlineIds.has(d.id) || onlineIds.has(d.device_id || "");
+            const presenceOnline = isDevicePresenceOnline(d, onlineIds, onlineSerialKeys);
             const currentlyOnline = d.status === "online";
             
-            if (isPresenceOnline && !currentlyOnline) {
+            if (presenceOnline && !currentlyOnline) {
               changed = true;
               return { ...d, status: "online" };
-            } else if (!isPresenceOnline && currentlyOnline && d.device_type === "smartphone") {
+            } else if (!presenceOnline && currentlyOnline) {
               changed = true;
               return { ...d, status: "offline" };
             }
@@ -297,13 +316,20 @@ export function useDevices(userId?: string) {
         })
         .on("presence", { event: "join" }, ({ key, newPresences }) => {
           console.log("[useDevices] 📱 Presence JOIN:", key, newPresences);
+          // join 시 pending leave 타이머 취소
+          if (leaveTimerId) { clearTimeout(leaveTimerId); leaveTimerId = null; }
           const state = presenceChannel!.presenceState();
           applyPresenceToDevices(state);
         })
         .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
           console.log("[useDevices] 📴 Presence LEAVE:", key, leftPresences);
-          const state = presenceChannel!.presenceState();
-          applyPresenceToDevices(state);
+          // 8초 디바운스: 일시적 연결 불안정에 의한 오탐 방지
+          if (leaveTimerId) clearTimeout(leaveTimerId);
+          leaveTimerId = setTimeout(() => {
+            const state = presenceChannel!.presenceState();
+            applyPresenceToDevices(state);
+            leaveTimerId = null;
+          }, 8000);
         })
         .subscribe();
 
@@ -335,8 +361,9 @@ export function useDevices(userId?: string) {
     return () => {
       isMounted = false;
       if (pollTimeoutId) clearTimeout(pollTimeoutId);
+      if (leaveTimerId) clearTimeout(leaveTimerId);
       supabase.removeChannel(channel);
-      if (presenceChannel) supabase.removeChannel(presenceChannel);
+      if (presenceChannel) supabaseShared.removeChannel(presenceChannel);
       if (phonePresenceHandler) window.removeEventListener("phone-presence-changed", phonePresenceHandler);
     };
   }, [fetchDevices, userId]);
