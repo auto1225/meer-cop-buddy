@@ -188,12 +188,18 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
                   // Battery API 미지원
                 }
               }
+              // 초기 카메라 상태: enumerateDevices로 빠르게 확인 (하드코딩 false 방지)
+              let initCameraConnected = false;
+              try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                initCameraConnected = devices.some(d => d.kind === "videoinput");
+              } catch { /* ignore */ }
               const initAuth = getSavedAuth();
               await channel.track({
                 device_id: deviceId,
                 status: "online",
                 is_network_connected: navigator.onLine,
-                is_camera_connected: false,
+                is_camera_connected: initCameraConnected,
                 battery_level: batteryLevel,
                 is_charging: isCharging,
                 last_seen_at: new Date().toISOString(),
