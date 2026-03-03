@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared } from "@/lib/supabase";
+import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useToast } from "@/hooks/use-toast";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import {
@@ -31,6 +32,9 @@ export function useAlerts(deviceId?: string, userId?: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const deviceIdRef = useRef(deviceId);
   deviceIdRef.current = deviceId;
+
+  // 공유 DB UUID를 key로 사용하기 위해 import
+  const sharedDeviceId = deviceId ? getSharedDeviceId(deviceId) : undefined;
   // Track the latest alert timestamp to ignore stale dismissals
   const lastAlertTimeRef = useRef<string | null>(null);
   const lastProcessedDismissalRef = useRef<string | null>(null);
@@ -42,13 +46,14 @@ export function useAlerts(deviceId?: string, userId?: string) {
     try {
       // 7-2: Presence track with status: 'alert' or 'online'
       // Preserve existing Presence fields (camera, network) to avoid overwriting useDeviceStatus state
+      const presKey = (deviceIdRef.current ? getSharedDeviceId(deviceIdRef.current) : undefined) || deviceIdRef.current || "";
       const existingState = channelRef.current.presenceState();
-      const myPresences = existingState[deviceIdRef.current || ""] as Record<string, unknown>[] | undefined;
+      const myPresences = existingState[presKey] as Record<string, unknown>[] | undefined;
       const prev = myPresences?.[0] || {};
 
       await channelRef.current.track({
         ...prev,
-        device_id: deviceIdRef.current,
+        device_id: presKey,
         active_alert: alert ? {
           id: alert.id,
           type: alert.event_type,
@@ -143,12 +148,13 @@ export function useAlerts(deviceId?: string, userId?: string) {
     // 7-3: Presence 상태에서 active_alert: null, status: 'online'으로 재track
     if (channelRef.current) {
       try {
+        const presKey = (deviceId ? getSharedDeviceId(deviceId) : undefined) || deviceId || "";
         const existingState = channelRef.current.presenceState();
-        const myPresences = existingState[deviceId] as Record<string, unknown>[] | undefined;
+        const myPresences = existingState[presKey] as Record<string, unknown>[] | undefined;
         const prev = myPresences?.[0] || {};
         await channelRef.current.track({
           ...prev,
-          device_id: deviceId,
+          device_id: presKey,
           active_alert: null,
           status: "online",
           last_seen_at: new Date().toISOString(),
@@ -182,8 +188,12 @@ export function useAlerts(deviceId?: string, userId?: string) {
       supabaseShared.removeChannel(existing);
     }
 
+    // ★ Presence key = 공유 DB UUID (스마트폰 매칭용)
+    const presenceKey = getSharedDeviceId(deviceId) || deviceId;
+    console.log(`[Alerts] Presence key: ${presenceKey} (shared: ${presenceKey !== deviceId})`);
+
     const channel = supabaseShared.channel(`user-alerts-${channelKey}`, {
-      config: { presence: { key: deviceId } },
+      config: { presence: { key: presenceKey } },
     });
 
     // ⚠️ 모든 리스너를 .subscribe() 전에 등록
@@ -262,12 +272,13 @@ export function useAlerts(deviceId?: string, userId?: string) {
         if (status === "SUBSCRIBED") {
           channelRef.current = channel;
           console.log("[Alerts] ✅ Channel subscribed — broadcast + presence ready");
+          const presKey = getSharedDeviceId(deviceId) || deviceId;
           const existingState = channel.presenceState();
-          const myPresences = existingState[deviceId] as Record<string, unknown>[] | undefined;
+          const myPresences = existingState[presKey] as Record<string, unknown>[] | undefined;
           const prev = myPresences?.[0] || {};
           await channel.track({
             ...prev,
-            device_id: deviceId,
+            device_id: presKey,
             active_alert: null,
             status: "online",
             is_camera_connected: prev.is_camera_connected ?? false,

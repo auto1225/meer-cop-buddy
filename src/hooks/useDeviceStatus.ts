@@ -18,20 +18,7 @@ interface DeviceStatus {
   isCameraAvailable: boolean;
 }
 
-// Presence state - status, network, camera, battery
-interface PresenceState {
-  device_id: string;
-  serial_key: string;
-  status: "online" | "offline";
-  is_network_connected: boolean;
-  is_camera_connected: boolean;
-  battery_level: number | null;
-  is_charging: boolean;
-  device_name: string;
-  last_seen_at: string;
-}
-
-// ── 유틸: 현재 상태를 수집하여 Presence 페이로드 생성 ──
+// Presence payload interface
 interface PresenceState {
   device_id: string;
   serial_key: string;
@@ -91,7 +78,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
 
   deviceIdRef.current = deviceId;
 
-  // sharedId 업데이트 추적
+  // sharedId 업데이트 추적 — resolve되면 채널 설정 트리거
   useEffect(() => {
     if (!deviceId) return;
     const check = () => {
@@ -99,25 +86,12 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       if (sid && sid !== sharedIdRef.current) {
         sharedIdRef.current = sid;
         console.log(`[DeviceStatus] 🔗 Shared ID resolved: ${sid}`);
-        // 이미 채널이 있으면 즉시 재 track
-        if (channelRef.current) {
-          (async () => {
-            try {
-              const payload = await buildPresencePayload(sid, status.isCameraAvailable);
-              await channelRef.current?.track(payload);
-              console.log("[DeviceStatus] ✅ Re-tracked with shared ID:", sid);
-            } catch (e) {
-              console.error("[DeviceStatus] Re-track failed:", e);
-            }
-          })();
-        }
       }
     };
     check();
-    // sharedDeviceIdMap은 비동기로 설정될 수 있으므로 폴링
     const timer = setInterval(check, 2000);
     return () => clearInterval(timer);
-  }, [deviceId, status.isCameraAvailable]);
+  }, [deviceId]);
 
   // Presence 기반 상태 동기화 (실시간, DB 쓰기 없음)
   const syncPresence = useCallback(async (
@@ -181,17 +155,54 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     }
   }, []);
 
-  // ── Presence 채널 설정 (공유 DB, 중복 방지 및 자동 재연결) ──
+  // ── Presence 채널 설정 (공유 DB UUID가 resolve된 후에만 채널 생성) ──
+  // sharedIdRef.current를 deps에 넣을 수 없으므로, state로 관리
+  const [resolvedSharedId, setResolvedSharedId] = useState<string | undefined>(undefined);
+
+  // sharedId가 resolve되면 state 업데이트 → 채널 설정 effect 트리거
   useEffect(() => {
-    if (!deviceId || !userId) return;
+    if (!deviceId) return;
+    const check = () => {
+      const sid = sharedIdRef.current || getSharedDeviceId(deviceId);
+      if (sid && sid !== resolvedSharedId) {
+        setResolvedSharedId(sid);
+      }
+    };
+    check();
+    const timer = setInterval(check, 1000);
+    return () => clearInterval(timer);
+  }, [deviceId, resolvedSharedId]);
+
+  useEffect(() => {
+    if (!deviceId || !userId || !resolvedSharedId) {
+      console.log(`[DeviceStatus] ⏳ Waiting for sharedId before channel setup (deviceId=${deviceId}, userId=${userId}, sharedId=${resolvedSharedId})`);
+      return;
+    }
 
     const channelKey = `user-presence-${userId}`;
 
-    // 이미 설정된 채널은 스킵
+    // 이미 같은 sharedId로 설정된 채널은 스킵
     if (setupChannelKeys.has(channelKey)) {
-      console.log(`[DeviceStatus] ⏭️ Presence already setup for ${channelKey}`);
-      channelRef.current = channelInstances.get(channelKey) || null;
-      return;
+      const existing = channelInstances.get(channelKey);
+      if (existing) {
+        channelRef.current = existing;
+        // 기존 채널에 최신 payload로 re-track
+        (async () => {
+          try {
+            let cam = false;
+            try {
+              const devices = await navigator.mediaDevices.enumerateDevices();
+              cam = devices.some(d => d.kind === "videoinput");
+            } catch {}
+            const payload = await buildPresencePayload(resolvedSharedId, cam);
+            await existing.track(payload);
+            console.log("[DeviceStatus] ✅ Re-tracked on existing channel:", payload);
+          } catch (e) {
+            console.error("[DeviceStatus] Re-track failed:", e);
+          }
+        })();
+        return;
+      }
     }
 
     let reconnectTimerId: ReturnType<typeof setTimeout> | null = null;
@@ -214,13 +225,11 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       }
       setupChannelKeys.delete(channelKey);
 
-      // ★ Presence key는 deviceId를 임시로 사용 (track은 sharedId resolve 후에만 수행)
-      const presenceKey = sharedIdRef.current || getSharedDeviceId(deviceId) || deviceId;
-
-      console.log(`[DeviceStatus] 🔗 Setting up Presence channel: ${channelKey} (key=${presenceKey}, attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+      // ★ 핵심: Presence key = 공유 DB UUID (확정된 값만 사용)
+      console.log(`[DeviceStatus] 🔗 Setting up Presence channel: ${channelKey} (key=${resolvedSharedId}, attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
       
       const channel = supabaseShared.channel(channelKey, {
-        config: { presence: { key: presenceKey } },
+        config: { presence: { key: resolvedSharedId } },
       });
 
       channel
@@ -237,25 +246,18 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
             setupChannelKeys.add(channelKey);
             reconnectAttempts.set(channelKey, 0);
             
-            // ★ sharedId가 아직 resolve 안 됐으면 track하지 않음
-            // sharedId 폴링 effect(line 80~)에서 resolve 후 re-track 수행
-            const sid = sharedIdRef.current || getSharedDeviceId(deviceId);
-            if (!sid) {
-              console.log("[DeviceStatus] ⏳ Waiting for sharedId before initial track...");
-            } else {
+            try {
+              let initCameraConnected = false;
               try {
-                let initCameraConnected = false;
-                try {
-                  const devices = await navigator.mediaDevices.enumerateDevices();
-                  initCameraConnected = devices.some(d => d.kind === "videoinput");
-                } catch { /* ignore */ }
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                initCameraConnected = devices.some(d => d.kind === "videoinput");
+              } catch { /* ignore */ }
 
-                const payload = await buildPresencePayload(sid, initCameraConnected);
-                await channel.track(payload);
-                console.log("[DeviceStatus] ✅ Initial presence tracked:", payload);
-              } catch (e) {
-                console.error("[DeviceStatus] Failed to sync presence:", e);
-              }
+              const payload = await buildPresencePayload(resolvedSharedId, initCameraConnected);
+              await channel.track(payload);
+              console.log("[DeviceStatus] ✅ Initial presence tracked:", payload);
+            } catch (e) {
+              console.error("[DeviceStatus] Failed to sync presence:", e);
             }
           } else if (subStatus === "CLOSED" || subStatus === "CHANNEL_ERROR") {
             setupChannelKeys.delete(channelKey);
@@ -286,7 +288,6 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       if (reconnectTimerId) clearTimeout(reconnectTimerId);
       const channel = channelInstances.get(channelKey);
       if (channel) {
-        // 종료 시 untrack 후 채널 제거
         channel.untrack().catch(() => {});
         supabaseShared.removeChannel(channel);
         channelInstances.delete(channelKey);
@@ -294,7 +295,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       }
       channelRef.current = null;
     };
-  }, [deviceId, userId]);
+  }, [deviceId, userId, resolvedSharedId]);
 
   // ── 주기적 Presence 갱신 (120초) ──
   useEffect(() => {
