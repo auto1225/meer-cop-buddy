@@ -83,12 +83,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data, error } = await supabase
+    // Try matching by UUID (id) first, then fall back to device_id column
+    let data: any = null;
+    let error: any = null;
+
+    const result1 = await supabase
       .from("devices")
       .update(fieldsToUpdate)
       .eq("id", id)
       .select()
       .maybeSingle();
+
+    if (result1.data) {
+      data = result1.data;
+      error = result1.error;
+    } else {
+      // Fallback: match by device_id column (composite ID like userId_serial_type)
+      const result2 = await supabase
+        .from("devices")
+        .update(fieldsToUpdate)
+        .eq("device_id", id)
+        .select()
+        .maybeSingle();
+      data = result2.data;
+      error = result2.error;
+    }
 
     if (error) {
       console.error("update-device error:", error);
