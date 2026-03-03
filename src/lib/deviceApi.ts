@@ -175,6 +175,11 @@ export async function registerDeviceViaEdge(
   },
   options?: { throwOnFailure?: boolean }
 ): Promise<DeviceRow | null> {
+  // Guard: user_id is required
+  if (!params.user_id) {
+    console.warn("[deviceApi] ⚠️ registerDeviceViaEdge called without user_id, skipping");
+    return null;
+  }
   const metadata: Record<string, unknown> = {};
   if (params.serial_key) {
     metadata.serial_key = params.serial_key;
