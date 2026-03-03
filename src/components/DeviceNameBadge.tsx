@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
-import { getSavedAuth } from "@/lib/serialAuth";
+import { getSavedAuth, updateSavedAuth } from "@/lib/serialAuth";
 import { updateDeviceViaEdge, fetchDevicesViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { channelManager } from "@/lib/channelManager";
@@ -234,10 +234,8 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
         }
       }
 
-      if (saved) {
-        saved.device_name = trimmed;
-        localStorage.setItem("meercop_serial_auth", JSON.stringify(saved));
-      }
+      // sessionStorage + localStorage 양쪽에 이름 동기화
+      updateSavedAuth({ device_name: trimmed });
 
       onNameChanged?.(trimmed);
       setIsEditing(false);

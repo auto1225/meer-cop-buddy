@@ -17,6 +17,41 @@ export interface SerialAuthData {
   remaining_days: number | null;
 }
 
+// ── Storage 유틸 (sessionStorage + localStorage 동기화) ──
+function saveAuth(data: SerialAuthData): void {
+  const json = JSON.stringify(data);
+  try { sessionStorage.setItem(STORAGE_KEY, json); } catch {}
+  try { localStorage.setItem(STORAGE_KEY, json); } catch {}
+}
+
+function loadAuth(): SerialAuthData | null {
+  try {
+    // sessionStorage 우선 (현재 탭), localStorage 폴백 (탭 간 공유)
+    const raw = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // sessionStorage에 없었으면 복원
+    if (!sessionStorage.getItem(STORAGE_KEY)) {
+      sessionStorage.setItem(STORAGE_KEY, raw);
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearAuthStorage(): void {
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
+// 기본값 이름인지 판별
+function isDefaultDeviceName(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const n = name.trim().toLowerCase();
+  return !n || ["my laptop", "my smartphone", "unknown", "laptop", "laptop1"].includes(n);
+}
+
 async function callVerifySerial(serialKey: string) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/verify-serial`, {
     method: "POST",
@@ -84,20 +119,34 @@ export async function validateSerial(
     });
     console.log("[serialAuth] ✅ 공유 DB 기기 등록 완료:", registeredDevice);
   } catch (err: any) {
-    // 시리얼 중복 사용 에러는 사용자에게 전달
     if (err.message?.includes("serial_in_use") || err.message?.includes("사용 중")) {
       throw err;
     }
     console.warn("[serialAuth] ⚠️ 공유 DB 기기 등록 실패 (계속 진행):", err);
   }
 
-  // Prioritize user-provided deviceName over server default
-  const isServerDefault = !s.device_name || s.device_name === "My Laptop" || s.device_name === "My Smartphone";
-  const resolvedName = isServerDefault ? deviceName : s.device_name;
+  // ── 이름 결정 로직 (우선순위) ──
+  // 1) DB에 저장된 비기본 이름 (registeredDevice.name/device_name)
+  // 2) 사용자 입력 이름 (deviceName)
+  // 3) 서버 응답 이름 (s.device_name)
+  // 4) 기본값 "Laptop"
+  const dbName = registeredDevice?.name || registeredDevice?.device_name;
+  const serverName = s.device_name;
+  
+  let resolvedName: string;
+  if (!isDefaultDeviceName(dbName)) {
+    resolvedName = dbName; // DB에 커스텀 이름이 있으면 그것을 사용
+  } else if (!isDefaultDeviceName(deviceName)) {
+    resolvedName = deviceName; // 사용자 입력이 커스텀이면 사용
+  } else if (!isDefaultDeviceName(serverName)) {
+    resolvedName = serverName; // 서버 응답이 커스텀이면 사용
+  } else {
+    resolvedName = deviceName; // 모두 기본값이면 사용자 입력 사용
+  }
 
   const authData: SerialAuthData = {
     serial_key: s.serial_key || key,
-    device_id: s.id || s.device_id || "",
+    device_id: registeredDevice?.id || s.id || s.device_id || "",
     user_id: s.user_id || "",
     device_name: resolvedName,
     authenticated_at: new Date().toISOString(),
@@ -106,23 +155,26 @@ export async function validateSerial(
     remaining_days: s.remaining_days ?? null,
   };
 
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
+  saveAuth(authData);
   return authData;
 }
 
 // 저장된 인증 정보 가져오기
 export function getSavedAuth(): SerialAuthData | null {
-  try {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
-  }
+  return loadAuth();
+}
+
+// 인증 정보 업데이트 (이름 변경 등)
+export function updateSavedAuth(partial: Partial<SerialAuthData>): void {
+  const current = loadAuth();
+  if (!current) return;
+  const updated = { ...current, ...partial };
+  saveAuth(updated);
 }
 
 // 인증 정보 삭제 (로그아웃)
 export function clearAuth(): void {
-  sessionStorage.removeItem(STORAGE_KEY);
+  clearAuthStorage();
 }
 
 // 인증 여부 확인
@@ -189,6 +241,12 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
             : (s.id || s.device_id || ""))
         : ensuredDeviceId;
 
+    // 이름 결정: 저장된 커스텀 이름 > 서버 커스텀 이름 > 기본값 유지
+    let resolvedName = saved.device_name;
+    if (isDefaultDeviceName(resolvedName) && !isDefaultDeviceName(s.device_name)) {
+      resolvedName = s.device_name;
+    }
+
     const updated: SerialAuthData = {
       ...saved,
       plan_type: s.plan_type || saved.plan_type,
@@ -196,10 +254,10 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       remaining_days: s.remaining_days ?? saved.remaining_days,
       device_id: normalizedDeviceId,
       user_id: s.user_id || saved.user_id,
-      device_name: saved.device_name || s.device_name,
+      device_name: resolvedName,
     };
 
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    saveAuth(updated);
     return updated;
   } catch (err) {
     console.warn("[revalidateSerial] Network error:", err);
