@@ -6,11 +6,12 @@ import { getSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 // Global tracking to prevent duplicate Presence channel subscriptions
-const setupDeviceIds = new Set<string>();
-const deviceChannels = new Map<string, RealtimeChannel>();
+const setupChannelKeys = new Set<string>();
+const channelInstances = new Map<string, RealtimeChannel>();
 const reconnectAttempts = new Map<string, number>();
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY = 3000;
+const PRESENCE_REFRESH_INTERVAL = 120_000; // 120초
 
 interface DeviceStatus {
   isNetworkConnected: boolean;
@@ -19,14 +20,46 @@ interface DeviceStatus {
 
 // Presence state - status, network, camera, battery
 interface PresenceState {
-  device_id?: string;
+  device_id: string;
+  serial_key: string;
   status: "online" | "offline";
   is_network_connected: boolean;
   is_camera_connected: boolean;
   battery_level: number | null;
   is_charging: boolean;
+  device_name: string;
   last_seen_at: string;
-  serial_key?: string;
+}
+
+// ── 유틸: 현재 상태를 수집하여 Presence 페이로드 생성 ──
+async function buildPresencePayload(
+  sharedDeviceId: string,
+  isCameraConnected: boolean
+): Promise<PresenceState> {
+  const savedAuth = getSavedAuth();
+
+  // 배터리
+  let batteryLevel: number | null = null;
+  let isCharging = false;
+  if (navigator.getBattery) {
+    try {
+      const battery = await navigator.getBattery();
+      batteryLevel = Math.round(battery.level * 100);
+      isCharging = battery.charging;
+    } catch { /* Battery API 미지원 */ }
+  }
+
+  return {
+    device_id: sharedDeviceId,
+    serial_key: savedAuth?.serial_key || "",
+    status: "online",
+    is_network_connected: navigator.onLine,
+    is_camera_connected: isCameraConnected,
+    battery_level: batteryLevel,
+    is_charging: isCharging,
+    device_name: savedAuth?.device_name || "Laptop",
+    last_seen_at: new Date().toISOString(),
+  };
 }
 
 export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, userId?: string) {
@@ -38,8 +71,38 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   const deviceIdRef = useRef(deviceId);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const lastSyncRef = useRef<number>(0);
+  // 공유 DB UUID를 캐시 (getSharedDeviceId가 아직 설정 안 됐을 수 있으므로 ref로 추적)
+  const sharedIdRef = useRef<string | undefined>(undefined);
 
   deviceIdRef.current = deviceId;
+
+  // sharedId 업데이트 추적
+  useEffect(() => {
+    if (!deviceId) return;
+    const check = () => {
+      const sid = getSharedDeviceId(deviceId);
+      if (sid && sid !== sharedIdRef.current) {
+        sharedIdRef.current = sid;
+        console.log(`[DeviceStatus] 🔗 Shared ID resolved: ${sid}`);
+        // 이미 채널이 있으면 즉시 재 track
+        if (channelRef.current) {
+          (async () => {
+            try {
+              const payload = await buildPresencePayload(sid, status.isCameraAvailable);
+              await channelRef.current?.track(payload);
+              console.log("[DeviceStatus] ✅ Re-tracked with shared ID:", sid);
+            } catch (e) {
+              console.error("[DeviceStatus] Re-track failed:", e);
+            }
+          })();
+        }
+      }
+    };
+    check();
+    // sharedDeviceIdMap은 비동기로 설정될 수 있으므로 폴링
+    const timer = setInterval(check, 2000);
+    return () => clearInterval(timer);
+  }, [deviceId, status.isCameraAvailable]);
 
   // Presence 기반 상태 동기화 (실시간, DB 쓰기 없음)
   const syncPresence = useCallback(async (
@@ -48,35 +111,13 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const currentDeviceId = deviceIdRef.current;
     if (!currentDeviceId || !channelRef.current) return;
 
-    // 배터리 + 카메라 정보 수집
-    let batteryLevel: number | null = null;
-    let isCharging = false;
-    if (navigator.getBattery) {
-      try {
-        const battery = await navigator.getBattery();
-        batteryLevel = Math.round(battery.level * 100);
-        isCharging = battery.charging;
-      } catch { /* Battery API 미지원 */ }
-    }
-
-    // 카메라 상태는 커스텀 이벤트로부터 최신 값 참조
-    const isCameraConnected = status.isCameraAvailable;
-
-    const savedAuth = getSavedAuth();
-    const presenceState: PresenceState = {
-      device_id: currentDeviceId,
-      status: "online",
-      is_network_connected: networkConnected,
-      is_camera_connected: isCameraConnected,
-      battery_level: batteryLevel,
-      is_charging: isCharging,
-      last_seen_at: new Date().toISOString(),
-      ...(savedAuth?.serial_key ? { serial_key: savedAuth.serial_key } : {}),
-    };
+    const sid = sharedIdRef.current || getSharedDeviceId(currentDeviceId) || currentDeviceId;
+    const payload = await buildPresencePayload(sid, status.isCameraAvailable);
+    payload.is_network_connected = networkConnected;
 
     try {
-      await channelRef.current.track(presenceState);
-      console.log("[DeviceStatus] Presence synced:", presenceState);
+      await channelRef.current.track(payload);
+      console.log("[DeviceStatus] Presence synced:", payload);
     } catch (error) {
       console.error("[DeviceStatus] Failed to sync presence:", error);
     }
@@ -91,9 +132,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
 
     // 쓰로틀링: 최소 5초 간격으로만 DB 업데이트
     const now = Date.now();
-    if (now - lastSyncRef.current < 5000) {
-      return;
-    }
+    if (now - lastSyncRef.current < 5000) return;
     lastSyncRef.current = now;
 
     try {
@@ -122,14 +161,16 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     }
   }, []);
 
-  // Presence 채널 설정 (중복 방지 및 자동 재연결)
+  // ── Presence 채널 설정 (공유 DB, 중복 방지 및 자동 재연결) ──
   useEffect(() => {
-    if (!deviceId) return;
+    if (!deviceId || !userId) return;
 
-    // 이미 설정된 디바이스는 스킵
-    if (setupDeviceIds.has(deviceId)) {
-      console.log(`[DeviceStatus] ⏭️ Presence already setup for ${deviceId}`);
-      channelRef.current = deviceChannels.get(deviceId) || null;
+    const channelKey = `user-presence-${userId}`;
+
+    // 이미 설정된 채널은 스킵
+    if (setupChannelKeys.has(channelKey)) {
+      console.log(`[DeviceStatus] ⏭️ Presence already setup for ${channelKey}`);
+      channelRef.current = channelInstances.get(channelKey) || null;
       return;
     }
 
@@ -139,25 +180,27 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const setupChannel = () => {
       if (!isMounted) return;
 
-      const attempts = reconnectAttempts.get(deviceId) || 0;
+      const attempts = reconnectAttempts.get(channelKey) || 0;
       if (attempts >= MAX_RECONNECT_ATTEMPTS) {
-        console.log(`[DeviceStatus] ❌ Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached, stopping`);
+        console.log(`[DeviceStatus] ❌ Max reconnect attempts reached for ${channelKey}`);
         return;
       }
 
       // 기존 채널이 있으면 제거
-      const existingChannel = deviceChannels.get(deviceId);
+      const existingChannel = channelInstances.get(channelKey);
       if (existingChannel) {
         supabaseShared.removeChannel(existingChannel);
-        deviceChannels.delete(deviceId);
+        channelInstances.delete(channelKey);
       }
-      setupDeviceIds.delete(deviceId);
+      setupChannelKeys.delete(channelKey);
 
-      console.log(`[DeviceStatus] 🔗 Setting up Presence channel for ${deviceId} (attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+      // ★ 공유 DB UUID를 presence key로 사용 (없으면 로컬 ID 폴백)
+      const presenceKey = sharedIdRef.current || getSharedDeviceId(deviceId) || deviceId;
+
+      console.log(`[DeviceStatus] 🔗 Setting up Presence channel: ${channelKey} (key=${presenceKey}, attempt ${attempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
       
-      const channelKey = userId || deviceId;
-      const channel = supabaseShared.channel(`user-presence-${channelKey}`, {
-        config: { presence: { key: deviceId } },
+      const channel = supabaseShared.channel(channelKey, {
+        config: { presence: { key: presenceKey } },
       });
 
       channel
@@ -165,67 +208,45 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
           const state = channel.presenceState();
           console.log("[DeviceStatus] Presence sync:", state);
         })
-        .subscribe(async (status) => {
-          console.log(`[DeviceStatus] Channel status: ${status}`);
+        .subscribe(async (subStatus) => {
+          console.log(`[DeviceStatus] Channel status: ${subStatus}`);
           
-          if (status === "SUBSCRIBED") {
+          if (subStatus === "SUBSCRIBED") {
             channelRef.current = channel;
-            deviceChannels.set(deviceId, channel);
-            setupDeviceIds.add(deviceId);
-            // 성공 시 재시도 카운터 리셋
-            reconnectAttempts.set(deviceId, 0);
+            channelInstances.set(channelKey, channel);
+            setupChannelKeys.add(channelKey);
+            reconnectAttempts.set(channelKey, 0);
             
             try {
-              // 배터리 정보 포함 (스마트폰 측 요구사항)
-              let batteryLevel: number | null = null;
-              let isCharging = false;
-              if (navigator.getBattery) {
-                try {
-                  const battery = await navigator.getBattery();
-                  batteryLevel = Math.round(battery.level * 100);
-                  isCharging = battery.charging;
-                } catch {
-                  // Battery API 미지원
-                }
-              }
-              // 초기 카메라 상태: enumerateDevices로 빠르게 확인 (하드코딩 false 방지)
+              // 초기 카메라 상태
               let initCameraConnected = false;
               try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 initCameraConnected = devices.some(d => d.kind === "videoinput");
               } catch { /* ignore */ }
-              const initAuth = getSavedAuth();
-              await channel.track({
-                device_id: deviceId,
-                status: "online",
-                is_network_connected: navigator.onLine,
-                is_camera_connected: initCameraConnected,
-                battery_level: batteryLevel,
-                is_charging: isCharging,
-                last_seen_at: new Date().toISOString(),
-                ...(initAuth?.serial_key ? { serial_key: initAuth.serial_key } : {}),
-              });
-              console.log("[DeviceStatus] Presence synced (battery:", batteryLevel, "%)");
+
+              const sid = sharedIdRef.current || getSharedDeviceId(deviceId) || deviceId;
+              const payload = await buildPresencePayload(sid, initCameraConnected);
+              await channel.track(payload);
+              console.log("[DeviceStatus] ✅ Initial presence tracked:", payload);
             } catch (e) {
               console.error("[DeviceStatus] Failed to sync presence:", e);
             }
-          } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-            setupDeviceIds.delete(deviceId);
-            deviceChannels.delete(deviceId);
+          } else if (subStatus === "CLOSED" || subStatus === "CHANNEL_ERROR") {
+            setupChannelKeys.delete(channelKey);
+            channelInstances.delete(channelKey);
             
-            const currentAttempts = reconnectAttempts.get(deviceId) || 0;
+            const currentAttempts = reconnectAttempts.get(channelKey) || 0;
             if (isMounted && currentAttempts < MAX_RECONNECT_ATTEMPTS) {
               const delay = BASE_RECONNECT_DELAY * Math.pow(2, currentAttempts);
-              console.log(`[DeviceStatus] ⚠️ Channel ${status}, reconnect ${currentAttempts + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s`);
-              reconnectAttempts.set(deviceId, currentAttempts + 1);
+              console.log(`[DeviceStatus] ⚠️ Channel ${subStatus}, reconnect ${currentAttempts + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s`);
+              reconnectAttempts.set(channelKey, currentAttempts + 1);
               
               reconnectTimerId = setTimeout(() => {
                 if (isMounted && deviceIdRef.current === deviceId) {
                   setupChannel();
                 }
               }, delay);
-            } else if (currentAttempts >= MAX_RECONNECT_ATTEMPTS) {
-              console.log(`[DeviceStatus] ❌ Giving up after ${MAX_RECONNECT_ATTEMPTS} attempts`);
             }
           }
         });
@@ -238,15 +259,37 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     return () => {
       isMounted = false;
       if (reconnectTimerId) clearTimeout(reconnectTimerId);
-      const channel = deviceChannels.get(deviceId);
+      const channel = channelInstances.get(channelKey);
       if (channel) {
+        // 종료 시 untrack 후 채널 제거
+        channel.untrack().catch(() => {});
         supabaseShared.removeChannel(channel);
-        deviceChannels.delete(deviceId);
-        setupDeviceIds.delete(deviceId);
+        channelInstances.delete(channelKey);
+        setupChannelKeys.delete(channelKey);
       }
       channelRef.current = null;
     };
   }, [deviceId, userId]);
+
+  // ── 주기적 Presence 갱신 (120초) ──
+  useEffect(() => {
+    if (!deviceId || !channelRef.current) return;
+
+    const refreshPresence = async () => {
+      if (!channelRef.current) return;
+      const sid = sharedIdRef.current || getSharedDeviceId(deviceId) || deviceId;
+      try {
+        const payload = await buildPresencePayload(sid, status.isCameraAvailable);
+        await channelRef.current.track(payload);
+        console.log("[DeviceStatus] 🔄 Presence refreshed (120s)");
+      } catch (e) {
+        console.error("[DeviceStatus] Presence refresh failed:", e);
+      }
+    };
+
+    const intervalId = setInterval(refreshPresence, PRESENCE_REFRESH_INTERVAL);
+    return () => clearInterval(intervalId);
+  }, [deviceId, status.isCameraAvailable]);
 
   // Sync status when authentication changes
   useEffect(() => {
@@ -259,9 +302,6 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   useEffect(() => {
     if (!deviceId) return;
 
-    const SUPABASE_URL = SHARED_SUPABASE_URL;
-    const SUPABASE_ANON_KEY = SHARED_SUPABASE_ANON_KEY;
-
     const sendOfflineBeacon = () => {
       const updates = {
         status: "offline",
@@ -272,29 +312,29 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
 
       // 1) 공유 DB (매핑된 shared ID 사용)
       const mappedSharedId = getSharedDeviceId(deviceId);
-      const sharedId = mappedSharedId || (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId) ? deviceId : null);
-      let sharedSent = false;
+      const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+      const sharedId = mappedSharedId || (isUuid(deviceId) ? deviceId : null);
       if (sharedId) {
         const sharedBlob = new Blob(
           [JSON.stringify({ device_id: sharedId, updates })],
           { type: "application/json" }
         );
-        sharedSent = navigator.sendBeacon(
+        navigator.sendBeacon(
           `${SHARED_SUPABASE_URL}/functions/v1/update-device`, sharedBlob
         );
       }
 
-      // 2) 로컬 DB (이 프로젝트의 DB — 스마트폰이 읽는 소스)
+      // 2) 로컬 DB
       const localProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";
       const localBlob = new Blob(
         [JSON.stringify({ device_id: deviceId, updates })],
         { type: "application/json" }
       );
-      const localSent = navigator.sendBeacon(
+      navigator.sendBeacon(
         `https://${localProjectId}.supabase.co/functions/v1/update-device`, localBlob
       );
 
-      console.log(`[DeviceStatus] 🚪 sendBeacon offline: shared=${sharedSent}(${sharedId}) local=${localSent}(${deviceId})`);
+      console.log(`[DeviceStatus] 🚪 sendBeacon offline: shared=${sharedId} local=${deviceId}`);
     };
 
     const sendStatusUpdate = (isOnline: boolean) => {
@@ -302,7 +342,6 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         sendOfflineBeacon();
         return;
       }
-      // 카메라 상태는 useCameraDetection이 단독 관리하므로 여기서 제외
       updateDeviceViaEdge(deviceId, {
         status: "online",
         is_network_connected: navigator.onLine,
@@ -310,22 +349,19 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       }).catch(() => {});
     };
 
-    // 브라우저 종료 시
     const handleBeforeUnload = () => {
+      // untrack before leaving
+      channelRef.current?.untrack().catch(() => {});
       sendOfflineBeacon();
     };
 
-    // 절전모드 진입/복귀 감지
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // 절전모드 또는 탭 비활성화 → offline
-        console.log("[DeviceStatus] 💤 Page hidden (sleep/minimize) → sending offline");
+        console.log("[DeviceStatus] 💤 Page hidden → sending offline");
         sendStatusUpdate(false);
       } else {
-        // 절전모드 복귀 또는 탭 활성화 → online
-        console.log("[DeviceStatus] ☀️ Page visible (wake/focus) → sending online");
+        console.log("[DeviceStatus] ☀️ Page visible → sending online");
         sendStatusUpdate(true);
-        // Presence 재동기화
         syncPresence(navigator.onLine);
       }
     };
@@ -371,37 +407,22 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       const { isConnected } = event.detail;
       console.log("[DeviceStatus] Camera status changed event:", isConnected);
       setStatus((prev) => ({ ...prev, isCameraAvailable: isConnected }));
-      // 카메라 상태 변경 시 DB에도 동기화 (Presence와 DB 불일치 방지)
+      
+      // DB 동기화
       if (deviceIdRef.current) {
         updateDeviceViaEdge(deviceIdRef.current, {
           is_camera_connected: isConnected,
           updated_at: new Date().toISOString(),
         }).catch((e) => console.error("[DeviceStatus] Failed to sync camera to DB:", e));
       }
-      // 카메라 상태 변경 시 Presence 재동기화
+      
+      // Presence 재동기화 (공유 DB UUID 사용)
       if (channelRef.current && deviceIdRef.current) {
         (async () => {
-          let batteryLevel: number | null = null;
-          let isCharging = false;
-          if (navigator.getBattery) {
-            try {
-              const battery = await navigator.getBattery();
-              batteryLevel = Math.round(battery.level * 100);
-              isCharging = battery.charging;
-            } catch { /* ignore */ }
-          }
+          const sid = sharedIdRef.current || getSharedDeviceId(deviceIdRef.current!) || deviceIdRef.current!;
           try {
-            const camAuth = getSavedAuth();
-            await channelRef.current?.track({
-              device_id: deviceIdRef.current,
-              status: "online",
-              is_network_connected: navigator.onLine,
-              is_camera_connected: isConnected,
-              battery_level: batteryLevel,
-              is_charging: isCharging,
-              last_seen_at: new Date().toISOString(),
-              ...(camAuth?.serial_key ? { serial_key: camAuth.serial_key } : {}),
-            });
+            const payload = await buildPresencePayload(sid, isConnected);
+            await channelRef.current?.track(payload);
             console.log("[DeviceStatus] Presence re-synced with camera:", isConnected);
           } catch (e) {
             console.error("[DeviceStatus] Failed to re-sync presence for camera:", e);
@@ -417,7 +438,6 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   }, []);
 
   // Initial sync when deviceId becomes available
-  // syncPresence and updateNetworkStatusInDB are stable (useCallback with no changing deps)
   useEffect(() => {
     if (deviceId) {
       syncPresence(status.isNetworkConnected);
@@ -437,7 +457,6 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         is_network_connected: navigator.onLine,
       };
 
-      // Gather network info
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const networkInfo: Record<string, unknown> = {
         type: connection?.type || "unknown",
@@ -447,20 +466,14 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         updated_at: now,
       };
 
-      // Fetch IP (non-blocking, skip on failure)
-      // IP 조회 (비차단, 실패 시 무시 — 의도적 catch)
       try {
         const res = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(3000) });
         const data = await res.json();
         if (data.ip) updates.ip_address = data.ip;
-      } catch {
-        // IP 조회 실패는 정상 동작에 영향 없음 — 의도적으로 무시
-      }
+      } catch { /* ignore */ }
 
-      // Send network_info as metadata patch (server merges with latest metadata)
       updates.metadata = { network_info: networkInfo };
 
-      // Gather location (non-blocking)
       try {
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -472,24 +485,18 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         updates.latitude = position.coords.latitude;
         updates.longitude = position.coords.longitude;
         updates.location_updated_at = now;
-      } catch {
-        // GPS 위치 획득 실패 — 정상 동작에 영향 없음, 의도적으로 무시
-      }
+      } catch { /* ignore */ }
 
       try {
         await updateDeviceViaEdge(deviceId, updates);
-        console.log("[DeviceStatus] 💓 Heartbeat sent (with location + network)");
+        console.log("[DeviceStatus] 💓 Heartbeat sent");
       } catch (error) {
         console.error("[DeviceStatus] Heartbeat failed:", error);
       }
     };
 
-    // Send immediately on mount
     sendHeartbeat();
-
-    // 체크리스트 8-1: 노트북 하트비트 주기 60초
     const intervalId = setInterval(sendHeartbeat, 60_000);
-
     return () => clearInterval(intervalId);
   }, [deviceId]);
 
