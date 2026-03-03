@@ -6,6 +6,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// 기본값(디폴트) 이름인지 판별
+function isDefaultName(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const n = name.trim().toLowerCase();
+  return !n || ["my laptop", "my smartphone", "unknown", "laptop", "laptop1"].includes(n);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -37,7 +44,6 @@ Deno.serve(async (req) => {
 
     // ── 시리얼 중복 사용 검증 (재검증 요청은 건너뜀) ──
     if (serial_key && !is_revalidation) {
-      // 같은 compositeDeviceId가 online이면 = 이미 다른 브라우저/기기에서 사용 중
       const { data: sameDevice } = await supabase
         .from("devices")
         .select("id, device_id, device_name, name, status")
@@ -70,18 +76,35 @@ Deno.serve(async (req) => {
     let resultDevice: any;
 
     if (existing) {
+      // ── 기존 기기: 이름 보존 규칙 ──
+      // 원칙: DB에 저장된 비기본 이름은 절대 덮어쓰지 않음
       const existingName = existing.device_name || existing.name || "";
-      const isDefaultName = !existingName || existingName === "My Laptop" || existingName === "My Smartphone" || existingName === "Unknown";
-      const preservedName = isDefaultName ? finalName : existingName;
+      const existingHasCustomName = !isDefaultName(existingName);
+      const requestHasCustomName = !isDefaultName(finalName);
+
+      // 최종 이름 결정 로직:
+      // 1) 기존에 커스텀 이름이 있으면 → 무조건 보존
+      // 2) 기존이 기본값이고 요청도 기본값 → 기존 유지
+      // 3) 기존이 기본값이고 요청이 커스텀 → 요청 값 사용
+      let resolvedName: string;
+      if (existingHasCustomName) {
+        resolvedName = existingName;
+      } else if (requestHasCustomName) {
+        resolvedName = finalName;
+      } else {
+        resolvedName = existingName || finalName;
+      }
 
       const updateFields: Record<string, unknown> = {
         last_seen_at: new Date().toISOString(),
         user_id: finalUserId,
         status: "online",
       };
-      if (isDefaultName || (finalName !== "My Laptop" && finalName !== "My Smartphone" && finalName !== existingName)) {
-        updateFields.device_name = isDefaultName && finalName !== "My Laptop" && finalName !== "My Smartphone" ? finalName : preservedName;
-        updateFields.name = updateFields.device_name;
+
+      // 이름이 실제로 변경되었을 때만 업데이트
+      if (resolvedName !== existingName) {
+        updateFields.device_name = resolvedName;
+        updateFields.name = resolvedName;
       }
 
       await supabase
@@ -91,11 +114,13 @@ Deno.serve(async (req) => {
 
       resultDevice = {
         ...existing,
-        device_name: (updateFields.device_name as string) || existingName,
-        name: (updateFields.name as string) || existingName,
+        device_name: resolvedName,
+        name: resolvedName,
         user_id: finalUserId,
         last_seen_at: updateFields.last_seen_at,
       };
+
+      console.log(`[register-device] ♻️ Existing device updated: name="${resolvedName}" (was="${existingName}", requested="${finalName}")`);
     } else {
       // Insert new device
       const { data: inserted, error } = await supabase
@@ -124,6 +149,7 @@ Deno.serve(async (req) => {
         );
       }
       resultDevice = inserted;
+      console.log(`[register-device] 🆕 New device inserted: name="${finalName}"`);
     }
 
     // ── Upsert into licenses table if serial_key is provided ──
