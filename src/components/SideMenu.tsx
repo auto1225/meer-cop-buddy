@@ -18,6 +18,15 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const { t } = useTranslation();
 
+  const getPlanLabel = (planType?: string) => {
+    switch (planType) {
+      case "free": return t("menu.planFree");
+      case "basic": return t("menu.planBasic");
+      case "premium": return t("menu.planPremium");
+      default: return t("menu.planFree");
+    }
+  };
+
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -90,7 +99,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
                 <UserCircle className="w-4 h-4 text-accent/80 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10px] text-white/50 font-bold uppercase tracking-wider">{t("menu.membership")}</p>
-                  <p className="text-xs font-bold">{t("menu.normalMember")}</p>
+                  <p className="text-xs font-bold">{getPlanLabel(savedAuth?.plan_type)}</p>
                 </div>
               </div>
             </div>
