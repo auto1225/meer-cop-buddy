@@ -229,16 +229,42 @@ export async function registerDeviceViaEdge(
     console.warn("[deviceApi] ⚠️ Local register-device network error:", err);
   }
 
-  // 2) 공유 프로젝트에도 항상 등록 (스마트폰 동기화용, fire-and-forget)
+  // 2) 공유 프로젝트에도 항상 등록 (스마트폰 동기화용)
+  // ★ 공유 DB register-device가 이름을 보존(덮어쓰기 방지)하므로, 반환된 이름이 다르면 즉시 update-device로 보정
   if (!isSharedRegisterCooldownActive()) {
     fetch(`${SHARED_SUPABASE_URL}/functions/v1/register-device`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
       body: JSON.stringify(body),
     })
-      .then(res => res.ok
-        ? console.log("[deviceApi] ✅ Shared DB register OK")
-        : res.text().then(t => console.warn("[deviceApi] ⚠️ Shared register failed:", t)))
+      .then(async (res) => {
+        if (!res.ok) {
+          const t = await res.text();
+          console.warn("[deviceApi] ⚠️ Shared register failed:", t);
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        console.log("[deviceApi] ✅ Shared DB register OK:", data);
+
+        // 공유 DB가 반환한 이름과 요청한 이름이 다르면 → 즉시 이름 보정
+        const returnedName = (data as any)?.device_name || (data as any)?.name || "";
+        const requestedName = params.device_name;
+        const sharedDeviceId = (data as any)?.device_id || (data as any)?.id;
+        const isDefault = (n: string) => !n || /^(Laptop\d*|My Laptop|Unknown)$/i.test(n.trim());
+
+        if (sharedDeviceId && requestedName && !isDefault(requestedName) && returnedName !== requestedName) {
+          console.log(`[deviceApi] 🔧 Shared DB name mismatch: "${returnedName}" → "${requestedName}", patching...`);
+          fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+            body: JSON.stringify({ device_id: sharedDeviceId, name: requestedName }),
+          })
+            .then(r => r.ok
+              ? console.log("[deviceApi] ✅ Shared DB name patched to:", requestedName)
+              : r.text().then(t => console.warn("[deviceApi] ⚠️ Shared name patch failed:", t)))
+            .catch(e => console.warn("[deviceApi] ⚠️ Shared name patch error:", e));
+        }
+      })
       .catch(err => console.warn("[deviceApi] ⚠️ Shared register error:", err));
   }
 
