@@ -289,8 +289,13 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
         } catch { return ""; }
       })();
 
+      if (!localDevice?.user_id) {
+        console.warn("[AutoBroadcaster] ⚠️ No user_id available, skipping shared register");
+        return null;
+      }
+
       const registerBody: Record<string, unknown> = {
-        user_id: localDevice?.user_id,
+        user_id: localDevice.user_id,
         name: localName,
         device_name: localName,
         device_type: localType,
