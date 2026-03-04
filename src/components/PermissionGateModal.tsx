@@ -10,7 +10,17 @@ interface PermissionItem {
 }
 
 const DISMISS_STORAGE_KEY = "meercop-permission-dismissed";
+const GRANTED_STORAGE_KEY = "meercop-permission-all-granted";
 const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000; // 24시간
+
+/** 모든 권한이 이미 승인 완료된 적이 있는지 */
+function wasAllGranted(): boolean {
+  try {
+    return localStorage.getItem(GRANTED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 /** 최근 dismiss 여부 확인 */
 function wasRecentlyDismissed(): boolean {
