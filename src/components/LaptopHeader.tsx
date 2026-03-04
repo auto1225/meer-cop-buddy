@@ -17,14 +17,12 @@ export function LaptopHeader({ onMenuClick, soundEnabled = true, onSoundToggle }
   return (
     <header className="relative z-20 px-3 py-1.5">
       <div className="flex items-center justify-between">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="text-white hover:bg-white/20 h-8 w-8"
+        <button 
+          className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center hover:bg-white/30 transition-colors"
           onClick={onMenuClick}
         >
-          <Menu className="h-4 w-4" />
-        </Button>
+          <Menu className="h-4 w-4 text-white" />
+        </button>
 
         <div className="text-center flex flex-col items-center">
           <img 
@@ -34,10 +32,8 @@ export function LaptopHeader({ onMenuClick, soundEnabled = true, onSoundToggle }
           />
         </div>
 
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="hover:bg-white/20 h-8 w-8"
+        <button 
+          className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center hover:bg-white/30 transition-colors"
           onClick={onSoundToggle}
         >
           <img 
@@ -45,7 +41,7 @@ export function LaptopHeader({ onMenuClick, soundEnabled = true, onSoundToggle }
             alt={soundEnabled ? t("alarm.on") : t("alarm.off")} 
             className="h-5 w-5 object-contain"
           />
-        </Button>
+        </button>
       </div>
     </header>
   );
