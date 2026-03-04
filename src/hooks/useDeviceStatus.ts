@@ -266,9 +266,22 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
                 initCameraConnected = devices.some(d => d.kind === "videoinput");
               } catch { /* ignore */ }
 
+              // 초기 하드웨어 상태를 로컬 상태/ref에 반영
+              cameraStatusRef.current = initCameraConnected;
+              setStatus((prev) => ({ ...prev, isCameraAvailable: initCameraConnected }));
+
               const payload = await buildPresencePayload(resolvedSharedId, initCameraConnected);
               await channel.track(payload);
               console.log("[DeviceStatus] ✅ Initial presence tracked:", payload);
+
+              // ★ camera-status-changed 이벤트가 없더라도 DB를 즉시 정합화
+              if (deviceIdRef.current) {
+                await updateDeviceViaEdge(deviceIdRef.current, {
+                  is_camera_connected: initCameraConnected,
+                  updated_at: new Date().toISOString(),
+                });
+                console.log("[DeviceStatus] ✅ Initial camera synced to DB:", initCameraConnected);
+              }
             } catch (e) {
               console.error("[DeviceStatus] Failed to sync presence:", e);
             }
@@ -505,6 +518,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         last_seen_at: now,
         updated_at: now,
         is_network_connected: navigator.onLine,
+        is_camera_connected: cameraStatusRef.current,
       };
 
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
