@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Camera, Mic, MapPin, X, ShieldCheck, AlertTriangle } from "lucide-react";
-import { useI18n } from "@/lib/i18n";
+import { useTranslation } from "@/lib/i18n";
 
 interface PermissionItem {
   key: "camera" | "microphone" | "geolocation";
