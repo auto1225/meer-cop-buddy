@@ -14,6 +14,7 @@ import { PinKeypad } from "@/components/PinKeypad";
 import { LocationMapModal } from "@/components/LocationMapModal";
 import { NetworkInfoModal } from "@/components/NetworkInfoModal";
 import { AutoBroadcaster } from "@/components/AutoBroadcaster";
+import { PermissionGateModal } from "@/components/PermissionGateModal";
 import { CamouflageOverlay } from "@/components/CamouflageOverlay";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
