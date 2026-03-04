@@ -175,6 +175,17 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     return () => clearInterval(timer);
   }, [deviceId, resolvedSharedId]);
 
+  // ★ resolvedSharedId가 확정되면 현재 카메라 상태를 공유 DB에 즉시 동기화
+  useEffect(() => {
+    if (!resolvedSharedId || !deviceId) return;
+    const currentCamera = cameraStatusRef.current;
+    console.log(`[DeviceStatus] 🔗 SharedId resolved → syncing camera=${currentCamera} to shared DB (${resolvedSharedId})`);
+    updateDeviceViaEdge(resolvedSharedId, {
+      is_camera_connected: currentCamera,
+      updated_at: new Date().toISOString(),
+    }).catch((e) => console.error("[DeviceStatus] Failed to sync camera on sharedId resolve:", e));
+  }, [resolvedSharedId, deviceId]);
+
   useEffect(() => {
     if (!deviceId || !userId || !resolvedSharedId) {
       console.log(`[DeviceStatus] ⏳ Waiting for sharedId before channel setup (deviceId=${deviceId}, userId=${userId}, sharedId=${resolvedSharedId})`);
@@ -438,21 +449,29 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       cameraStatusRef.current = isConnected; // ★ ref를 먼저 업데이트
       setStatus((prev) => ({ ...prev, isCameraAvailable: isConnected }));
       
-      // DB 동기화
+      // DB 동기화 — 로컬 ID로 호출 (updateDeviceViaEdge 내부에서 shared 매핑 처리)
       if (deviceIdRef.current) {
         updateDeviceViaEdge(deviceIdRef.current, {
           is_camera_connected: isConnected,
           updated_at: new Date().toISOString(),
         }).catch((e) => console.error("[DeviceStatus] Failed to sync camera to DB:", e));
       }
+
+      // ★ 공유 DB에도 직접 업데이트 (shared ID가 로컬 ID와 다른 경우 대비)
+      const sid = sharedIdRef.current || (deviceIdRef.current ? getSharedDeviceId(deviceIdRef.current) : undefined);
+      if (sid && sid !== deviceIdRef.current) {
+        updateDeviceViaEdge(sid, {
+          is_camera_connected: isConnected,
+          updated_at: new Date().toISOString(),
+        }).catch((e) => console.error("[DeviceStatus] Failed to sync camera to shared DB:", e));
+      }
       
       // Presence 재동기화 (공유 DB UUID 사용)
       if (channelRef.current && deviceIdRef.current) {
         (async () => {
-          const sid = sharedIdRef.current || getSharedDeviceId(deviceIdRef.current!);
-          if (!sid) return; // sharedId 없으면 스킵
+          const presenceSid = sid || deviceIdRef.current!;
           try {
-            const payload = await buildPresencePayload(sid, isConnected);
+            const payload = await buildPresencePayload(presenceSid, isConnected);
             await channelRef.current?.track(payload);
             console.log("[DeviceStatus] Presence re-synced with camera:", isConnected);
           } catch (e) {
