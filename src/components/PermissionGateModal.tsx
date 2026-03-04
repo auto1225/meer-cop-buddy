@@ -10,7 +10,17 @@ interface PermissionItem {
 }
 
 const DISMISS_STORAGE_KEY = "meercop-permission-dismissed";
+const GRANTED_STORAGE_KEY = "meercop-permission-all-granted";
 const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000; // 24시간
+
+/** 모든 권한이 이미 승인 완료된 적이 있는지 */
+function wasAllGranted(): boolean {
+  try {
+    return localStorage.getItem(GRANTED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 /** 최근 dismiss 여부 확인 */
 function wasRecentlyDismissed(): boolean {
@@ -67,9 +77,17 @@ export function PermissionGateModal() {
 
     setItems(newItems);
 
-    // 미승인 항목이 있으면 팝업 표시 (최근 dismiss 안 했을 때만)
-    const hasUngranted = newItems.some(item => item.state !== "granted");
-    if (hasUngranted && !wasRecentlyDismissed()) {
+    const allGranted = newItems.every(item => item.state === "granted");
+
+    // ★ 모든 권한이 승인되면 영구 기록 → 다시는 팝업 안 나옴
+    if (allGranted) {
+      try { localStorage.setItem(GRANTED_STORAGE_KEY, "true"); } catch {}
+      return; // 팝업 열지 않음
+    }
+
+    // 이전에 모두 승인한 적이 있으면 (사용자가 브라우저 설정에서 해제한 경우에만 재표시)
+    // → 이 경우는 wasAllGranted()가 true이지만 현재 일부가 revoked됨 → 팝업 표시
+    if (!wasRecentlyDismissed()) {
       setOpen(true);
     }
   }, []);
@@ -123,9 +141,10 @@ export function PermissionGateModal() {
     setOpen(false);
   }, []);
 
-  // 모든 권한이 granted면 자동 닫기
+  // 모든 권한이 granted면 자동 닫기 + 영구 저장
   useEffect(() => {
     if (items.every(item => !item.checking && item.state === "granted") && open) {
+      try { localStorage.setItem(GRANTED_STORAGE_KEY, "true"); } catch {}
       const timer = setTimeout(() => setOpen(false), 800);
       return () => clearTimeout(timer);
     }
