@@ -182,7 +182,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [deviceType, setDeviceType] = useState<string>(() => currentDevice?.device_type || "laptop");
   // Language setting from smartphone (supports 17 languages)
   const [appLanguage, setAppLanguage] = useState<string>(() => {
-    return localStorage.getItem('meercop-language') || "ko";
+    return localStorage.getItem('meercop-language') || "en";
   });
   // Guard: prevent metadata useEffect from reverting broadcast-applied settings
   const broadcastOverrideUntilRef = useRef<number>(0);

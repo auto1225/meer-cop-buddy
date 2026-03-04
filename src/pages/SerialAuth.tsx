@@ -168,7 +168,7 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
 }
 
 export default function SerialAuth({ onSuccess }: SerialAuthProps) {
-  const savedLang = (localStorage.getItem("meercop-language") as Lang) || "ko";
+  const savedLang = (localStorage.getItem("meercop-language") as Lang) || "en";
   return (
     <I18nProvider initialLang={savedLang}>
       <SerialAuthInner onSuccess={onSuccess} />
