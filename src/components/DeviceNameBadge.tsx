@@ -111,57 +111,58 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
       timestamp: string;
     }
   ): Promise<void> => {
-    const channelName = `user-commands-${userId}`;
-    const cmdChannel = channelManager.get(channelName) ?? channelManager.getOrCreate(channelName);
+    // ★ 2개 채널로 동시 전송: commands + presence (스마트폰이 어느 쪽이든 수신 가능)
+    const channels = [
+      `user-commands-${userId}`,
+      `user-presence-${userId}`,
+    ];
 
-    const sendBothFormats = async () => {
-      await Promise.allSettled([
-        // 표준 포맷
-        cmdChannel.send({
-          type: "broadcast",
-          event: "name_changed",
-          payload,
-        }),
-        // 하위 호환 포맷
-        cmdChannel.send({
-          type: "broadcast",
-          event: "command",
-          payload: {
-            type: "name_changed",
-            ...payload,
-          },
-        }),
-      ]);
+    const sendOnChannel = async (channelName: string) => {
+      const ch = channelManager.get(channelName) ?? channelManager.getOrCreate(channelName);
+
+      const sendBothFormats = async () => {
+        await Promise.allSettled([
+          ch.send({ type: "broadcast", event: "name_changed", payload }),
+          ch.send({
+            type: "broadcast",
+            event: "command",
+            payload: { type: "name_changed", ...payload },
+          }),
+        ]);
+      };
+
+      const state = (ch as unknown as { state?: string }).state;
+      if (state === "joined") {
+        await sendBothFormats();
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          console.warn(`[DeviceNameBadge] ⚠️ ${channelName} subscribe timeout`);
+          resolve();
+        }, 2000);
+
+        ch.subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            clearTimeout(timeout);
+            sendBothFormats()
+              .catch((e) => console.warn(`[DeviceNameBadge] ${channelName} send failed:`, e))
+              .finally(() => resolve());
+            return;
+          }
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            clearTimeout(timeout);
+            console.warn(`[DeviceNameBadge] ⚠️ ${channelName} subscribe failed:`, status);
+            resolve();
+          }
+        });
+      });
     };
 
-    const state = (cmdChannel as unknown as { state?: string }).state;
-    if (state === "joined") {
-      await sendBothFormats();
-      return;
-    }
-
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        console.warn("[DeviceNameBadge] ⚠️ user-commands subscribe timeout, skipping name_changed broadcast");
-        resolve();
-      }, 2000);
-
-      cmdChannel.subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          clearTimeout(timeout);
-          sendBothFormats()
-            .catch((e) => console.warn("[DeviceNameBadge] Broadcast send failed:", e))
-            .finally(() => resolve());
-          return;
-        }
-
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          clearTimeout(timeout);
-          console.warn("[DeviceNameBadge] ⚠️ user-commands subscribe failed:", status);
-          resolve();
-        }
-      });
-    });
+    // 모든 채널에 병렬 전송
+    await Promise.allSettled(channels.map(sendOnChannel));
+    console.log("[DeviceNameBadge] ✅ name_changed broadcast sent on", channels.join(", "));
   };
 
   const handleSave = async () => {

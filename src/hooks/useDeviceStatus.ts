@@ -514,12 +514,21 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
 
     const sendHeartbeat = async () => {
       const now = new Date().toISOString();
+      const savedAuth = getSavedAuth();
+      const currentName = savedAuth?.device_name || "";
+      
       const updates: Record<string, unknown> = {
         last_seen_at: now,
         updated_at: now,
         is_network_connected: navigator.onLine,
         is_camera_connected: cameraStatusRef.current,
       };
+
+      // ★ 커스텀 이름이 있으면 heartbeat에 포함 → 스마트폰 DB 폴링으로도 이름 변경 감지 가능
+      if (currentName && !/^(Laptop\d*|My Laptop|Unknown)$/i.test(currentName.trim())) {
+        updates.name = currentName;
+        updates.device_name = currentName;
+      }
 
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const networkInfo: Record<string, unknown> = {
