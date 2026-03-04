@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
+import { channelManager } from "@/lib/channelManager";
 
 // Shared DB schema
 interface Device {
@@ -307,6 +308,33 @@ export function useDevices(userId?: string) {
           return changed ? updated : prev;
         });
       };
+
+      // ★ name_changed 브로드캐스트 실시간 수신 (노트북에서 이름 변경 시 즉시 반영)
+      const cmdChannel = channelManager.getOrCreate(`user-commands-${userId}`);
+      const handleNameChanged = (msg: { event: string; payload?: Record<string, unknown> }) => {
+        const p = msg.payload || {};
+        const newName = (p.new_name || "") as string;
+        const targetId = (p.target_device_id || p.target_shared_device_id || "") as string;
+        if (!newName || !targetId) return;
+        console.log("[useDevices] 📛 name_changed received:", targetId, "→", newName);
+        setDevices((prev) => {
+          let changed = false;
+          const updated = prev.map((d) => {
+            if (d.id !== targetId && d.device_id !== targetId) return d;
+            changed = true;
+            return { ...d, name: newName, device_name: newName };
+          });
+          return changed ? updated : prev;
+        });
+      };
+      cmdChannel.on("broadcast", { event: "name_changed" }, handleNameChanged);
+      cmdChannel.on("broadcast", { event: "command" }, (msg) => {
+        const p = msg.payload || {};
+        if ((p as Record<string, unknown>).type === "name_changed") {
+          handleNameChanged({ event: "name_changed", payload: p as Record<string, unknown> });
+        }
+      });
+      cmdChannel.subscribe();
 
       presenceChannel
         .on("presence", { event: "sync" }, () => {
