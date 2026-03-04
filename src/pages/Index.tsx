@@ -846,6 +846,8 @@ const Index = ({ onExpired }: IndexProps) => {
 
   return (
     <I18nProvider initialLang={appLanguage as Lang}>
+    {/* Permission Gate Modal */}
+    <PermissionGateModal />
     {/* Camouflage Overlay - OUTSIDE ResizableContainer to cover entire viewport */}
     <CamouflageOverlay isActive={isCamouflageMode} />
     <ResizableContainer
