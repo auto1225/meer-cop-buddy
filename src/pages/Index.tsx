@@ -835,6 +835,18 @@ const Index = ({ onExpired }: IndexProps) => {
   // App Stabilizer: 포그라운드 복귀 시 DB 재확인 + 캐시 정리
   useAppStabilizer();
 
+  // 경보 중 브라우저 닫기 방지 (beforeunload 확인창)
+  useEffect(() => {
+    if (!isAlarming) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // 크롬 등 최신 브라우저에서 확인창 표시를 위해 필요
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isAlarming]);
+
   // Show loading while checking auth - ALL HOOKS MUST BE ABOVE THIS LINE
   if (authLoading) {
     return (
