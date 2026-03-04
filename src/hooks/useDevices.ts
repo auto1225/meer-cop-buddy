@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabaseShared, SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
+import { channelManager } from "@/lib/channelManager";
 
 // Shared DB schema
 interface Device {
