@@ -141,9 +141,10 @@ export function PermissionGateModal() {
     setOpen(false);
   }, []);
 
-  // 모든 권한이 granted면 자동 닫기
+  // 모든 권한이 granted면 자동 닫기 + 영구 저장
   useEffect(() => {
     if (items.every(item => !item.checking && item.state === "granted") && open) {
+      try { localStorage.setItem(GRANTED_STORAGE_KEY, "true"); } catch {}
       const timer = setTimeout(() => setOpen(false), 800);
       return () => clearTimeout(timer);
     }
