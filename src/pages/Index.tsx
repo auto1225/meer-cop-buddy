@@ -174,7 +174,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
-    cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true, microphone: false, usb: false,
+    cameraMotion: false, lid: false, keyboard: false, mouse: false, power: false, microphone: false, usb: false,
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
   const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
