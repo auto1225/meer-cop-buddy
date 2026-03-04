@@ -18,6 +18,15 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const { t } = useTranslation();
 
+  const getPlanLabel = (planType?: string) => {
+    switch (planType) {
+      case "free": return t("menu.planFree");
+      case "basic": return t("menu.planBasic");
+      case "premium": return t("menu.planPremium");
+      default: return t("menu.planFree");
+    }
+  };
+
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
