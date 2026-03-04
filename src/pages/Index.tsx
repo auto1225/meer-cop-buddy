@@ -55,7 +55,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [alarmVolume, setAlarmVolume] = useState(() => {
     const saved = localStorage.getItem('meercop-alarm-volume');
-    return saved ? parseInt(saved, 10) : 50;
+    return saved ? parseInt(saved, 10) : 20;
   });
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
