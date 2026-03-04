@@ -235,8 +235,14 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
         }
       }
 
-      // sessionStorage + localStorage 양쪽에 이름 동기화
+      // sessionStorage + localStorage 양쪽에 이름 동기화 (이전 이름 완전 삭제)
       updateSavedAuth({ device_name: trimmed });
+      // localStorage에 남아있을 수 있는 이전 이름 흔적 제거
+      try {
+        const oldKey = `meercop-device-name-${deviceId}`;
+        localStorage.removeItem(oldKey);
+        localStorage.setItem(oldKey, trimmed);
+      } catch {}
 
       onNameChanged?.(trimmed);
       setIsEditing(false);
