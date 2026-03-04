@@ -55,7 +55,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [alarmVolume, setAlarmVolume] = useState(() => {
     const saved = localStorage.getItem('meercop-alarm-volume');
-    return saved ? parseInt(saved, 10) : 50;
+    return saved ? parseInt(saved, 10) : 20;
   });
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
@@ -174,7 +174,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
-    cameraMotion: true, lid: true, keyboard: true, mouse: true, power: true, microphone: false, usb: false,
+    cameraMotion: false, lid: false, keyboard: false, mouse: false, power: false, microphone: false, usb: false,
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
   const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
@@ -182,7 +182,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [deviceType, setDeviceType] = useState<string>(() => currentDevice?.device_type || "laptop");
   // Language setting from smartphone (supports 17 languages)
   const [appLanguage, setAppLanguage] = useState<string>(() => {
-    return localStorage.getItem('meercop-language') || "ko";
+    return localStorage.getItem('meercop-language') || "en";
   });
   // Guard: prevent metadata useEffect from reverting broadcast-applied settings
   const broadcastOverrideUntilRef = useRef<number>(0);

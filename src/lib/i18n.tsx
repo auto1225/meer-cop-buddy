@@ -102,7 +102,7 @@ const I18nContext = createContext<I18nContextValue>({
 });
 
 export function I18nProvider({ children, initialLang }: { children: React.ReactNode; initialLang?: Lang }) {
-  const [lang, setLang] = useState<Lang>(initialLang || (localStorage.getItem("meercop-language") as Lang) || "ko");
+  const [lang, setLang] = useState<Lang>(initialLang || (localStorage.getItem("meercop-language") as Lang) || "en");
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [isTranslating, setIsTranslating] = useState(true);
   const loadingLangRef = useRef<string | null>(null);
