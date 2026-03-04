@@ -75,6 +75,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   const lastSyncRef = useRef<number>(0);
   // 공유 DB UUID를 캐시 (getSharedDeviceId가 아직 설정 안 됐을 수 있으므로 ref로 추적)
   const sharedIdRef = useRef<string | undefined>(undefined);
+  // ★ 카메라 상태를 ref로 추적 — React state보다 항상 최신값 보장
+  const cameraStatusRef = useRef<boolean>(false);
 
   deviceIdRef.current = deviceId;
 
@@ -106,7 +108,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       console.log("[DeviceStatus] ⏳ syncPresence skipped - no sharedId yet");
       return;
     }
-    const payload = await buildPresencePayload(sid, status.isCameraAvailable);
+    const payload = await buildPresencePayload(sid, cameraStatusRef.current);
     payload.is_network_connected = networkConnected;
 
     try {
@@ -115,7 +117,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     } catch (error) {
       console.error("[DeviceStatus] Failed to sync presence:", error);
     }
-  }, [status.isCameraAvailable]);
+  }, []);
 
   // DB 업데이트 (네트워크 상태만 - 카메라는 useCameraDetection이 단독 관리)
   const updateNetworkStatusInDB = useCallback(async (
@@ -306,9 +308,9 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       const sid = sharedIdRef.current || getSharedDeviceId(deviceId);
       if (!sid) return; // sharedId 없으면 스킵
       try {
-        const payload = await buildPresencePayload(sid, status.isCameraAvailable);
+        const payload = await buildPresencePayload(sid, cameraStatusRef.current);
         await channelRef.current.track(payload);
-        console.log("[DeviceStatus] 🔄 Presence refreshed (120s)");
+        console.log("[DeviceStatus] 🔄 Presence refreshed (120s), camera:", cameraStatusRef.current);
       } catch (e) {
         console.error("[DeviceStatus] Presence refresh failed:", e);
       }
@@ -316,7 +318,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
 
     const intervalId = setInterval(refreshPresence, PRESENCE_REFRESH_INTERVAL);
     return () => clearInterval(intervalId);
-  }, [deviceId, status.isCameraAvailable]);
+  }, [deviceId]);
 
   // Sync status when authentication changes
   useEffect(() => {
@@ -432,7 +434,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
   useEffect(() => {
     const handleCameraStatusChanged = (event: CustomEvent<{ isConnected: boolean }>) => {
       const { isConnected } = event.detail;
-      console.log("[DeviceStatus] Camera status changed event:", isConnected);
+      console.log("[DeviceStatus] 📷 Camera status changed event:", isConnected);
+      cameraStatusRef.current = isConnected; // ★ ref를 먼저 업데이트
       setStatus((prev) => ({ ...prev, isCameraAvailable: isConnected }));
       
       // DB 동기화
