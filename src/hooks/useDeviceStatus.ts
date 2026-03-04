@@ -398,6 +398,7 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       updateDeviceViaEdge(deviceId, {
         status: "online",
         is_network_connected: navigator.onLine,
+        is_camera_connected: cameraStatusRef.current,
         updated_at: new Date().toISOString(),
       }).catch(() => {});
     };
