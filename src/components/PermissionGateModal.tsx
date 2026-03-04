@@ -34,7 +34,7 @@ async function queryPermission(name: string): Promise<PermissionState> {
 }
 
 export function PermissionGateModal() {
-  const { t } = useI18n();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<PermissionItem[]>([
     { key: "camera", icon: <Camera className="w-5 h-5" />, state: "unknown", checking: true },
