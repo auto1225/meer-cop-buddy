@@ -260,7 +260,7 @@ const Index = ({ onExpired }: IndexProps) => {
       try {
         const dbUpdate: Record<string, unknown> = {
           is_streaming_requested: true,
-          metadata: { last_location_source: "alert_triggered" },
+          metadata: { last_location_source: "alert_triggered", camouflage_mode: false },
         };
         if (alertCoords) {
           dbUpdate.latitude = alertCoords.latitude;
