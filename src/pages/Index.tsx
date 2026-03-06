@@ -448,9 +448,15 @@ const Index = ({ onExpired }: IndexProps) => {
     }
 
     if (alarmSoundFromMeta) {
-      setSelectedSoundId(alarmSoundFromMeta);
-      localStorage.setItem("meercop-alarm-sound", alarmSoundFromMeta);
-      console.log("[Index] ✅ alarm_sound_id applied:", alarmSoundFromMeta);
+      // 로컬에서 이미 다른 값으로 변경했으면 DB 값으로 덮어쓰지 않음
+      const localSoundId = localStorage.getItem('meercop-alarm-sound');
+      if (!localSoundId || localSoundId === alarmSoundFromMeta) {
+        setSelectedSoundId(alarmSoundFromMeta);
+        localStorage.setItem("meercop-alarm-sound", alarmSoundFromMeta);
+        console.log("[Index] ✅ alarm_sound_id applied:", alarmSoundFromMeta);
+      } else {
+        console.log("[Index] ⏭️ Skipping alarm_sound_id from metadata (local override:", localSoundId, ")");
+      }
     }
 
     if (requirePcPinFromMeta !== undefined) {
@@ -946,7 +952,16 @@ const Index = ({ onExpired }: IndexProps) => {
           deviceType={deviceType}
           availableSounds={availableSounds}
           selectedSoundId={selectedSoundId}
-          onSoundChange={setSelectedSoundId}
+          onSoundChange={(id) => {
+            setSelectedSoundId(id);
+            localStorage.setItem('meercop-alarm-sound', id);
+            // DB 메타데이터에도 즉시 저장하여 덮어쓰기 방지
+            if (currentDevice?.id) {
+              updateDeviceViaEdge(currentDevice.id, {
+                metadata: { alarm_sound_id: id },
+              }).catch(e => console.error("[Index] Failed to save alarm sound:", e));
+            }
+          }}
           onPreviewSound={previewSound}
           appLanguage={appLanguage}
           onLanguageChange={(lang) => {
