@@ -230,6 +230,8 @@ const Index = ({ onExpired }: IndexProps) => {
       event.changePercent ? `Change: ${event.changePercent.toFixed(1)}%` : "");
     
     // ── Phase 0: 즉시 실행 (UI 반응성) ──
+    // 위장 모드 자동 해제 → 경보 화면이 보이도록
+    setIsCamouflageMode(false);
     setCurrentEventType(event.type);
     startAlarmRef.current();
 
