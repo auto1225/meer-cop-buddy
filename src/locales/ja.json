@@ -81,6 +81,7 @@
   "deviceName.confirm": "確認",
   "help.title": "取扱説明書",
   "help.subtitle": "ノートPC盗難防止＆リモート監視アプリ",
+  "help.toc": "目次",
   "help.appIntro": "アプリ紹介",
   "help.appIntroContent": "MeerCOPはノートパソコンの盗難・不正使用を防止するためのリアルタイム監視アプリです。スマートフォンから監視をオンにすると、ノートPCで動き・タッチ・蓋の開閉などが検知された際に即座にアラームが鳴り、写真・位置情報・ライブストリーミングで状況を確認できます。",
   "help.gettingStarted": "始め方",

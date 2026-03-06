@@ -81,6 +81,7 @@
   "deviceName.confirm": "Xác nhận",
   "help.title": "Hướng dẫn sử dụng",
   "help.subtitle": "Ứng dụng chống trộm laptop & giám sát từ xa",
+  "help.toc": "Mục lục",
   "help.appIntro": "Giới thiệu",
   "help.appIntroContent": "MeerCOP là ứng dụng giám sát thời gian thực để ngăn chặn trộm cắp và sử dụng trái phép laptop. Khi bật giám sát từ điện thoại, bất kỳ chuyển động, chạm hoặc mở nắp nào được phát hiện sẽ kích hoạt báo động ngay lập tức với ảnh, vị trí và phát trực tiếp.",
   "help.gettingStarted": "Bắt đầu",

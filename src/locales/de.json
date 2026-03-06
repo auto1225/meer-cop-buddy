@@ -81,6 +81,7 @@
   "deviceName.confirm": "Bestätigen",
   "help.title": "Benutzerhandbuch",
   "help.subtitle": "Laptop-Diebstahlschutz & Fernüberwachungs-App",
+  "help.toc": "Inhaltsverzeichnis",
   "help.appIntro": "App-Einführung",
   "help.appIntroContent": "MeerCOP ist eine Echtzeit-Überwachungs-App zum Schutz Ihres Laptops vor Diebstahl und unbefugter Nutzung. Wenn die Überwachung vom Smartphone aktiviert wird, löst jede erkannte Bewegung, Berührung oder Deckelöffnung sofort einen Alarm mit Fotos, Standort und Live-Streaming aus.",
   "help.gettingStarted": "Erste Schritte",

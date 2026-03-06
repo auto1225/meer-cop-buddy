@@ -81,6 +81,7 @@
   "deviceName.confirm": "Confirmar",
   "help.title": "Manual de usuario",
   "help.subtitle": "App antirrobo y monitoreo remoto para portátil",
+  "help.toc": "Índice",
   "help.appIntro": "Introducción",
   "help.appIntroContent": "MeerCOP es una app de monitoreo en tiempo real para prevenir el robo y uso no autorizado de su portátil. Al activar el monitoreo desde el smartphone, cualquier movimiento, toque o apertura de tapa detectado en el portátil activa una alarma inmediata con fotos, ubicación y streaming en vivo.",
   "help.gettingStarted": "Comenzar",

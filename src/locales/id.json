@@ -81,6 +81,7 @@
   "deviceName.confirm": "Konfirmasi",
   "help.title": "Panduan pengguna",
   "help.subtitle": "Aplikasi anti-pencurian laptop & pemantauan jarak jauh",
+  "help.toc": "Daftar Isi",
   "help.appIntro": "Pengenalan aplikasi",
   "help.appIntroContent": "MeerCOP adalah aplikasi pemantauan real-time untuk mencegah pencurian dan penggunaan laptop tanpa izin. Saat pemantauan diaktifkan dari smartphone, gerakan, sentuhan, atau pembukaan tutup yang terdeteksi akan langsung memicu alarm dengan foto, lokasi, dan streaming langsung.",
   "help.gettingStarted": "Memulai",

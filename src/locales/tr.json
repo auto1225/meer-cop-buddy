@@ -81,6 +81,7 @@
   "deviceName.confirm": "Onayla",
   "help.title": "Kullanım kılavuzu",
   "help.subtitle": "Dizüstü hırsızlık önleme ve uzaktan izleme uygulaması",
+  "help.toc": "İçindekiler",
   "help.appIntro": "Uygulama tanıtımı",
   "help.appIntroContent": "MeerCOP, dizüstü bilgisayarınızın çalınmasını ve yetkisiz kullanımını önlemek için gerçek zamanlı izleme uygulamasıdır. Akıllı telefondan izleme açıldığında, dizüstüde algılanan herhangi bir hareket, dokunma veya kapak açılması anında fotoğraf, konum ve canlı yayın ile alarm tetikler.",
   "help.gettingStarted": "Başlarken",

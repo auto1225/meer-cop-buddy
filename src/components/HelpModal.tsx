@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useRef } from "react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import meercopMascot from "@/assets/meercop-mascot.png";
 import { useTranslation } from "@/lib/i18n";
 
@@ -18,14 +18,13 @@ function renderBold(text: string) {
   });
 }
 
-interface AccordionItemProps {
+interface FaqItemProps {
   title: string;
   children: React.ReactNode;
-  defaultOpen?: boolean;
 }
 
-function AccordionItem({ title, children, defaultOpen = false }: AccordionItemProps) {
-  const [open, setOpen] = useState(defaultOpen);
+function FaqItem({ title, children }: FaqItemProps) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="bg-white/8 backdrop-blur-md rounded-xl border border-white/10 overflow-hidden">
       <button
@@ -46,14 +45,19 @@ function AccordionItem({ title, children, defaultOpen = false }: AccordionItemPr
   );
 }
 
+const SECTION_ICONS = [
+  "🛡️", "📥", "🖥️", "📷", "⚙️", "🔔", "🚨", "📍", "📶", "🔇", "🔍", "👥", "☰", "🔊", "🔬"
+];
+
 export function HelpModal({ isOpen, onClose }: HelpModalProps) {
   const { t } = useTranslation();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   if (!isOpen) return null;
 
   const sections = [
     {
-      icon: "🛡️",
       titleKey: "help.s1.title",
       items: [
         { titleKey: "help.s1.what", contentKey: "help.s1.whatContent" },
@@ -62,7 +66,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "📥",
       titleKey: "help.s2.title",
       items: [
         { titleKey: "help.s2.install", contentKey: "help.s2.installContent" },
@@ -73,7 +76,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "🖥️",
       titleKey: "help.s3.title",
       items: [
         { titleKey: "help.s3.layout", contentKey: "help.s3.layoutContent" },
@@ -84,7 +86,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "📷",
       titleKey: "help.s4.title",
       items: [
         { titleKey: "help.s4.liveView", contentKey: "help.s4.liveViewContent" },
@@ -94,7 +95,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "⚙️",
       titleKey: "help.s5.title",
       items: [
         { titleKey: "help.s5.deviceType", contentKey: "help.s5.deviceTypeContent" },
@@ -108,7 +108,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "🔔",
       titleKey: "help.s6.title",
       items: [
         { titleKey: "help.s6.sensorTypes", contentKey: "help.s6.sensorTypesContent" },
@@ -121,7 +120,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "🚨",
       titleKey: "help.s7.title",
       items: [
         { titleKey: "help.s7.alertFlow", contentKey: "help.s7.alertFlowContent" },
@@ -131,7 +129,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "📍",
       titleKey: "help.s8.title",
       items: [
         { titleKey: "help.s8.howToCheck", contentKey: "help.s8.howToCheckContent" },
@@ -139,14 +136,12 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "📶",
       titleKey: "help.s9.title",
       items: [
         { titleKey: "help.s9.info", contentKey: "help.s9.infoContent" },
       ],
     },
     {
-      icon: "🔇",
       titleKey: "help.s10.title",
       items: [
         { titleKey: "help.s10.what", contentKey: "help.s10.whatContent" },
@@ -154,7 +149,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "🔍",
       titleKey: "help.s11.title",
       items: [
         { titleKey: "help.s11.what", contentKey: "help.s11.whatContent" },
@@ -162,7 +156,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "👥",
       titleKey: "help.s12.title",
       items: [
         { titleKey: "help.s12.addDevice", contentKey: "help.s12.addDeviceContent" },
@@ -171,7 +164,6 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "☰",
       titleKey: "help.s13.title",
       items: [
         { titleKey: "help.s13.profile", contentKey: "help.s13.profileContent" },
@@ -181,14 +173,12 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       ],
     },
     {
-      icon: "🔊",
       titleKey: "help.s14.title",
       items: [
         { titleKey: "help.s14.headerSound", contentKey: "help.s14.headerSoundContent" },
       ],
     },
     {
-      icon: "🔬",
       titleKey: "help.s15.title",
       items: [
         { titleKey: "help.s15.what", contentKey: "help.s15.whatContent" },
@@ -212,6 +202,24 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
     { titleKey: "help.faq.q12", contentKey: "help.faq.a12" },
   ];
 
+  const scrollToSection = (index: number) => {
+    const el = sectionRefs.current[index];
+    if (el && scrollRef.current) {
+      const container = scrollRef.current;
+      const top = el.offsetTop - container.offsetTop - 12;
+      container.scrollTo({ top, behavior: "smooth" });
+    }
+  };
+
+  const scrollToFaq = () => {
+    const el = sectionRefs.current[sections.length];
+    if (el && scrollRef.current) {
+      const container = scrollRef.current;
+      const top = el.offsetTop - container.offsetTop - 12;
+      container.scrollTo({ top, behavior: "smooth" });
+    }
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-[60] bg-black/40" onClick={onClose} />
@@ -228,7 +236,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-4 pb-8 help-scroll">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-8 help-scroll">
           
           {/* Hero */}
           <div className="flex flex-col items-center py-5">
@@ -238,34 +246,71 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
             <p className="text-white/50 text-xs font-medium mt-0.5">ver 1.0.6</p>
           </div>
 
-          {/* Sections */}
+          {/* Table of Contents */}
+          <div className="bg-white/8 backdrop-blur-md rounded-xl border border-white/10 p-4 mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-base">📑</span>
+              <h3 className="text-[#E8F84A] font-extrabold text-[13px] drop-shadow">{t("help.toc")}</h3>
+            </div>
+            <div className="space-y-1.5">
+              {sections.map((sec, i) => (
+                <button
+                  key={i}
+                  onClick={() => scrollToSection(i)}
+                  className="w-full flex items-center gap-2 text-left px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <span className="text-sm">{SECTION_ICONS[i]}</span>
+                  <span className="text-white/80 text-[12px] font-semibold">{i + 1}. {t(sec.titleKey)}</span>
+                </button>
+              ))}
+              <button
+                onClick={scrollToFaq}
+                className="w-full flex items-center gap-2 text-left px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <span className="text-sm">❓</span>
+                <span className="text-white/80 text-[12px] font-semibold">{t("help.faq")}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sections — all open */}
           {sections.map((sec, i) => (
-            <div key={i} className="mb-4">
+            <div
+              key={i}
+              ref={el => { sectionRefs.current[i] = el; }}
+              className="mb-5"
+            >
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-base">{sec.icon}</span>
-                <h3 className="text-[#E8F84A] font-extrabold text-[13px] drop-shadow">{t(sec.titleKey)}</h3>
+                <span className="text-base">{SECTION_ICONS[i]}</span>
+                <h3 className="text-[#E8F84A] font-extrabold text-[13px] drop-shadow">{i + 1}. {t(sec.titleKey)}</h3>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {sec.items.map((item, j) => (
-                  <AccordionItem key={j} title={t(item.titleKey)}>
-                    {renderBold(t(item.contentKey))}
-                  </AccordionItem>
+                  <div key={j} className="bg-white/8 backdrop-blur-md rounded-xl border border-white/10 p-3.5">
+                    <h4 className="text-white/90 text-[12px] font-bold mb-1.5">{t(item.titleKey)}</h4>
+                    <div className="text-white/75 text-[12px] leading-relaxed whitespace-pre-line">
+                      {renderBold(t(item.contentKey))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           ))}
 
-          {/* FAQ Section */}
-          <div className="mb-4">
+          {/* FAQ Section — accordion style */}
+          <div
+            ref={el => { sectionRefs.current[sections.length] = el; }}
+            className="mb-4"
+          >
             <div className="flex items-center gap-2 mb-2">
               <span className="text-base">❓</span>
               <h3 className="text-[#E8F84A] font-extrabold text-[13px] drop-shadow">{t("help.faq")}</h3>
             </div>
             <div className="space-y-1.5">
               {faqItems.map((faq, i) => (
-                <AccordionItem key={i} title={t(faq.titleKey)}>
+                <FaqItem key={i} title={t(faq.titleKey)}>
                   {renderBold(t(faq.contentKey))}
-                </AccordionItem>
+                </FaqItem>
               ))}
             </div>
           </div>
