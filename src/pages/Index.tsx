@@ -946,7 +946,16 @@ const Index = ({ onExpired }: IndexProps) => {
           deviceType={deviceType}
           availableSounds={availableSounds}
           selectedSoundId={selectedSoundId}
-          onSoundChange={setSelectedSoundId}
+          onSoundChange={(id) => {
+            setSelectedSoundId(id);
+            localStorage.setItem('meercop-alarm-sound', id);
+            // DB 메타데이터에도 즉시 저장하여 덮어쓰기 방지
+            if (currentDevice?.id) {
+              updateDeviceViaEdge(currentDevice.id, {
+                metadata: { alarm_sound_id: id },
+              }).catch(e => console.error("[Index] Failed to save alarm sound:", e));
+            }
+          }}
           onPreviewSound={previewSound}
           appLanguage={appLanguage}
           onLanguageChange={(lang) => {
