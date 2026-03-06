@@ -823,16 +823,18 @@ const Index = ({ onExpired }: IndexProps) => {
   stopSurveillanceRef.current = stopSurveillance;
 
   useEffect(() => {
-    if (isMonitoring && !isSurveillanceActive) {
-      console.log("[Index] Starting surveillance (requested by smartphone)");
-      isAlertActiveRef.current = false; // ✅ 감시 재시작 시 경보 가드 초기화
+    // 위장 모드 중에는 감시를 절대 중지하지 않음 (감시 유지 필수)
+    const shouldBeActive = isMonitoring || isCamouflageMode;
+    if (shouldBeActive && !isSurveillanceActive) {
+      console.log("[Index] Starting surveillance", isMonitoring ? "(monitoring)" : "(camouflage mode)");
+      isAlertActiveRef.current = false;
       startSurveillanceRef.current();
-    } else if (!isMonitoring && isSurveillanceActive) {
+    } else if (!shouldBeActive && isSurveillanceActive) {
       console.log("[Index] Stopping surveillance");
       stopSurveillanceRef.current();
-      isAlertActiveRef.current = false; // ✅ 감시 종료 시에도 초기화
+      isAlertActiveRef.current = false;
     }
-  }, [isMonitoring, isSurveillanceActive]);
+  }, [isMonitoring, isSurveillanceActive, isCamouflageMode]);
 
   const handleDeviceSelect = useCallback((deviceId: string) => {
     setCurrentDeviceId(deviceId);
