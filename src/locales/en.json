@@ -245,7 +245,7 @@
   "help.faq.q11": "What are the benefits of installing as PWA?",
   "help.faq.a11": "Installing MeerCOP as a **PWA (Progressive Web App)**:\n\n• **App icon** added to desktop for quick access\n• Runs **without address bar** in full screen\n• Runs in an **independent window** like a native app\n• Basic features available offline\n\n**How to install:**\nChrome: Click **⊕ icon** on the right of address bar → \"Install\"\nEdge: Click **⊕ icon** on the right of address bar → \"Install app\"",
   "help.faq.q12": "I see a serial expiration message",
-  "help.faq.a12": "Your serial number has expired.\n\n• **1-Day Trial** plan expires 24 hours after registration.\n• You will be automatically logged out on expiration.\n• **Renew or upgrade** your plan on the MeerCOP website.\n• Contact: **support@meercop.com**",
+  "help.faq.a12": "Your serial number has expired.\n\n• **1-Day Trial** plan expires 24 hours after registration.\n• You will be automatically logged out on expiration.\n• **Renew or upgrade** your plan on the MeerCOP website.\n• Contact: **meercop.official@gmail.com**",
   "camera.title": "Camera",
   "camera.connecting": "Connecting camera...",
   "camera.retry": "Retry",
