@@ -81,6 +81,7 @@
   "deviceName.confirm": "Confirmar",
   "help.title": "Manual do usuário",
   "help.subtitle": "App antifurto e monitoramento remoto para notebook",
+  "help.toc": "Índice",
   "help.appIntro": "Introdução do app",
   "help.appIntroContent": "MeerCOP é um app de monitoramento em tempo real para prevenir furto e uso não autorizado do seu notebook. Ao ativar o monitoramento pelo smartphone, qualquer movimento, toque ou abertura de tampa detectado aciona imediatamente um alarme com fotos, localização e streaming ao vivo.",
   "help.gettingStarted": "Começando",

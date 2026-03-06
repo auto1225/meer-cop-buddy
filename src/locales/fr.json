@@ -81,6 +81,7 @@
   "deviceName.confirm": "Confirmer",
   "help.title": "Manuel d'utilisation",
   "help.subtitle": "App antivol et surveillance à distance pour portable",
+  "help.toc": "Table des matières",
   "help.appIntro": "Présentation de l'app",
   "help.appIntroContent": "MeerCOP est une app de surveillance en temps réel pour prévenir le vol et l'utilisation non autorisée de votre portable. Lorsque la surveillance est activée depuis votre smartphone, tout mouvement, toucher ou ouverture du capot détecté déclenche immédiatement une alarme avec photos, localisation et streaming en direct.",
   "help.gettingStarted": "Démarrage",
