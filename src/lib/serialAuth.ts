@@ -17,23 +17,35 @@ export interface SerialAuthData {
   remaining_days: number | null;
 }
 
-// ── Storage 유틸 (sessionStorage + localStorage 동기화) ──
+// ── Storage 유틸 (sessionStorage 우선, localStorage는 복구용 폴백) ──
 function saveAuth(data: SerialAuthData): void {
   const json = JSON.stringify(data);
   try { sessionStorage.setItem(STORAGE_KEY, json); } catch {}
-  try { localStorage.setItem(STORAGE_KEY, json); } catch {}
+  // localStorage에는 시리얼 키별로 저장하여 탭 간 충돌 방지
+  try { localStorage.setItem(`${STORAGE_KEY}_${data.serial_key}`, json); } catch {}
+  // 마지막 사용 시리얼 키 기록 (폴백용)
+  try { localStorage.setItem(`${STORAGE_KEY}_last`, data.serial_key); } catch {}
 }
 
 function loadAuth(): SerialAuthData | null {
   try {
-    // sessionStorage 우선 (현재 탭), localStorage 폴백 (탭 간 공유)
-    const raw = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+    // 1) sessionStorage 최우선 (현재 탭 세션)
+    const sessionRaw = sessionStorage.getItem(STORAGE_KEY);
+    if (sessionRaw) {
+      return JSON.parse(sessionRaw);
+    }
+
+    // 2) sessionStorage가 비어있으면 (리로드 등) → localStorage 폴백
+    //    레거시 키 먼저 확인, 없으면 마지막 사용 시리얼의 개별 키
+    const legacyRaw = localStorage.getItem(STORAGE_KEY);
+    const lastSerial = localStorage.getItem(`${STORAGE_KEY}_last`);
+    const serialRaw = lastSerial ? localStorage.getItem(`${STORAGE_KEY}_${lastSerial}`) : null;
+    const raw = legacyRaw || serialRaw;
+
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // sessionStorage에 없었으면 복원
-    if (!sessionStorage.getItem(STORAGE_KEY)) {
-      sessionStorage.setItem(STORAGE_KEY, raw);
-    }
+    // sessionStorage에 복원
+    sessionStorage.setItem(STORAGE_KEY, raw);
     return parsed;
   } catch {
     return null;
