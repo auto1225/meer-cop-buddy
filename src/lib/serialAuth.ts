@@ -53,8 +53,30 @@ function loadAuth(): SerialAuthData | null {
 }
 
 function clearAuthStorage(): void {
-  try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  try {
+    // 현재 세션의 시리얼 키 확인 (삭제 전)
+    const current = sessionStorage.getItem(STORAGE_KEY);
+    const lastSerial = localStorage.getItem(`${STORAGE_KEY}_last`);
+    
+    // sessionStorage 삭제
+    sessionStorage.removeItem(STORAGE_KEY);
+    // 레거시 키 삭제
+    localStorage.removeItem(STORAGE_KEY);
+    
+    // 시리얼별 키 삭제
+    if (current) {
+      try {
+        const parsed = JSON.parse(current);
+        if (parsed.serial_key) {
+          localStorage.removeItem(`${STORAGE_KEY}_${parsed.serial_key}`);
+        }
+      } catch {}
+    }
+    if (lastSerial) {
+      localStorage.removeItem(`${STORAGE_KEY}_${lastSerial}`);
+      localStorage.removeItem(`${STORAGE_KEY}_last`);
+    }
+  } catch {}
 }
 
 // 기본값 이름인지 판별
