@@ -208,7 +208,7 @@
   "help.s13.membership": "Membership Tiers",
   "help.s13.membershipContent": "Membership tiers based on your serial number:\n\n• **1-Day Trial** — Free trial (limited features)\n• **Basic Plan** — Basic features available\n• **Premium Plan** — All features available\n\nUpgrade your membership on the MeerCOP website.",
   "help.s13.helpMenu": "Q&A / Help",
-  "help.s13.helpMenuContent": "This is the screen you're viewing now.\n\n• Contains **detailed descriptions** of all app features.\n• Find common troubleshooting in **FAQ** section.\n• If issues persist, contact **support@meercop.com**.",
+  "help.s13.helpMenuContent": "This is the screen you're viewing now.\n\n• Contains **detailed descriptions** of all app features.\n• Find common troubleshooting in **FAQ** section.\n• If issues persist, contact **meercop.official@gmail.com**.",
   "help.s13.logout": "Logout",
   "help.s13.logoutContent": "Pressing **Logout**:\n\n• Ends the current session.\n• Deletes saved serial number and authentication data.\n• Device status changes to **offline**.\n• Monitoring stops.\n• Settings like device name are retained on server — restored on next login.\n\n⚠️ After logout, the device continues to show as **offline** in the smartphone app.",
 
@@ -223,7 +223,7 @@
   "help.s15.howToUseContent": "The Motion Test screen shows:\n\n• 📹 **Camera Feed** — Real-time webcam video\n• 🔴 **Change Detection Visualization** — Detected change areas highlighted in red\n• 📊 **Real-time Status** — Current change rate, consecutive detections, max change rate\n• ⚙️ **Sensitivity Settings** — Sensitive/Normal/Insensitive, consecutive frames, cooldown time\n• 📋 **Event Log** — Detection event history\n\n**How to use:**\n1. Press **▶ Start Test** to activate the camera.\n2. Move in front of the camera to check detection response.\n3. Adjust sensitivity to find your preferred level.\n4. Press **⏹ Stop** to end the test.",
 
   "help.faq.q1": "I forgot my serial number",
-  "help.faq.a1": "You can find your serial number in the **Settings** menu of the MeerCOP smartphone app.\nIf you can't access the app, contact **support@meercop.com** for serial number recovery.",
+  "help.faq.a1": "You can find your serial number in the **Settings** menu of the MeerCOP smartphone app.\nIf you can't access the app, contact **meercop.official@gmail.com** for serial number recovery.",
   "help.faq.q2": "Camera is not detected",
   "help.faq.a2": "Check the following in order:\n\n1. Verify the webcam is **physically connected**\n2. Check if **other apps** (Zoom, Teams, etc.) are using the camera → close them\n3. Click the **lock icon next to the address bar** → **Allow** camera permission\n4. **Completely close** the browser and relaunch\n5. Check if camera drivers are properly installed in **Device Manager**",
   "help.faq.q3": "Alarm sound is not playing",
@@ -245,7 +245,7 @@
   "help.faq.q11": "What are the benefits of installing as PWA?",
   "help.faq.a11": "Installing MeerCOP as a **PWA (Progressive Web App)**:\n\n• **App icon** added to desktop for quick access\n• Runs **without address bar** in full screen\n• Runs in an **independent window** like a native app\n• Basic features available offline\n\n**How to install:**\nChrome: Click **⊕ icon** on the right of address bar → \"Install\"\nEdge: Click **⊕ icon** on the right of address bar → \"Install app\"",
   "help.faq.q12": "I see a serial expiration message",
-  "help.faq.a12": "Your serial number has expired.\n\n• **1-Day Trial** plan expires 24 hours after registration.\n• You will be automatically logged out on expiration.\n• **Renew or upgrade** your plan on the MeerCOP website.\n• Contact: **support@meercop.com**",
+  "help.faq.a12": "Your serial number has expired.\n\n• **1-Day Trial** plan expires 24 hours after registration.\n• You will be automatically logged out on expiration.\n• **Renew or upgrade** your plan on the MeerCOP website.\n• Contact: **meercop.official@gmail.com**",
   "camera.title": "Camera",
   "camera.connecting": "Connecting camera...",
   "camera.retry": "Retry",
