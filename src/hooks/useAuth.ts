@@ -114,7 +114,7 @@ export function useAuth() {
         console.warn("[useAuth] ⚠️ DB offline update failed:", err);
       }
 
-      // 3) 공유 DB에서 기기 삭제 (mapped UUID only, composite ID 차단)
+      // 3) 공유 DB에서 기기를 offline으로 전환 (삭제하지 않고 이름 보존)
       const mappedSharedId = getSharedDeviceId(currentAuth.device_id);
       const sharedId = mappedSharedId || (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentAuth.device_id) ? currentAuth.device_id : null);
       if (sharedId) {
@@ -126,15 +126,17 @@ export function useAuth() {
           },
           body: JSON.stringify({
             device_id: sharedId,
-            _action: "delete",
+            status: "offline",
+            is_monitoring: false,
+            is_streaming_requested: false,
           }),
         })
           .then(res => res.ok
-            ? console.log("[useAuth] ✅ Shared DB device deleted:", sharedId)
-            : res.text().then(t => console.warn("[useAuth] ⚠️ Shared DB delete failed:", t)))
-          .catch(err => console.warn("[useAuth] ⚠️ Shared DB delete error:", err));
+            ? console.log("[useAuth] ✅ Shared DB device set offline:", sharedId)
+            : res.text().then(t => console.warn("[useAuth] ⚠️ Shared DB offline update failed:", t)))
+          .catch(err => console.warn("[useAuth] ⚠️ Shared DB offline error:", err));
       } else {
-        console.warn(`[useAuth] ⏭️ Skip shared delete (no mapped shared UUID): ${currentAuth.device_id}`);
+        console.warn(`[useAuth] ⏭️ Skip shared update (no mapped shared UUID): ${currentAuth.device_id}`);
       }
     }
 
