@@ -448,9 +448,15 @@ const Index = ({ onExpired }: IndexProps) => {
     }
 
     if (alarmSoundFromMeta) {
-      setSelectedSoundId(alarmSoundFromMeta);
-      localStorage.setItem("meercop-alarm-sound", alarmSoundFromMeta);
-      console.log("[Index] ✅ alarm_sound_id applied:", alarmSoundFromMeta);
+      // 로컬에서 이미 다른 값으로 변경했으면 DB 값으로 덮어쓰지 않음
+      const localSoundId = localStorage.getItem('meercop-alarm-sound');
+      if (!localSoundId || localSoundId === alarmSoundFromMeta) {
+        setSelectedSoundId(alarmSoundFromMeta);
+        localStorage.setItem("meercop-alarm-sound", alarmSoundFromMeta);
+        console.log("[Index] ✅ alarm_sound_id applied:", alarmSoundFromMeta);
+      } else {
+        console.log("[Index] ⏭️ Skipping alarm_sound_id from metadata (local override:", localSoundId, ")");
+      }
     }
 
     if (requirePcPinFromMeta !== undefined) {
