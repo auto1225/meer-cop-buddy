@@ -208,7 +208,7 @@
   "help.s13.membership": "Membership Tiers",
   "help.s13.membershipContent": "Membership tiers based on your serial number:\n\n• **1-Day Trial** — Free trial (limited features)\n• **Basic Plan** — Basic features available\n• **Premium Plan** — All features available\n\nUpgrade your membership on the MeerCOP website.",
   "help.s13.helpMenu": "Q&A / Help",
-  "help.s13.helpMenuContent": "This is the screen you're viewing now.\n\n• Contains **detailed descriptions** of all app features.\n• Find common troubleshooting in **FAQ** section.\n• If issues persist, contact **support@meercop.com**.",
+  "help.s13.helpMenuContent": "This is the screen you're viewing now.\n\n• Contains **detailed descriptions** of all app features.\n• Find common troubleshooting in **FAQ** section.\n• If issues persist, contact **meercop.official@gmail.com**.",
   "help.s13.logout": "Logout",
   "help.s13.logoutContent": "Pressing **Logout**:\n\n• Ends the current session.\n• Deletes saved serial number and authentication data.\n• Device status changes to **offline**.\n• Monitoring stops.\n• Settings like device name are retained on server — restored on next login.\n\n⚠️ After logout, the device continues to show as **offline** in the smartphone app.",
 
