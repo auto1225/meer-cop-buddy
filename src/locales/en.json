@@ -223,7 +223,7 @@
   "help.s15.howToUseContent": "The Motion Test screen shows:\n\n• 📹 **Camera Feed** — Real-time webcam video\n• 🔴 **Change Detection Visualization** — Detected change areas highlighted in red\n• 📊 **Real-time Status** — Current change rate, consecutive detections, max change rate\n• ⚙️ **Sensitivity Settings** — Sensitive/Normal/Insensitive, consecutive frames, cooldown time\n• 📋 **Event Log** — Detection event history\n\n**How to use:**\n1. Press **▶ Start Test** to activate the camera.\n2. Move in front of the camera to check detection response.\n3. Adjust sensitivity to find your preferred level.\n4. Press **⏹ Stop** to end the test.",
 
   "help.faq.q1": "I forgot my serial number",
-  "help.faq.a1": "You can find your serial number in the **Settings** menu of the MeerCOP smartphone app.\nIf you can't access the app, contact **support@meercop.com** for serial number recovery.",
+  "help.faq.a1": "You can find your serial number in the **Settings** menu of the MeerCOP smartphone app.\nIf you can't access the app, contact **meercop.official@gmail.com** for serial number recovery.",
   "help.faq.q2": "Camera is not detected",
   "help.faq.a2": "Check the following in order:\n\n1. Verify the webcam is **physically connected**\n2. Check if **other apps** (Zoom, Teams, etc.) are using the camera → close them\n3. Click the **lock icon next to the address bar** → **Allow** camera permission\n4. **Completely close** the browser and relaunch\n5. Check if camera drivers are properly installed in **Device Manager**",
   "help.faq.q3": "Alarm sound is not playing",
