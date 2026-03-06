@@ -318,7 +318,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           {/* Footer */}
           <div className="text-center py-6 space-y-1">
             <p className="text-white/40 text-xs">© 2026 MeerCOP. All rights reserved.</p>
-            <p className="text-white/30 text-[10px]">{t("help.contact")}: support@meercop.com</p>
+            <p className="text-white/30 text-[10px]">{t("help.contact")}: meercop.official@gmail.com</p>
           </div>
         </div>
       </div>
