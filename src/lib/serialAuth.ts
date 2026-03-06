@@ -87,17 +87,37 @@ function isDefaultDeviceName(name: string | null | undefined): boolean {
 }
 
 async function callVerifySerial(serialKey: string) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/verify-serial`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({ action: "verify", serial_key: serialKey }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as any)?.error || "시리얼 검증 실패");
-  return data;
+  // 1차: verify-serial 시도
+  const endpoints = ["verify-serial", "validate-serial"];
+  let lastError: string = "시리얼 검증 실패";
+
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/${ep}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: "verify", serial_key: serialKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 404 && !data?.valid) {
+        // 함수 자체가 404이면 다음 엔드포인트 시도
+        console.warn(`[serialAuth] ${ep} returned 404, trying fallback...`);
+        lastError = (data as any)?.error || lastError;
+        continue;
+      }
+      if (!res.ok) throw new Error((data as any)?.error || "시리얼 검증 실패");
+      return data;
+    } catch (err: any) {
+      lastError = err.message || lastError;
+      console.warn(`[serialAuth] ${ep} failed:`, err.message);
+      continue;
+    }
+  }
+
+  throw new Error(lastError);
 }
 
 async function callRegisterDevice(serialKey: string, deviceName: string) {
