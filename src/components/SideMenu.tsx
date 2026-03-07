@@ -6,7 +6,7 @@ import { getSavedAuth } from "@/lib/serialAuth";
 import meercopMascot from "@/assets/meercop-mascot.png";
 import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
-import { usePwaInstall } from "@/hooks/usePwaInstall";
+
 
 const _buildDate = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
 const BUILD_DATE = `${_buildDate.toLocaleDateString()} ${_buildDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
