@@ -234,6 +234,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
           await sendNameChangedBroadcast(saved.user_id, {
             target_device_id: deviceId,
             target_shared_device_id: sharedId,
+            serial_key: saved.serial_key || "",
             old_name: deviceName,
             new_name: trimmed,
             timestamp: new Date().toISOString(),
