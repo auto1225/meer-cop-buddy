@@ -304,13 +304,13 @@ export function SensorSettingsPanel({
                     }}
                   >
                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                      active && !isLidRestricted ? "bg-secondary/25" : "bg-white/10"
+                      active && !isRestricted ? "bg-secondary/25" : "bg-white/10"
                     }`}>
-                      <Icon className={`w-3 h-3 ${active && !isLidRestricted ? "text-secondary" : "text-white/40"}`} />
+                      <Icon className={`w-3 h-3 ${active && !isRestricted ? "text-secondary" : "text-white/40"}`} />
                     </div>
-                    <p className={`text-[11px] font-extrabold flex-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] ${active && !isLidRestricted ? "text-white" : "text-white/50"}`}>{label}</p>
+                    <p className={`text-[11px] font-extrabold flex-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] ${active && !isRestricted ? "text-white" : "text-white/50"}`}>{label}</p>
                     <Switch
-                      checked={isLidRestricted ? false : active}
+                      checked={isRestricted ? false : active}
                       disabled
                       className="pointer-events-none opacity-60 shrink-0 scale-75"
                     />
