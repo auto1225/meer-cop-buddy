@@ -40,6 +40,7 @@ export interface SensorToggles {
   power: boolean;
   microphone: boolean;
   usb: boolean;
+  screenTouch: boolean;
 }
 
 const DEFAULT_SENSOR_TOGGLES: SensorToggles = {
