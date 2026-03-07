@@ -11,6 +11,7 @@
   "settings.laptop": "Portable",
   "settings.desktop": "Bureau",
   "settings.tablet": "Tablette",
+  "settings.smartphone": "Smartphone",
   "settings.alarmSound": "Son d'alarme",
   "settings.volume": "Volume",
   "settings.uploadSound": "Sélectionner un son d'alarme...",
