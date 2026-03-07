@@ -306,8 +306,9 @@ export async function updateDeviceViaEdge(
       headers: { "Content-Type": "application/json", apikey: getLocalAnonKey() },
       body: JSON.stringify({ device_id: deviceId, updates: localUpdates }),
     });
-    if (res.ok) {
-      console.log(`[deviceApi] ✅ Local updated device ${deviceId}`);
+    if (res.ok || res.status === 409) {
+      // 409 duplicate-name from backend should not break runtime
+      console.log(`[deviceApi] ✅ Local updated device ${deviceId}${res.status === 409 ? " (409 ignored)" : ""}`);
       localOk = true;
     }
   } catch (err) {
