@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { ArrowLeft, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe, Hand, Smartphone } from "lucide-react";
+import { ArrowLeft, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe, Hand, Smartphone, Eye } from "lucide-react";
 import { BackgroundSettings } from "@/components/BackgroundSettings";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -38,6 +38,8 @@ interface SensorSettingsPanelProps {
   appLanguage: string;
   onLanguageChange: (lang: string) => void;
   onBackgroundChange?: (bg: { id: string; value: string }) => void;
+  mascotVisible?: boolean;
+  onMascotToggle?: (visible: boolean) => void;
 }
 
 const SENSOR_ICONS: Record<string, React.ElementType> = {
@@ -118,6 +120,8 @@ export function SensorSettingsPanel({
   appLanguage,
   onLanguageChange,
   onBackgroundChange,
+  mascotVisible,
+  onMascotToggle,
 }: SensorSettingsPanelProps) {
   const { t } = useTranslation();
 
@@ -341,6 +345,22 @@ export function SensorSettingsPanel({
         {/* Background Setting */}
         <section className={`${glassCard} px-3 py-2.5`}>
           <BackgroundSettings onBackgroundChange={onBackgroundChange || (() => {})} />
+        </section>
+
+        {/* Mascot Display Toggle */}
+        <section className={`${glassCard} px-3 py-2.5`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Eye className="w-3 h-3 text-white/80" />
+              <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("settings.mascotDisplay")}</p>
+            </div>
+            <Switch
+              checked={mascotVisible ?? true}
+              onCheckedChange={(checked) => onMascotToggle?.(checked)}
+              className="scale-75"
+            />
+          </div>
+          <p className="text-[9px] text-white/40 mt-1">{t("settings.mascotDisplayDesc")}</p>
         </section>
 
         {/* Language Setting - Display only (set from smartphone) */}

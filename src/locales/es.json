@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Incluso después del robo del portátil, el **rastreo de ubicación y recopilación de evidencias** sigue siendo posible.\n\n• Activa el **modo de recuperación** desde el smartphone y el portátil transmitirá automáticamente ubicación y fotos.\n• Más efectivo combinado con el modo camuflaje.\n• La información recopilada puede usarse como evidencia al presentar una denuncia policial.",
   "help.faq": "Preguntas frecuentes",
   "help.contact": "Contacto",
+  "settings.mascotDisplay": "Mostrar personaje",
+  "settings.mascotDisplayDesc": "Mostrar/ocultar personaje mascota y burbuja de diálogo",
   "camera.title": "Cámara",
   "camera.connecting": "Conectando cámara...",
   "camera.retry": "Reintentar",

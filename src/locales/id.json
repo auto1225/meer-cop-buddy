@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Bahkan setelah laptop dicuri, **pelacakan lokasi dan pengumpulan bukti** tetap dimungkinkan.\n\n• Aktifkan **mode pemulihan** dari smartphone dan laptop akan otomatis mengirim lokasi dan foto.\n• Lebih efektif bila dikombinasikan dengan mode kamuflase.\n• Informasi yang dikumpulkan dapat digunakan sebagai bukti saat melapor ke polisi.",
   "help.faq": "FAQ",
   "help.contact": "Kontak",
+  "settings.mascotDisplay": "Tampilkan Karakter",
+  "settings.mascotDisplayDesc": "Tampilkan/sembunyikan karakter maskot dan gelembung bicara",
   "camera.title": "Kamera",
   "camera.connecting": "Menghubungkan kamera...",
   "camera.retry": "Coba lagi",

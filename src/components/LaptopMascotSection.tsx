@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { X, Eye } from "lucide-react";
 import meercopIdle from "@/assets/meercop-idle.png";
 import meercopMonitoring from "@/assets/meercop-monitoring.png";
 import meercopAlert from "@/assets/meercop-alert.png";
@@ -76,28 +75,11 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false, mascotVi
                 isAlarming ? 'animate-bounce' : ''
               }`}
             />
-            {!isAlarming && (
-              <button
-                onClick={toggleMascot}
-                className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-black/60 transition-colors z-30"
-                title="캐릭터 숨기기"
-              >
-                <X className="w-3.5 h-3.5 text-white/80" />
-              </button>
-            )}
           </div>
         </>
       ) : (
         !isAlarming && (
-          <div className="relative z-10 mb-[32%]">
-            <button
-              onClick={toggleMascot}
-              className="w-7 h-7 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 flex items-center justify-center hover:bg-white/25 transition-colors"
-              title="캐릭터 보기"
-            >
-              <Eye className="w-3.5 h-3.5 text-white/70" />
-            </button>
-          </div>
+          <div className="relative z-10 mb-[32%]" />
         )
       )}
 

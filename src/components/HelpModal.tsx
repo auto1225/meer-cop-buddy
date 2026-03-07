@@ -104,6 +104,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         { titleKey: "help.s5.sensors", contentKey: "help.s5.sensorsContent" },
         { titleKey: "help.s5.sensitivity", contentKey: "help.s5.sensitivityContent" },
         { titleKey: "help.s5.pin", contentKey: "help.s5.pinContent" },
+        { titleKey: "help.s5.mascotDisplay", contentKey: "help.s5.mascotDisplayContent" },
         { titleKey: "help.s5.language", contentKey: "help.s5.languageContent" },
       ],
     },
@@ -200,6 +201,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
     { titleKey: "help.faq.q10", contentKey: "help.faq.a10" },
     { titleKey: "help.faq.q11", contentKey: "help.faq.a11" },
     { titleKey: "help.faq.q12", contentKey: "help.faq.a12" },
+    { titleKey: "help.faq.q13", contentKey: "help.faq.a13" },
   ];
 
   const scrollToSection = (index: number) => {
