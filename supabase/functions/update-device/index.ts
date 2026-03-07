@@ -166,8 +166,21 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("update-device error:", err);
+
+    if (isDuplicateNameError(err)) {
+      return new Response(
+        JSON.stringify({
+          device: null,
+          ignored: true,
+          reason: "DUPLICATE_DEVICE_NAME",
+          message: String((err as any)?.message || "Duplicate device name"),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: (err as any)?.message || "update-device failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
