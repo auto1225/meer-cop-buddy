@@ -951,7 +951,7 @@ const Index = ({ onExpired }: IndexProps) => {
       // 메시지 명령: 토스트 알림으로 메시지 표시
       channel.on('broadcast', { event: 'message_command' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ message_command for different device, ignoring");
           return;
         }
