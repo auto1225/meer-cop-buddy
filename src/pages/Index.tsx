@@ -878,7 +878,7 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
         const raw = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(raw)) {
+        if (!isForThisDevice(raw, chName)) {
           console.log("[Index] ⏭️ camouflage_toggle for different device, ignoring");
           return;
         }
