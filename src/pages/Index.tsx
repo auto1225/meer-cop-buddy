@@ -438,6 +438,8 @@ const Index = ({ onExpired }: IndexProps) => {
       mouse?: boolean;
       usb?: boolean;
       power?: boolean;
+      screenTouch?: boolean;
+      screen_touch?: boolean;
     } | undefined;
 
     const motionSensitivity = (meta?.motionSensitivity || meta?.motion_sensitivity) as string | undefined;
@@ -491,7 +493,7 @@ const Index = ({ onExpired }: IndexProps) => {
         power: sensorSettings.power ?? true,
         microphone: sensorSettings.microphone ?? false,
         usb: sensorSettings.usb ?? false,
-        screenTouch: (sensorSettings as any).screenTouch ?? true,
+        screenTouch: sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true,
       });
       console.log("[Index] ✅ sensorSettings applied:", sensorSettings);
     }
@@ -673,6 +675,8 @@ const Index = ({ onExpired }: IndexProps) => {
           mouse?: boolean;
           usb?: boolean;
           power?: boolean;
+          screenTouch?: boolean;
+          screen_touch?: boolean;
         } | undefined;
         const motionSensitivity = (settingsRaw.motionSensitivity || settingsRaw.motion_sensitivity) as string | undefined;
         const mouseSensitivity = (settingsRaw.mouseSensitivity || settingsRaw.mouse_sensitivity) as string | undefined;
@@ -692,7 +696,7 @@ const Index = ({ onExpired }: IndexProps) => {
             power: sensorSettings.power ?? true,
             microphone: sensorSettings.microphone ?? false,
             usb: sensorSettings.usb ?? false,
-            screenTouch: (sensorSettings as any).screenTouch ?? true,
+            screenTouch: sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true,
           });
         }
 
