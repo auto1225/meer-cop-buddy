@@ -775,6 +775,7 @@ const Index = ({ onExpired }: IndexProps) => {
         const motionSensitivity = (settingsRaw.motionSensitivity || settingsRaw.motion_sensitivity) as string | undefined;
         const mouseSensitivity = (settingsRaw.mouseSensitivity || settingsRaw.mouse_sensitivity) as string | undefined;
         const alarmPinFromSettings = (settingsRaw.alarm_pin || settingsRaw.alarmPin) as string | undefined;
+        const alarmPinHashFromSettings = (settingsRaw.alarm_pin_hash || settingsRaw.alarmPinHash) as string | undefined;
         const alarmSoundFromSettings = (settingsRaw.alarm_sound_id || settingsRaw.alarmSoundId) as string | undefined;
         const requirePcPinFromSettings = (settingsRaw.require_pc_pin ?? settingsRaw.requirePcPin) as boolean | undefined;
         const camouflageFromSettings = (settingsRaw.camouflage_mode ?? settingsRaw.camouflageMode) as boolean | undefined;
