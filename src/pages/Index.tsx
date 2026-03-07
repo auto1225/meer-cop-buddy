@@ -55,6 +55,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+  const [backgroundSetting, setBackgroundSetting] = useState(() => getSelectedBackground());
   const [alarmVolume, setAlarmVolume] = useState(() => {
     const saved = localStorage.getItem('meercop-alarm-volume');
     return saved ? parseInt(saved, 10) : 20;
