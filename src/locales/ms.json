@@ -262,5 +262,9 @@
   "permission.later": "Kemudian",
   "permission.done": "Selesai",
   "permission.deniedWarning": "Kebenaran yang ditolak perlu ditukar dalam tetapan pelayar. Ciri-ciri ini tidak akan tersedia sehingga kebenaran diberikan.",
-  "permission.repeatInfo": "Pemberitahuan ini muncul setiap 24 jam apabila terdapat kebenaran yang belum diberikan"
+  "permission.repeatInfo": "Pemberitahuan ini muncul setiap 24 jam apabila terdapat kebenaran yang belum diberikan",
+  "pwa.installTitle": "Pasang MeerCOP!",
+  "pwa.installDesc": "Tambah ke skrin utama untuk akses lebih pantas.",
+  "pwa.installButton": "Pasang Sekarang",
+  "pwa.later": "Kemudian"
 }

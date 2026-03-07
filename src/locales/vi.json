@@ -262,5 +262,9 @@
   "permission.later": "Để sau",
   "permission.done": "Xong",
   "permission.deniedWarning": "Quyền bị từ chối cần được thay đổi trong cài đặt trình duyệt. Các tính năng này sẽ không khả dụng cho đến khi quyền được cấp.",
-  "permission.repeatInfo": "Thông báo này xuất hiện mỗi 24 giờ khi còn quyền chưa được cấp"
+  "permission.repeatInfo": "Thông báo này xuất hiện mỗi 24 giờ khi còn quyền chưa được cấp",
+  "pwa.installTitle": "Cài đặt MeerCOP!",
+  "pwa.installDesc": "Thêm vào màn hình chính để truy cập nhanh hơn.",
+  "pwa.installButton": "Cài Ngay",
+  "pwa.later": "Để Sau"
 }

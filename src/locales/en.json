@@ -400,5 +400,9 @@
   "permission.later": "Later",
   "permission.done": "Done",
   "permission.deniedWarning": "Denied permissions must be changed in your browser settings. These features will be unavailable until permissions are granted.",
-  "permission.repeatInfo": "This prompt appears every 24 hours when permissions are missing"
+  "permission.repeatInfo": "This prompt appears every 24 hours when permissions are missing",
+  "pwa.installTitle": "Install MeerCOP!",
+  "pwa.installDesc": "Add to your home screen for faster, more convenient access.",
+  "pwa.installButton": "Install Now",
+  "pwa.later": "Maybe Later"
 }

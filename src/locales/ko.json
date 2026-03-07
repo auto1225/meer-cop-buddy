@@ -400,5 +400,9 @@
   "permission.later": "나중에",
   "permission.done": "완료",
   "permission.deniedWarning": "거부된 권한은 브라우저 설정에서 직접 변경해야 합니다. 해당 기능은 권한이 허용될 때까지 사용할 수 없습니다.",
-  "permission.repeatInfo": "이 안내는 미승인 권한이 있을 때 24시간마다 표시됩니다"
+  "permission.repeatInfo": "이 안내는 미승인 권한이 있을 때 24시간마다 표시됩니다",
+  "pwa.installTitle": "앱을 설치하세요!",
+  "pwa.installDesc": "홈 화면에 추가하면 더 빠르고 편리하게 사용할 수 있습니다.",
+  "pwa.installButton": "지금 설치",
+  "pwa.later": "나중에"
 }

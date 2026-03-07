@@ -262,5 +262,9 @@
   "permission.later": "لاحقاً",
   "permission.done": "تم",
   "permission.deniedWarning": "يجب تغيير الأذونات المرفوضة من إعدادات المتصفح. لن تكون هذه الميزات متاحة حتى يتم منح الأذونات.",
-  "permission.repeatInfo": "يظهر هذا الإشعار كل 24 ساعة عند وجود أذونات مفقودة"
+  "permission.repeatInfo": "يظهر هذا الإشعار كل 24 ساعة عند وجود أذونات مفقودة",
+  "pwa.installTitle": "!MeerCOP ثبّت",
+  "pwa.installDesc": "أضف إلى الشاشة الرئيسية للوصول الأسرع.",
+  "pwa.installButton": "تثبيت الآن",
+  "pwa.later": "لاحقًا"
 }

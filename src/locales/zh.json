@@ -400,5 +400,9 @@
   "permission.later": "稍后",
   "permission.done": "完成",
   "permission.deniedWarning": "被拒绝的权限需要在浏览器设置中手动更改。在授予权限之前，相关功能将无法使用。",
-  "permission.repeatInfo": "当存在未授权权限时，此提示每24小时显示一次"
+  "permission.repeatInfo": "当存在未授权权限时，此提示每24小时显示一次",
+  "pwa.installTitle": "安装 MeerCOP！",
+  "pwa.installDesc": "添加到主屏幕，更快更方便地使用。",
+  "pwa.installButton": "立即安装",
+  "pwa.later": "稍后再说"
 }

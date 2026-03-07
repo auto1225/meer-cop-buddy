@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle, Download, CheckCircle } from "lucide-react";
+import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
 import meercopMascot from "@/assets/meercop-mascot.png";
 import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
-import { usePwaInstall } from "@/hooks/usePwaInstall";
+
 
 const _buildDate = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
 const BUILD_DATE = `${_buildDate.toLocaleDateString()} ${_buildDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -21,7 +21,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const savedAuth = getSavedAuth();
   const [helpOpen, setHelpOpen] = useState(false);
   const { t } = useTranslation();
-  const { canInstall, isInstalled, install } = usePwaInstall();
+  
 
   const getPlanLabel = (planType?: string) => {
     switch (planType) {
@@ -120,22 +120,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
         {/* Bottom Menu */}
         <div className="border-t border-white/15 p-2 space-y-0.5">
-          {/* PWA Install */}
-          {canInstall && (
-            <button
-              onClick={install}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"
-            >
-              <Download className="w-5 h-5 text-accent" />
-              <span className="text-sm font-bold">{t("menu.installApp")}</span>
-            </button>
-          )}
-          {isInstalled && (
-            <div className="flex items-center gap-3 px-4 py-2 text-white/50">
-              <CheckCircle className="w-5 h-5" />
-              <span className="text-sm font-bold">{t("menu.appInstalled")}</span>
-            </div>
-          )}
+          {/* Menu Items */}
           <button
             onClick={() => setHelpOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"

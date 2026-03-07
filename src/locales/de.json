@@ -262,5 +262,9 @@
   "permission.later": "Später",
   "permission.done": "Fertig",
   "permission.deniedWarning": "Verweigerte Berechtigungen müssen in den Browsereinstellungen geändert werden. Diese Funktionen sind nicht verfügbar, bis die Berechtigungen erteilt werden.",
-  "permission.repeatInfo": "Dieser Hinweis erscheint alle 24 Stunden, wenn Berechtigungen fehlen"
+  "permission.repeatInfo": "Dieser Hinweis erscheint alle 24 Stunden, wenn Berechtigungen fehlen",
+  "pwa.installTitle": "MeerCOP installieren!",
+  "pwa.installDesc": "Zum Startbildschirm hinzufügen für schnelleren Zugriff.",
+  "pwa.installButton": "Jetzt installieren",
+  "pwa.later": "Später"
 }
