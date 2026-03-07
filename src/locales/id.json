@@ -11,6 +11,7 @@
   "settings.laptop": "Laptop",
   "settings.desktop": "Desktop",
   "settings.tablet": "Tablet",
+  "settings.smartphone": "Smartphone",
   "settings.alarmSound": "Suara alarm",
   "settings.volume": "Volume",
   "settings.uploadSound": "Pilih suara alarm dari perangkat...",
