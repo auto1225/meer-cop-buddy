@@ -129,6 +129,8 @@ export function SensorSettingsPanel({
 
   // Lid sensor is only supported on laptops
   const isLidSupported = deviceType === "laptop";
+  // screenTouch gated by sensor_touch capability (default: false if not defined)
+  const isTouchCapable = capabilities?.sensor_touch !== false;
 
   const glassCard = "rounded-2xl border border-white/20 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]";
 
