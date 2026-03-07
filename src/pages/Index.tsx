@@ -752,6 +752,7 @@ const Index = ({ onExpired }: IndexProps) => {
                   is_monitoring: enable,
                   device_id: currentDevice?.id,
                   device_name: currentDevice?.device_name,
+                  serial_key: savedAuth.serial_key,
                   acked_at: new Date().toISOString(),
                 },
               });
@@ -952,11 +953,12 @@ const Index = ({ onExpired }: IndexProps) => {
             ackChannel.send({
               type: 'broadcast',
               event: 'command_ack',
-              payload: {
+                payload: {
                 command: 'camouflage_toggle',
                 camouflage_mode: camouflageRaw,
                 device_id: currentDevice?.id,
                 device_name: currentDevice?.device_name,
+                serial_key: savedAuth.serial_key,
                 acked_at: new Date().toISOString(),
               },
             });
