@@ -1139,6 +1139,17 @@ const Index = ({ onExpired }: IndexProps) => {
         <LaptopMascotSection 
           isMonitoring={isMonitoring} 
           isAlarming={isAlarming}
+          mascotVisible={mascotVisible}
+          onMascotToggle={(visible) => {
+            setMascotVisible(visible);
+            localStorage.setItem('meercop-mascot-visible', String(visible));
+            // DB metadata에도 저장
+            if (currentDevice?.id) {
+              updateDeviceViaEdge(currentDevice.id, {
+                metadata: { mascot_visible: visible },
+              }).catch(() => {});
+            }
+          }}
         />
 
       </div>
