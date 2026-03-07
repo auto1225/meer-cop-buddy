@@ -153,12 +153,6 @@ Deno.serve(async (req) => {
       );
     }
 
-      console.error("update-device error:", error);
-      return new Response(
-        JSON.stringify({ error: rawMsg || "update-device failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     return new Response(
       JSON.stringify({ device: data }),
