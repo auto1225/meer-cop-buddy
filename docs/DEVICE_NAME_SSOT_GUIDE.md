@@ -134,3 +134,12 @@ const { data: licenses } = await fetch(
 - UNIQUE 제약: `(serial_key, device_type)` — 같은 시리얼로 laptop/smartphone 각각 등록 가능
 - 기기명 중복 방지(deduplicateName)는 SSOT 이름 적용 후에도 동작
 - 하트비트에서 name을 보내지 않도록 주의 (SSOT 덮어쓰기 방지)
+
+## 공유 DB 동기화
+
+스마트폰 앱의 `deviceApi.ts`의 `registerDeviceViaEdge`는 공유 DB에도 등록을 수행합니다.
+공유 DB가 반환한 이름 또는 `device_type`이 요청 값과 다를 경우, 즉시 `update-device`로 보정합니다.
+
+보정 대상:
+- **이름 불일치**: 공유 DB가 이전 이름을 유지한 경우 → 로컬 SSOT 이름으로 패치
+- **device_type 불일치**: 같은 시리얼을 다른 종류 기기에서 사용한 경우 → 올바른 타입으로 패치
