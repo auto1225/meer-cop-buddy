@@ -406,5 +406,14 @@
   "pwa.installButton": "今すぐインストール",
   "pwa.later": "後で",
   "pwa.iosInstructions": "Safari下部の共有ボタン(□↑)をタップし、「ホーム画面に追加」を選択してください。",
-  "pwa.iosShareButton": "共有 → ホーム画面に追加"
+  "pwa.iosShareButton": "共有 → ホーム画面に追加",
+  "bg.title": "背景設定",
+  "bg.default": "デフォルト",
+  "bg.sunset": "夕焼け",
+  "bg.night": "夜空",
+  "bg.forest": "森",
+  "bg.ocean": "海",
+  "bg.aurora": "オーロラ",
+  "bg.custom": "カスタム",
+  "bg.upload": "アップロード"
 }

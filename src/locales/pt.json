@@ -268,5 +268,14 @@
   "pwa.installButton": "Instalar Agora",
   "pwa.later": "Depois",
   "pwa.iosInstructions": "Toque no botão Compartilhar (□↑) na parte inferior do Safari e selecione 'Adicionar à Tela de Início'.",
-  "pwa.iosShareButton": "Compartilhar → Tela de Início"
+  "pwa.iosShareButton": "Compartilhar → Tela de Início",
+  "bg.title": "Plano de fundo",
+  "bg.default": "Padrão",
+  "bg.sunset": "Pôr do sol",
+  "bg.night": "Noite",
+  "bg.forest": "Floresta",
+  "bg.ocean": "Oceano",
+  "bg.aurora": "Aurora",
+  "bg.custom": "Personalizado",
+  "bg.upload": "Enviar"
 }

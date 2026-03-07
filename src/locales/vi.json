@@ -268,5 +268,14 @@
   "pwa.installButton": "Cài Ngay",
   "pwa.later": "Để Sau",
   "pwa.iosInstructions": "Nhấn nút Chia sẻ (□↑) ở cuối Safari, rồi chọn 'Thêm vào Màn hình chính'.",
-  "pwa.iosShareButton": "Chia sẻ → Màn hình chính"
+  "pwa.iosShareButton": "Chia sẻ → Màn hình chính",
+  "bg.title": "Hình nền",
+  "bg.default": "Mặc định",
+  "bg.sunset": "Hoàng hôn",
+  "bg.night": "Đêm",
+  "bg.forest": "Rừng",
+  "bg.ocean": "Đại dương",
+  "bg.aurora": "Cực quang",
+  "bg.custom": "Tùy chỉnh",
+  "bg.upload": "Tải lên"
 }

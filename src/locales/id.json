@@ -268,5 +268,14 @@
   "pwa.installButton": "Instal Sekarang",
   "pwa.later": "Nanti",
   "pwa.iosInstructions": "Ketuk tombol Bagikan (□↑) di bagian bawah Safari, lalu pilih 'Tambahkan ke Layar Utama'.",
-  "pwa.iosShareButton": "Bagikan → Layar Utama"
+  "pwa.iosShareButton": "Bagikan → Layar Utama",
+  "bg.title": "Latar Belakang",
+  "bg.default": "Default",
+  "bg.sunset": "Senja",
+  "bg.night": "Malam",
+  "bg.forest": "Hutan",
+  "bg.ocean": "Lautan",
+  "bg.aurora": "Aurora",
+  "bg.custom": "Kustom",
+  "bg.upload": "Unggah"
 }

@@ -406,5 +406,14 @@
   "pwa.installButton": "Install Now",
   "pwa.later": "Maybe Later",
   "pwa.iosInstructions": "Tap the Share button (□↑) at the bottom of Safari, then select 'Add to Home Screen'.",
-  "pwa.iosShareButton": "Share → Add to Home Screen"
+  "pwa.iosShareButton": "Share → Add to Home Screen",
+  "bg.title": "Background",
+  "bg.default": "Default",
+  "bg.sunset": "Sunset",
+  "bg.night": "Night",
+  "bg.forest": "Forest",
+  "bg.ocean": "Ocean",
+  "bg.aurora": "Aurora",
+  "bg.custom": "Custom",
+  "bg.upload": "Upload"
 }

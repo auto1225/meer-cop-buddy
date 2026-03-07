@@ -268,5 +268,14 @@
   "pwa.installButton": "ติดตั้งเลย",
   "pwa.later": "ภายหลัง",
   "pwa.iosInstructions": "แตะปุ่มแชร์ (□↑) ด้านล่างของ Safari แล้วเลือก 'เพิ่มไปยังหน้าจอโฮม'",
-  "pwa.iosShareButton": "แชร์ → เพิ่มไปยังหน้าจอโฮม"
+  "pwa.iosShareButton": "แชร์ → เพิ่มไปยังหน้าจอโฮม",
+  "bg.title": "พื้นหลัง",
+  "bg.default": "ค่าเริ่มต้น",
+  "bg.sunset": "พระอาทิตย์ตก",
+  "bg.night": "กลางคืน",
+  "bg.forest": "ป่า",
+  "bg.ocean": "ทะเล",
+  "bg.aurora": "แสงเหนือ",
+  "bg.custom": "กำหนดเอง",
+  "bg.upload": "อัปโหลด"
 }

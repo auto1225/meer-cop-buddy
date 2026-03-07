@@ -268,5 +268,14 @@
   "pwa.installButton": "Pasang Sekarang",
   "pwa.later": "Kemudian",
   "pwa.iosInstructions": "Ketik butang Kongsi (□↑) di bahagian bawah Safari, kemudian pilih 'Tambah ke Skrin Utama'.",
-  "pwa.iosShareButton": "Kongsi → Skrin Utama"
+  "pwa.iosShareButton": "Kongsi → Skrin Utama",
+  "bg.title": "Latar Belakang",
+  "bg.default": "Lalai",
+  "bg.sunset": "Matahari terbenam",
+  "bg.night": "Malam",
+  "bg.forest": "Hutan",
+  "bg.ocean": "Lautan",
+  "bg.aurora": "Aurora",
+  "bg.custom": "Tersuai",
+  "bg.upload": "Muat naik"
 }

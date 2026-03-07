@@ -268,5 +268,14 @@
   "pwa.installButton": "Installer",
   "pwa.later": "Plus Tard",
   "pwa.iosInstructions": "Appuyez sur le bouton Partager (□↑) en bas de Safari, puis sélectionnez 'Sur l'écran d'accueil'.",
-  "pwa.iosShareButton": "Partager → Écran d'accueil"
+  "pwa.iosShareButton": "Partager → Écran d'accueil",
+  "bg.title": "Arrière-plan",
+  "bg.default": "Par défaut",
+  "bg.sunset": "Coucher de soleil",
+  "bg.night": "Nuit",
+  "bg.forest": "Forêt",
+  "bg.ocean": "Océan",
+  "bg.aurora": "Aurore",
+  "bg.custom": "Personnalisé",
+  "bg.upload": "Télécharger"
 }

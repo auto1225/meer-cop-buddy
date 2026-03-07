@@ -38,6 +38,7 @@ import { setSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useAppStabilizer } from "@/hooks/useAppStabilizer";
 import { I18nProvider, type Lang } from "@/lib/i18n";
+import { getSelectedBackground } from "@/components/BackgroundSettings";
 import mainBg from "@/assets/main-bg.png";
 
 interface IndexProps {
@@ -54,6 +55,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+  const [backgroundSetting, setBackgroundSetting] = useState(() => getSelectedBackground());
   const [alarmVolume, setAlarmVolume] = useState(() => {
     const saved = localStorage.getItem('meercop-alarm-volume');
     return saved ? parseInt(saved, 10) : 20;
@@ -953,13 +955,25 @@ const Index = ({ onExpired }: IndexProps) => {
       baseWidth={300}
       baseHeight={520}
     >
-      <div 
+       <div 
         className="w-full h-full flex flex-col relative overflow-hidden"
-        style={{
-          backgroundImage: `url(${mainBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center bottom',
-        }}
+        style={
+          backgroundSetting.value === "__default__"
+            ? {
+                backgroundImage: `url(${mainBg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center bottom',
+              }
+            : backgroundSetting.value.startsWith("data:")
+              ? {
+                  backgroundImage: `url(${backgroundSetting.value})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : {
+                  background: backgroundSetting.value,
+                }
+        }
       >
 
         {/* Auto Broadcaster - listens for streaming requests from smartphone */}
@@ -1050,6 +1064,7 @@ const Index = ({ onExpired }: IndexProps) => {
               }).catch(e => console.error("[Index] Failed to save language:", e));
             }
           }}
+          onBackgroundChange={(bg) => setBackgroundSetting(bg)}
         />
 
         {/* Camera Modal */}

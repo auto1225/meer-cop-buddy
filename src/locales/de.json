@@ -268,5 +268,14 @@
   "pwa.installButton": "Jetzt installieren",
   "pwa.later": "Später",
   "pwa.iosInstructions": "Tippen Sie auf die Teilen-Taste (□↑) unten in Safari und wählen Sie 'Zum Home-Bildschirm'.",
-  "pwa.iosShareButton": "Teilen → Zum Home-Bildschirm"
+  "pwa.iosShareButton": "Teilen → Zum Home-Bildschirm",
+  "bg.title": "Hintergrund",
+  "bg.default": "Standard",
+  "bg.sunset": "Sonnenuntergang",
+  "bg.night": "Nacht",
+  "bg.forest": "Wald",
+  "bg.ocean": "Ozean",
+  "bg.aurora": "Aurora",
+  "bg.custom": "Benutzerdefiniert",
+  "bg.upload": "Hochladen"
 }

@@ -268,5 +268,14 @@
   "pwa.installButton": "Installa Ora",
   "pwa.later": "Più Tardi",
   "pwa.iosInstructions": "Tocca il pulsante Condividi (□↑) in basso in Safari, poi seleziona 'Aggiungi alla schermata Home'.",
-  "pwa.iosShareButton": "Condividi → Schermata Home"
+  "pwa.iosShareButton": "Condividi → Schermata Home",
+  "bg.title": "Sfondo",
+  "bg.default": "Predefinito",
+  "bg.sunset": "Tramonto",
+  "bg.night": "Notte",
+  "bg.forest": "Foresta",
+  "bg.ocean": "Oceano",
+  "bg.aurora": "Aurora",
+  "bg.custom": "Personalizzato",
+  "bg.upload": "Carica"
 }
