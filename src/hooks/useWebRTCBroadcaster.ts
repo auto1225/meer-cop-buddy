@@ -353,17 +353,26 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       }
       iceCandidateQueueRef.current.delete(sessionId);
 
-      // 🆕 Answer 수신 후 브로드캐스터의 offer/ICE 시그널링 즉시 삭제
-      // 이렇게 하면 뷰어가 폴링으로 같은 offer를 다시 발견하여 재처리하는 문제를 방지
-      console.log(`[Broadcaster] 🧹 Cleaning up broadcaster signaling after answer received for ${sessionId}`);
-      supabaseShared.from("webrtc_signaling").delete()
-        .eq("device_id", deviceIdRef.current)
-        .eq("sender_type", "broadcaster")
-        .in("type", ["offer", "ice-candidate", "broadcaster-ready"])
-        .then(({ error: delErr }) => {
-          if (delErr) console.warn("[Broadcaster] Failed to clean broadcaster signaling:", delErr);
-          else console.log("[Broadcaster] ✅ Broadcaster signaling cleaned after answer");
-        });
+      // ★ ICE gathering이 완전히 끝나고 연결이 안정화된 후에만 시그널링 정리
+      // Answer 직후 삭제하면 후속 ICE candidate가 전달 안 되어 1초 후 멈추는 현상 발생
+      const cleanupDelay = 15000; // 15초 후 정리 (ICE gathering + TURN 릴레이 완료 대기)
+      setTimeout(() => {
+        const currentPeer = peersRef.current.get(sessionId);
+        if (currentPeer && currentPeer.pc.connectionState === "connected") {
+          console.log(`[Broadcaster] 🧹 Deferred signaling cleanup for ${sessionId} (connection stable)`);
+          supabaseShared.from("webrtc_signaling").delete()
+            .eq("device_id", deviceIdRef.current)
+            .eq("sender_type", "broadcaster")
+            .in("type", ["offer", "broadcaster-ready"])
+            .then(({ error: delErr }) => {
+              if (delErr) console.warn("[Broadcaster] Failed to clean broadcaster signaling:", delErr);
+              else console.log("[Broadcaster] ✅ Broadcaster signaling cleaned (deferred)");
+            });
+          // ICE candidate는 삭제하지 않음 — expires_at에 의해 자동 만료됨
+        } else {
+          console.log(`[Broadcaster] ⏭️ Skipped deferred cleanup — peer not connected`);
+        }
+      }, cleanupDelay);
     } catch (err) {
       console.error("[Broadcaster] ❌ Error setting remote description:", err);
       processedAnswersRef.current.delete(sessionId);
