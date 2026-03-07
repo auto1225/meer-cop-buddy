@@ -7,9 +7,10 @@ import meercopMascot from "@/assets/meercop-mascot.png";
 import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
 import { toast } from "sonner";
-
+import { supabase } from "@/integrations/supabase/client";
 
 const _buildDate = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
+const BUILD_TIMESTAMP = import.meta.env.VITE_BUILD_TIMESTAMP ? Number(import.meta.env.VITE_BUILD_TIMESTAMP) : Date.now();
 const BUILD_DATE = `${_buildDate.toLocaleDateString()} ${_buildDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
 interface SideMenuProps {
