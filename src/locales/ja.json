@@ -11,6 +11,7 @@
   "settings.laptop": "ノートPC",
   "settings.desktop": "デスクトップ",
   "settings.tablet": "タブレット",
+  "settings.smartphone": "スマートフォン",
   "settings.alarmSound": "アラーム音",
   "settings.volume": "音量",
   "settings.uploadSound": "デバイスからアラーム音を選択...",
