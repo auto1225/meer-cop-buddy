@@ -160,6 +160,7 @@ export function SensorSettingsPanel({
               { key: "laptop", label: t("settings.laptop") },
               { key: "desktop", label: t("settings.desktop") },
               { key: "tablet", label: t("settings.tablet") },
+              { key: "smartphone", label: t("settings.smartphone") },
             ]).map(({ key, label }) => (
               <span
                 key={key}
