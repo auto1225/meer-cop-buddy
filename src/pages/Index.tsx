@@ -863,6 +863,7 @@ const Index = ({ onExpired }: IndexProps) => {
         toast({
           title: appLanguage === "en" ? "🔒 Device Locked" : "🔒 기기 잠금",
           description: appLanguage === "en" ? "Remote lock activated from smartphone." : "스마트폰에서 원격 잠금이 활성화되었습니다.",
+        });
       });
 
       // 마스코트 보기/숨기기 원격 제어
