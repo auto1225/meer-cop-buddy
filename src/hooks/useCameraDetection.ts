@@ -44,14 +44,10 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
 
   const checkCameraAvailability = useCallback(async (): Promise<boolean> => {
     try {
-      // 스트림이 활성 상태이면 카메라가 확실히 존재 — enumerateDevices 스킵
-      const activeStreams = document.querySelectorAll("video");
-      for (const v of activeStreams) {
-        const ms = (v as HTMLVideoElement).srcObject as MediaStream | null;
-        if (ms && ms.getVideoTracks().some(t => t.readyState === "live")) {
-          console.log("[CameraDetection] 📹 Active video stream found — camera is connected");
-          return true;
-        }
+      // 브로드캐스터가 활성 스트림을 보유 중이면 하드웨어 연결로 강제 판단
+      if ((window as any).__meercopCameraStreamActive) {
+        console.log("[CameraDetection] 📹 Broadcaster stream active flag detected — camera is connected");
+        return true;
       }
 
       const devices = await navigator.mediaDevices.enumerateDevices();

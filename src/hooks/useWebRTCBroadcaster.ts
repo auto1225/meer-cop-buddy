@@ -3,7 +3,6 @@ import { supabaseShared } from "@/lib/supabase";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { getIceServers } from "@/lib/iceServers";
-import { waitForVideoFrames } from "@/lib/webrtc/qualityPresets";
 
 interface UseWebRTCBroadcasterOptions {
   deviceId: string;
@@ -150,33 +149,12 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       return null;
     }
     
-    // ✅ 비디오 트랙이 없으면 카메라 재획득 시도
+    // ✅ 비디오 트랙이 없으면 내부에서 재획득하지 않고 상위 오케스트레이터에 재시작 요청
+    // (훅 내부 재획득은 AutoBroadcaster와 스트림 참조가 분리되어 카메라 잠금/플래핑을 유발할 수 있음)
     if (liveVideoTracks.length === 0) {
-      console.warn("[Broadcaster] ⚠️ No live video track — attempting camera re-acquisition");
-      try {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 15, max: 30 }, facingMode: { ideal: "user" } },
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        });
-        const newVideoTracks = newStream.getVideoTracks().filter(t => t.readyState === "live");
-        if (newVideoTracks.length > 0) {
-          // 카메라 워밍업 대기
-          await waitForVideoFrames(newVideoTracks[0], 5000);
-          // 기존 스트림의 죽은 트랙 정리 후 새 트랙 추가
-          streamRef.current.getTracks().forEach(t => { t.stop(); });
-          streamRef.current = newStream;
-          console.log("[Broadcaster] ✅ Camera re-acquired with video track");
-        } else {
-          newStream.getTracks().forEach(t => t.stop());
-          console.error("[Broadcaster] ❌ Re-acquisition failed — still no video track, requesting restart");
-          window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
-          return null;
-        }
-      } catch (e) {
-        console.error("[Broadcaster] ❌ Camera re-acquisition error:", e);
-        window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
-        return null;
-      }
+      console.warn("[Broadcaster] ⚠️ No live video track — requesting full broadcast restart");
+      window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
+      return null;
     }
 
     // Mutex: prevent concurrent creation for the same session
@@ -414,9 +392,9 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       return;
     }
 
-    // Check if video track is muted (producing no frames)
+    // Android에서 muted는 일시적일 수 있어 stale 판단에서 제외
     const videoTrack = streamRef.current.getVideoTracks()[0];
-    const isVideoStale = videoTrack && (videoTrack.muted || !videoTrack.enabled);
+    const isVideoStale = !videoTrack || videoTrack.readyState !== "live" || !videoTrack.enabled;
 
     try {
       // 1. Check for new viewer-joins (with mutex guard)
@@ -429,10 +407,10 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         !creatingPeerRef.current.has(join.session_id)
       );
 
-      // Only restart if video track is actually stale (muted/disabled),
-      // NOT just because there are no active peers (that's normal for first viewer)
+      // Only restart if video track is truly dead,
+      // NOT just because Android temporarily reports muted
       if (newJoins.length > 0 && isVideoStale) {
-        console.log(`[Broadcaster] 🔄 New viewer detected with stale video track — requesting full restart`);
+        console.log(`[Broadcaster] 🔄 New viewer detected with dead video track — requesting full restart`);
         window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
         return;
       }
