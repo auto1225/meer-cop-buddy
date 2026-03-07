@@ -219,6 +219,11 @@ const Index = ({ onExpired }: IndexProps) => {
   const isAlertActiveRef = useRef(false);
 
   const handleSecurityEvent = useCallback(async (event: SecurityEvent) => {
+    // 감시 OFF 상태에서는 경보 발생 금지 (위장모드에서 센서만 유지하는 경우 포함)
+    if (!isMonitoring) {
+      console.log("[Security] ⏭️ Monitoring is OFF — ignoring event:", event.type);
+      return;
+    }
     // 이미 경보 중이면 중복 전송 방지
     if (isAlertActiveRef.current) {
       console.log("[Security] ⏭️ Alert already active — ignoring duplicate:", event.type);
