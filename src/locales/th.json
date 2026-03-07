@@ -63,6 +63,7 @@
   "menu.help": "ถาม-ตอบ / ช่วยเหลือ",
   "menu.installApp": "ติดตั้งแอป",
   "menu.appInstalled": "ติดตั้งแล้ว",
+  "menu.lastUpdated": "อัปเดตล่าสุด",
   "menu.logout": "ออกจากระบบ",
   "menu.guest": "ผู้เยี่ยมชม",
   "auth.checkSerial": "ตรวจสอบหมายเลขซีเรียลในแอป → ตั้งค่า",

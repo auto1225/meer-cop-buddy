@@ -63,6 +63,7 @@
   "menu.help": "Hỏi đáp / Trợ giúp",
   "menu.installApp": "Cài đặt ứng dụng",
   "menu.appInstalled": "Đã cài đặt",
+  "menu.lastUpdated": "Cập nhật",
   "menu.logout": "Đăng xuất",
   "menu.guest": "Khách",
   "auth.checkSerial": "Kiểm tra số sê-ri trong Ứng dụng → Cài đặt",

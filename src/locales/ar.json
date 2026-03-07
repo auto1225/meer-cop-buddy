@@ -63,6 +63,7 @@
   "menu.help": "أسئلة وأجوبة / مساعدة",
   "menu.installApp": "تثبيت التطبيق",
   "menu.appInstalled": "تم التثبيت",
+  "menu.lastUpdated": "آخر تحديث",
   "menu.logout": "تسجيل الخروج",
   "menu.guest": "ضيف",
   "auth.checkSerial": "تحقق من الرقم التسلسلي في تطبيق الهاتف → الإعدادات",

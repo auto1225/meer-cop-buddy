@@ -63,6 +63,7 @@
   "menu.help": "Q&R / Aide",
   "menu.installApp": "Installer l'app",
   "menu.appInstalled": "App installée",
+  "menu.lastUpdated": "Mis à jour",
   "menu.logout": "Déconnexion",
   "menu.guest": "Invité",
   "auth.checkSerial": "Vérifiez le numéro de série dans App Smartphone → Paramètres",

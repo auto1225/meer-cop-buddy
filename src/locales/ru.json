@@ -63,6 +63,7 @@
   "menu.help": "Вопросы / Помощь",
   "menu.installApp": "Установить",
   "menu.appInstalled": "Установлено",
+  "menu.lastUpdated": "Обновлено",
   "menu.logout": "Выйти",
   "menu.guest": "Гость",
   "auth.checkSerial": "Проверьте серийный номер в Приложении → Настройки",
