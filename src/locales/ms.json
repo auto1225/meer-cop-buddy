@@ -26,6 +26,7 @@
   "sensor.mouse": "Tetikus",
   "sensor.usb": "USB",
   "sensor.power": "Kabel kuasa",
+  "sensor.screenTouch": "Sentuhan Skrin",
   "sensor.motionTest": "Ujian gerakan",
   "language.title": "Bahasa",
   "language.changeFromPhone": "Boleh ditukar dari aplikasi telefon pintar",
