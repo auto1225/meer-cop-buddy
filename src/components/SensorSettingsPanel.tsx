@@ -120,6 +120,8 @@ export function SensorSettingsPanel({
   appLanguage,
   onLanguageChange,
   onBackgroundChange,
+  mascotVisible,
+  onMascotToggle,
 }: SensorSettingsPanelProps) {
   const { t } = useTranslation();
 
