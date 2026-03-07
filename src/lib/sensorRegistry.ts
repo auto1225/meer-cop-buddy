@@ -182,9 +182,9 @@ export function createPowerSensor(): SensorHandler {
 
           batteryHandler = () => {
             const nowCharging = battery.charging;
-            // 충전 중 → 비충전 = 케이블 분리
-            if (lastChargingState === true && nowCharging === false) {
-              console.log("[Sensor] 🔌 Power cable unplugged detected");
+            // 충전 상태 변경 감지 (연결 또는 해제 모두)
+            if (lastChargingState !== null && lastChargingState !== nowCharging) {
+              console.log("[Sensor] 🔌 Power cable state changed:", lastChargingState, "→", nowCharging);
               onTrigger();
             }
             lastChargingState = nowCharging;
