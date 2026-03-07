@@ -250,7 +250,8 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     const localCompositeId = localDevice?.device_id;
     const localName = localDevice?.device_name || localDevice?.name;
     const localType = localDevice?.device_type || "laptop";
-    const isComputerType = (t: string) => ["laptop", "desktop", "notebook"].includes(t);
+    const isComputerType = (t: string) => ["laptop", "desktop", "notebook", "tablet"].includes(t);
+    const localSerialKey = (localDevice?.metadata as any)?.serial_key || "";
 
     // ★ Check persisted shared ID first (prevents drift on list changes)
     if (!sharedIdResolvedOnceRef.current) {
@@ -277,7 +278,13 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     // Strategy 1: Match by composite device_id text field
     let match = sharedDevices.find((d: any) => localCompositeId && d.device_id === localCompositeId);
     
-    // Strategy 2: Match by name + type (laptop/desktop/notebook treated as same group)
+    // Strategy 1.5: Match by serial_key in metadata (most reliable cross-DB identifier)
+    if (!match && localSerialKey) {
+      match = sharedDevices.find((d: any) => (d.metadata as any)?.serial_key === localSerialKey);
+      if (match) console.log(`[AutoBroadcaster] 🔑 Matched by serial_key: ${localSerialKey}`);
+    }
+
+    // Strategy 2: Match by name + type (laptop/desktop/notebook/tablet treated as same group)
     if (!match) match = sharedDevices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isComputerType(d.device_type) && isComputerType(localType));
     
     // Strategy 3: If only one computer exists, use it
