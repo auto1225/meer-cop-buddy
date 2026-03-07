@@ -26,6 +26,7 @@
   "sensor.mouse": "Мышь",
   "sensor.usb": "USB",
   "sensor.power": "Кабель питания",
+  "sensor.screenTouch": "Касание экрана",
   "sensor.motionTest": "Тест движения",
   "language.title": "Язык",
   "language.changeFromPhone": "Можно изменить в приложении смартфона",
