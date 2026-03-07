@@ -82,23 +82,35 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
   };
 
   const syncSharedName = async (sharedId: string, newName: string): Promise<boolean> => {
-    const r = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-      body: JSON.stringify({ device_id: sharedId, name: newName }),
-    });
+    try {
+      const r = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ device_id: sharedId, name: newName }),
+      });
 
-    const payload = await r.json().catch(() => null);
-    const updated = typeof payload?.updated === "number" ? payload.updated : undefined;
-    const ok = r.ok && (updated === undefined || updated > 0 || !!payload?.device);
+      const payload = await r.json().catch(() => null);
 
-    if (ok) {
-      console.log("[DeviceNameBadge] ✅ Shared DB name synced:", newName, "sharedId:", sharedId, "payload:", payload);
-      return true;
+      // 409 = duplicate name on shared DB — treat as non-fatal
+      if (r.status === 409) {
+        console.warn("[DeviceNameBadge] ⚠️ Shared DB duplicate name (409), ignoring:", payload);
+        return true; // Don't block the user — local update succeeded
+      }
+
+      const updated = typeof payload?.updated === "number" ? payload.updated : undefined;
+      const ok = r.ok && (updated === undefined || updated > 0 || !!payload?.device);
+
+      if (ok) {
+        console.log("[DeviceNameBadge] ✅ Shared DB name synced:", newName, "sharedId:", sharedId, "payload:", payload);
+        return true;
+      }
+
+      console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", payload);
+      return false;
+    } catch (e) {
+      console.warn("[DeviceNameBadge] ⚠️ Shared DB sync error:", e);
+      return false;
     }
-
-    console.warn("[DeviceNameBadge] ⚠️ Shared DB name sync failed:", payload);
-    return false;
   };
 
   const sendNameChangedBroadcast = async (
