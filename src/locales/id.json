@@ -26,6 +26,7 @@
   "sensor.mouse": "Mouse",
   "sensor.usb": "USB",
   "sensor.power": "Kabel daya",
+  "sensor.screenTouch": "Sentuhan Layar",
   "sensor.motionTest": "Tes gerakan",
   "language.title": "Bahasa",
   "language.changeFromPhone": "Dapat diubah dari aplikasi smartphone",
