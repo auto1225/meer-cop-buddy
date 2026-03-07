@@ -728,7 +728,7 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
         const pRaw = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(pRaw)) {
+        if (!isForThisDevice(pRaw, chName)) {
           console.log("[Index] ⏭️ settings_updated for different device, ignoring");
           return;
         }
