@@ -1111,6 +1111,16 @@ const Index = ({ onExpired }: IndexProps) => {
             }
           }}
           onBackgroundChange={(bg) => setBackgroundSetting(bg)}
+          mascotVisible={mascotVisible}
+          onMascotToggle={(visible) => {
+            setMascotVisible(visible);
+            localStorage.setItem('meercop-mascot-visible', String(visible));
+            if (currentDevice?.id) {
+              updateDeviceViaEdge(currentDevice.id, {
+                metadata: { mascot_visible: visible },
+              }).catch(() => {});
+            }
+          }}
         />
 
         {/* Camera Modal */}
