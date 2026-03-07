@@ -78,6 +78,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       });
       streamRef.current = null;
     }
+    (window as any).__meercopCameraStreamActive = false;
     await stopBroadcasting();
     isStoppingRef.current = false;
   }, [stopBroadcasting, clearRetryTimer]);

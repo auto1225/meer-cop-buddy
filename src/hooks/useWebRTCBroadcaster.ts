@@ -3,7 +3,6 @@ import { supabaseShared } from "@/lib/supabase";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { getIceServers } from "@/lib/iceServers";
-import { waitForVideoFrames } from "@/lib/webrtc/qualityPresets";
 
 interface UseWebRTCBroadcasterOptions {
   deviceId: string;
