@@ -64,7 +64,9 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             <img src={meercopMascot} alt="MeerCOP" className="w-9 h-9 object-contain drop-shadow-lg" />
             <div>
               <h2 className="font-extrabold text-base drop-shadow">MeerCOP</h2>
-              <span className="text-[10px] text-white/60 font-semibold">ver 1.0.6</span>
+              <span className="text-[10px] text-white/60 font-semibold">
+                {t("menu.lastUpdated")}: {new Date().toLocaleDateString()}
+              </span>
             </div>
           </div>
           <Button
