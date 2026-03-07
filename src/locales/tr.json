@@ -11,6 +11,7 @@
   "settings.laptop": "Dizüstü",
   "settings.desktop": "Masaüstü",
   "settings.tablet": "Tablet",
+  "settings.smartphone": "Akıllı telefon",
   "settings.alarmSound": "Alarm sesi",
   "settings.volume": "Ses seviyesi",
   "settings.uploadSound": "Cihazdan alarm sesi seç...",
