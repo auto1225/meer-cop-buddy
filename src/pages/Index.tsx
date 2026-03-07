@@ -625,6 +625,10 @@ const Index = ({ onExpired }: IndexProps) => {
       channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
         const enable = payload.payload?.is_monitoring;
         console.log("[Index] 📲 Broadcast monitoring_toggle received:", enable, payload.payload);
+
+        // ✅ 브로드캐스트 가드 — refetch 시 DB의 stale 값이 위장모드 등 다른 상태를 덮어쓰지 못하게 함
+        broadcastOverrideUntilRef.current = Date.now() + 10000;
+
         if (enable !== undefined) {
           setIsMonitoring(enable);
           // 로컬 DB에도 동기화
