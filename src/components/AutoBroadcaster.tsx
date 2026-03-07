@@ -260,10 +260,13 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
         if (persisted) {
           const match = sharedDevices.find((d: any) => d.id === persisted);
           if (match) {
-            // ★ Validate persisted ID actually belongs to THIS device (by serial_key)
-            const matchSerial = (match.metadata as any)?.serial_key;
-            if (localSerialKey && matchSerial && matchSerial !== localSerialKey) {
-              console.warn(`[AutoBroadcaster] 🚫 Persisted ID ${persisted} has serial ${matchSerial} ≠ local ${localSerialKey}, clearing`);
+            const matchSerial = ((match.metadata as any)?.serial_key || "").trim();
+
+            // STRICT: 로컬 serial_key가 있으면, 캐시된 shared ID도 반드시 동일 serial_key여야 함
+            if (localSerialKey && matchSerial !== localSerialKey) {
+              console.warn(
+                `[AutoBroadcaster] 🚫 Persisted ID ${persisted} serial mismatch (shared="${matchSerial || "missing"}", local="${localSerialKey}") — clearing`
+              );
               localStorage.removeItem(SHARED_ID_STORAGE_KEY);
             } else {
               console.log(`[AutoBroadcaster] 💾 Using persisted shared ID: ${persisted}`);
@@ -282,29 +285,35 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       console.log(`[AutoBroadcaster] 📋 Shared[${i}]: id=${d.id} device_id=${d.device_id} name=${d.device_name || d.name} type=${d.device_type} streaming=${d.is_streaming_requested}`);
     });
 
+    const devicesForMatching = localSerialKey
+      ? sharedDevices.filter((d: any) => ((d.metadata as any)?.serial_key || "").trim() === localSerialKey)
+      : sharedDevices;
+
     // Strategy 1: Match by composite device_id text field
-    let match = sharedDevices.find((d: any) => localCompositeId && d.device_id === localCompositeId);
+    let match = devicesForMatching.find((d: any) => localCompositeId && d.device_id === localCompositeId);
     
     // Strategy 1.5: Match by serial_key in metadata (most reliable cross-DB identifier)
     if (!match && localSerialKey) {
-      match = sharedDevices.find((d: any) => (d.metadata as any)?.serial_key === localSerialKey);
+      match = devicesForMatching[0];
       if (match) console.log(`[AutoBroadcaster] 🔑 Matched by serial_key: ${localSerialKey}`);
     }
 
-    // Strategy 2: Match by name + type (all managed device types treated as same group)
-    if (!match) match = sharedDevices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isManagedDevice(d.device_type) && isManagedDevice(localType));
+    // Strategy 2: Match by name + type (only when serial_key is unavailable)
+    if (!match && !localSerialKey) {
+      match = sharedDevices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isManagedDevice(d.device_type) && isManagedDevice(localType));
+    }
     
-    // Strategy 3: If only one managed device exists, use it
-    if (!match) {
+    // Strategy 3: If only one managed device exists, use it (only when serial_key is unavailable)
+    if (!match && !localSerialKey) {
       const managed = sharedDevices.filter((d: any) => isManagedDevice(d.device_type));
       if (managed.length === 1) {
         match = managed[0];
-        console.log(`[AutoBroadcaster] 🎯 Only one computer in shared DB, using it`);
+        console.log(`[AutoBroadcaster] 🎯 Only one managed device in shared DB, using it`);
       }
     }
 
     // Strategy 4: Match by UUID (same as local — unlikely but try)
-    if (!match) match = sharedDevices.find((d: any) => d.id === localDevice?.id);
+    if (!match) match = devicesForMatching.find((d: any) => d.id === localDevice?.id);
 
     if (match) {
       console.log(`[AutoBroadcaster] ✅ Shared device matched: ${match.id} (name=${match.device_name || match.name})`);
