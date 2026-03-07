@@ -835,7 +835,12 @@ const Index = ({ onExpired }: IndexProps) => {
         // 아직 반영되지 않은 이전 값을 읽어 깜빡임 발생
       });
 
-      channel.on('broadcast', { event: 'remote_alarm_off' }, () => {
+      channel.on('broadcast', { event: 'remote_alarm_off' }, (payload) => {
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ remote_alarm_off for different device, ignoring");
+          return;
+        }
         console.log("[Index] 📲 Broadcast remote_alarm_off received");
         stopAlarm();
         setCurrentEventType(undefined);
