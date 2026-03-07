@@ -673,6 +673,8 @@ const Index = ({ onExpired }: IndexProps) => {
           mouse?: boolean;
           usb?: boolean;
           power?: boolean;
+          screenTouch?: boolean;
+          screen_touch?: boolean;
         } | undefined;
         const motionSensitivity = (settingsRaw.motionSensitivity || settingsRaw.motion_sensitivity) as string | undefined;
         const mouseSensitivity = (settingsRaw.mouseSensitivity || settingsRaw.mouse_sensitivity) as string | undefined;
