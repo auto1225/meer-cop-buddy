@@ -29,7 +29,11 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const consecutiveFalseRef = useRef(0);
   const checkIdRef = useRef(0); // 각 체크 사이클의 고유 ID
-  const DOWNGRADE_THRESHOLD = 3;
+  const isMobile = /Android|iPad|iPhone|iPod/i.test(navigator.userAgent);
+  // 모바일은 enumerateDevices가 불안정하므로 더 높은 threshold 사용
+  const DOWNGRADE_THRESHOLD = isMobile ? 6 : 3;
+  const RETRY_INTERVAL = isMobile ? 1000 : 500;
+  const DEVICECHANGE_DEBOUNCE = isMobile ? 2000 : 1000;
 
   const clearRetryTimer = useCallback(() => {
     if (retryTimerRef.current) {
@@ -40,6 +44,16 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
 
   const checkCameraAvailability = useCallback(async (): Promise<boolean> => {
     try {
+      // 스트림이 활성 상태이면 카메라가 확실히 존재 — enumerateDevices 스킵
+      const activeStreams = document.querySelectorAll("video");
+      for (const v of activeStreams) {
+        const ms = (v as HTMLVideoElement).srcObject as MediaStream | null;
+        if (ms && ms.getVideoTracks().some(t => t.readyState === "live")) {
+          console.log("[CameraDetection] 📹 Active video stream found — camera is connected");
+          return true;
+        }
+      }
+
       const devices = await navigator.mediaDevices.enumerateDevices();
       const hasVideo = devices.some(device => device.kind === "videoinput");
       console.log("[CameraDetection] enumerateDevices →", hasVideo, `(${devices.filter(d => d.kind === "videoinput").length} videoinput)`);
@@ -124,7 +138,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
           // ref를 통해 최신 함수를 호출하여 stale closure 방지
           retryTimerRef.current = setTimeout(() => {
             checkAndUpdateRef.current?.();
-          }, 500);
+          }, RETRY_INTERVAL);
         }
       }
       // false → false 는 아무것도 안함
@@ -159,7 +173,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       debounceTimerRef.current = setTimeout(() => {
         console.log("[CameraDetection] 🔄 Device change → checking status");
         checkAndUpdateRef.current?.();
-      }, 1000);
+      }, DEVICECHANGE_DEBOUNCE);
     };
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
