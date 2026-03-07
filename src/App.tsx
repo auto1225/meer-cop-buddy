@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import SerialAuth from "./pages/SerialAuth";
-
+import Landing from "./pages/Landing";
 import MotionTest from "./pages/MotionTest";
 import NotFound from "./pages/NotFound";
 import { getSavedAuth, clearAuth } from "@/lib/serialAuth";
@@ -51,6 +51,21 @@ const App = () => {
   const handleSerialSuccess = useCallback((_deviceId: string, _userId: string) => {
     setIsAuthenticated(true);
   }, []);
+
+  // Landing page is accessible without auth
+  if (typeof window !== 'undefined' && window.location.pathname === '/landing') {
+    return (
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Landing />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
