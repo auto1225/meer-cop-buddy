@@ -696,7 +696,7 @@ const Index = ({ onExpired }: IndexProps) => {
             power: sensorSettings.power ?? true,
             microphone: sensorSettings.microphone ?? false,
             usb: sensorSettings.usb ?? false,
-            screenTouch: sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true,
+            screenTouch: (savedAuth?.capabilities?.sensor_touch !== false) && (sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true),
           });
         }
 
