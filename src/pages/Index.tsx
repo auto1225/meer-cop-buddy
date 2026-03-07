@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { AlertTriangle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAlarmSoundsForDB } from "@/lib/alarmSounds";
 import { LaptopHeader } from "@/components/LaptopHeader";
