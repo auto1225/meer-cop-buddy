@@ -26,6 +26,7 @@
   "sensor.mouse": "Chuột",
   "sensor.usb": "USB",
   "sensor.power": "Cáp nguồn",
+  "sensor.screenTouch": "Chạm màn hình",
   "sensor.motionTest": "Kiểm tra chuyển động",
   "language.title": "Ngôn ngữ",
   "language.changeFromPhone": "Có thể thay đổi từ ứng dụng điện thoại",
