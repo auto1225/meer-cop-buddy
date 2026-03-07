@@ -172,6 +172,10 @@ export function useDevices(userId?: string) {
       }
 
       // 4) ★ 공유 DB에서도 조회하여 스마트폰 등 로컬에 없는 기기 병합
+      // UUID가 다르므로 name+device_type 조합으로 중복 판별
+      const localKeys = new Set(
+        localDevices.map(d => `${(d.name || d.device_name || "").trim().toLowerCase()}__${d.device_type}`)
+      );
       const localIds = new Set(localDevices.map(d => d.id));
       try {
         const sharedRes = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
@@ -185,12 +189,15 @@ export function useDevices(userId?: string) {
         if (sharedRes.ok) {
           const sharedData = await sharedRes.json();
           const sharedDevices: Device[] = sharedData.devices || sharedData || [];
-          // 로컬에 없는 기기만 추가 (주로 smartphone)
           for (const sd of sharedDevices) {
-            if (!localIds.has(sd.id)) {
-              localDevices.push(sd);
-              console.log(`[useDevices] ➕ Merged shared device: ${sd.id} (${sd.device_type}, ${sd.name || sd.device_name})`);
-            }
+            // UUID 중복 체크
+            if (localIds.has(sd.id)) continue;
+            // name+type 중복 체크 (로컬과 공유DB에 같은 기기가 다른 UUID로 존재)
+            const sdKey = `${(sd.name || sd.device_name || "").trim().toLowerCase()}__${sd.device_type}`;
+            if (localKeys.has(sdKey)) continue;
+            localDevices.push(sd);
+            localKeys.add(sdKey);
+            console.log(`[useDevices] ➕ Merged shared device: ${sd.id} (${sd.device_type}, ${sd.name || sd.device_name})`);
           }
         }
       } catch (e) {
