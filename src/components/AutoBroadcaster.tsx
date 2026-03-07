@@ -239,6 +239,10 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
   }, [clearRetryTimer, startCameraAndBroadcast]);
 
   // ── Shared DB helper: find or register this laptop ──
+  // ★ Persist resolved shared ID to avoid re-registration on every poll
+  const SHARED_ID_STORAGE_KEY = `meercop_shared_device_id_${deviceId}`;
+  const sharedIdResolvedOnceRef = useRef(false);
+
   const resolveSharedDeviceId = useCallback(async (
     localDevice: any,
     sharedDevices: any[]
@@ -247,6 +251,21 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     const localName = localDevice?.device_name || localDevice?.name;
     const localType = localDevice?.device_type || "laptop";
     const isComputerType = (t: string) => ["laptop", "desktop", "notebook"].includes(t);
+
+    // ★ Check persisted shared ID first (prevents drift on list changes)
+    if (!sharedIdResolvedOnceRef.current) {
+      try {
+        const persisted = localStorage.getItem(SHARED_ID_STORAGE_KEY);
+        if (persisted) {
+          const match = sharedDevices.find((d: any) => d.id === persisted);
+          if (match) {
+            console.log(`[AutoBroadcaster] 💾 Using persisted shared ID: ${persisted}`);
+            sharedIdResolvedOnceRef.current = true;
+            return { id: match.id, is_streaming_requested: match.is_streaming_requested ?? false };
+          }
+        }
+      } catch {}
+    }
 
     console.log(`[AutoBroadcaster] 🔍 Matching shared device: compositeId=${localCompositeId} name=${localName} type=${localType} sharedCount=${sharedDevices.length}`);
     
@@ -275,13 +294,21 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
 
     if (match) {
       console.log(`[AutoBroadcaster] ✅ Shared device matched: ${match.id} (name=${match.device_name || match.name})`);
+      // Persist for stability
+      try { localStorage.setItem(SHARED_ID_STORAGE_KEY, match.id); } catch {}
+      sharedIdResolvedOnceRef.current = true;
       return { id: match.id, is_streaming_requested: match.is_streaming_requested ?? false };
+    }
+
+    // ★ If already resolved once before, don't re-register (prevents duplicate entries)
+    if (sharedIdResolvedOnceRef.current) {
+      console.log(`[AutoBroadcaster] ⏭️ Already resolved once, skipping re-registration`);
+      return null;
     }
 
     // No match found — register in shared DB
     console.log(`[AutoBroadcaster] ⚠️ No shared device found, registering...`);
     try {
-      // 시리얼 키를 metadata에서 추출하거나 sessionStorage에서 가져오기
       const serialKey = (localDevice?.metadata as any)?.serial_key || (() => {
         try {
           const saved = JSON.parse(sessionStorage.getItem("meercop_serial_auth") || "{}");
@@ -315,6 +342,8 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
         const data = await res.json();
         const device = data.device || data;
         console.log(`[AutoBroadcaster] ✅ Registered in shared DB: ${device.id}`);
+        try { localStorage.setItem(SHARED_ID_STORAGE_KEY, device.id); } catch {}
+        sharedIdResolvedOnceRef.current = true;
         return { id: device.id, is_streaming_requested: device.is_streaming_requested ?? false };
       } else {
         const errText = await res.text().catch(() => "");
@@ -324,7 +353,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       console.warn("[AutoBroadcaster] Shared register failed:", e);
     }
     return null;
-  }, []);
+  }, [SHARED_ID_STORAGE_KEY]);
 
   // ── Main polling effect ──
   useEffect(() => {
