@@ -352,7 +352,7 @@ const Index = ({ onExpired }: IndexProps) => {
     if (failures.length > 0) {
       console.warn(`[Security] ${failures.length}/${results.length} tasks failed`);
     }
-  }, [currentDevice?.id]);
+  }, [currentDevice?.id, isMonitoring]);
 
   // Security surveillance
   const { 
