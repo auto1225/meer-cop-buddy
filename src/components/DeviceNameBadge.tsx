@@ -118,6 +118,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     payload: {
       target_device_id: string;
       target_shared_device_id: string;
+      serial_key: string;
       old_name: string;
       new_name: string;
       timestamp: string;
