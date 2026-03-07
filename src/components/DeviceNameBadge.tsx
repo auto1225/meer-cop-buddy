@@ -217,7 +217,19 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
       if (deviceId) {
         // ✅ 현재 노트북 1대만 이름 변경 (다른 기기는 절대 덮어쓰지 않음)
-        await updateDeviceViaEdge(deviceId, { name: trimmed });
+        try {
+          await updateDeviceViaEdge(deviceId, { name: trimmed });
+        } catch (updateErr: any) {
+          const msg = String(updateErr?.message || "");
+          // 중복 이름 에러는 비치명적 — 사용자에게 안내만 하고 진행
+          if (msg.includes("DUPLICATE") || msg.includes("이미 사용 중") || msg.includes("duplicate")) {
+            console.warn("[DeviceNameBadge] ⚠️ Duplicate name error ignored:", msg);
+            toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
+            setIsSaving(false);
+            return;
+          }
+          throw updateErr; // 다른 에러는 상위 catch로 전달
+        }
 
         // 공유 DB의 동일 기기(매핑된 sharedId)만 동기화
         const sharedId = await resolveSharedDeviceId(
