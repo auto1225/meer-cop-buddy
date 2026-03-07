@@ -26,6 +26,7 @@
   "sensor.mouse": "Fare",
   "sensor.usb": "USB",
   "sensor.power": "Güç kablosu",
+  "sensor.screenTouch": "Ekran Dokunuşu",
   "sensor.motionTest": "Hareket testi",
   "language.title": "Dil",
   "language.changeFromPhone": "Akıllı telefon uygulamasından değiştirilebilir",
