@@ -27,14 +27,13 @@ export function LaptopHeader({ onMenuClick, soundEnabled = true, onSoundToggle, 
           <Menu className="h-4 w-4 text-white" />
         </button>
 
-        <div className="text-center flex items-center gap-1.5">
+        <div className="relative">
           <img 
             src={meercopLogo} 
             alt="MeerCOP" 
             className="h-6 object-contain"
           />
-          <span className="inline-flex items-center gap-0.5 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white/90 uppercase tracking-wider">
-            <Monitor className="h-3 w-3" />
+          <span className="absolute -top-1.5 -right-7 text-[8px] font-extrabold text-white/80 uppercase tracking-wider drop-shadow">
             {typeLabel}
           </span>
         </div>
