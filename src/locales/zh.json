@@ -61,6 +61,8 @@
   "menu.planBasic": "基础套餐",
   "menu.planPremium": "高级套餐",
   "menu.help": "Q&A / 帮助",
+  "menu.installApp": "安装应用",
+  "menu.appInstalled": "已安装",
   "menu.logout": "退出登录",
   "menu.guest": "访客",
   "auth.checkSerial": "在智能手机应用 → 设置中查看序列号",

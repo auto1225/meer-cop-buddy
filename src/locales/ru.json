@@ -61,6 +61,8 @@
   "menu.planBasic": "Базовый план",
   "menu.planPremium": "Премиум план",
   "menu.help": "Вопросы / Помощь",
+  "menu.installApp": "Установить",
+  "menu.appInstalled": "Установлено",
   "menu.logout": "Выйти",
   "menu.guest": "Гость",
   "auth.checkSerial": "Проверьте серийный номер в Приложении → Настройки",

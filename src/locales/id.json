@@ -61,6 +61,8 @@
   "menu.planBasic": "Paket Dasar",
   "menu.planPremium": "Paket Premium",
   "menu.help": "Tanya Jawab / Bantuan",
+  "menu.installApp": "Instal Aplikasi",
+  "menu.appInstalled": "Terinstal",
   "menu.logout": "Keluar",
   "menu.guest": "Tamu",
   "auth.checkSerial": "Periksa nomor seri di Aplikasi Smartphone → Pengaturan",

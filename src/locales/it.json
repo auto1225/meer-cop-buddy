@@ -61,6 +61,8 @@
   "menu.planBasic": "Piano Base",
   "menu.planPremium": "Piano Premium",
   "menu.help": "FAQ / Aiuto",
+  "menu.installApp": "Installa App",
+  "menu.appInstalled": "App Installata",
   "menu.logout": "Esci",
   "menu.guest": "Ospite",
   "auth.checkSerial": "Controlla il numero di serie nell'App Smartphone → Impostazioni",
