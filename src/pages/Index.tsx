@@ -528,14 +528,30 @@ const Index = ({ onExpired }: IndexProps) => {
   // No redirect needed - App.tsx handles auth gate
 
   // Set initial device - match by savedAuth, allow correction if wrong
+  // ★ Once locked, only re-evaluate if the selected device disappears from the list
   useEffect(() => {
     if (devices.length === 0) return;
+
+    // If already locked and the current device still exists in the list, do nothing
+    if (deviceIdLockedRef.current && currentDeviceId) {
+      const stillExists = devices.some(d => d.id === currentDeviceId);
+      if (stillExists) return; // ← 핵심: 기기가 목록에 있으면 절대 변경하지 않음
+      console.log("[Index] ⚠️ Current device no longer in list, re-resolving...");
+      deviceIdLockedRef.current = false;
+    }
     
     // Determine the correct device ID (priority order)
     let correctDeviceId: string | null = null;
+
+    // 0. Check localStorage persisted selection first
+    const persisted = localStorage.getItem('meercop-current-device-id');
+    if (persisted) {
+      const found = devices.find(d => d.id === persisted);
+      if (found) correctDeviceId = found.id;
+    }
     
     // 1. Match by UUID (id or device_id)
-    if (savedAuth?.device_id) {
+    if (!correctDeviceId && savedAuth?.device_id) {
       const myDevice = devices.find(d => d.id === savedAuth.device_id) 
         || devices.find(d => d.device_id === savedAuth.device_id);
       if (myDevice) {
@@ -558,21 +574,31 @@ const Index = ({ onExpired }: IndexProps) => {
       }
     }
     
-    // 3. Fallback: find laptop/desktop/notebook type device
+    // 3. Fallback: find laptop/desktop/notebook type device ONLY (never smartphone)
     if (!correctDeviceId) {
-      const laptopDevice = devices.find(d => 
+      const computerDevice = devices.find(d => 
         d.device_type === 'laptop' || d.device_type === 'desktop' || d.device_type === 'notebook'
       );
-      correctDeviceId = laptopDevice?.id || devices[0].id;
+      if (computerDevice) {
+        correctDeviceId = computerDevice.id;
+      } else {
+        // Absolute last resort — but avoid smartphones
+        const nonPhone = devices.find(d => d.device_type !== 'smartphone');
+        correctDeviceId = nonPhone?.id || devices[0]?.id || null;
+      }
     }
     
     // Set or correct if wrong
-    if (currentDeviceId !== correctDeviceId) {
+    if (correctDeviceId && currentDeviceId !== correctDeviceId) {
       console.log("[Index] ✅ Setting currentDeviceId:", correctDeviceId, 
         "(was:", currentDeviceId, ") savedAuth:", savedAuth?.device_id);
       setCurrentDeviceId(correctDeviceId);
+      localStorage.setItem('meercop-current-device-id', correctDeviceId);
+      deviceIdLockedRef.current = true;
+    } else if (correctDeviceId && currentDeviceId === correctDeviceId) {
+      deviceIdLockedRef.current = true; // Already correct, lock
     }
-  }, [devices, currentDeviceId, savedAuth?.device_id]);
+  }, [devices, savedAuth?.device_id]);  // ★ currentDeviceId removed from deps to prevent loops
 
   // Sync alarm sounds list to DB metadata via Edge Function
   useEffect(() => {
