@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import SerialAuth from "./pages/SerialAuth";
-
+import Landing from "./pages/Landing";
 import MotionTest from "./pages/MotionTest";
 import NotFound from "./pages/NotFound";
 import { getSavedAuth, clearAuth } from "@/lib/serialAuth";
