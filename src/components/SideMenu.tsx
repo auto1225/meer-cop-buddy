@@ -37,6 +37,8 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
+      // Clean up persisted device selection
+      localStorage.removeItem('meercop-current-device-id');
       await signOut();
     } catch {
       // proceed anyway
