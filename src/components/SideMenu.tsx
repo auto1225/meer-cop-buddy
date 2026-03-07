@@ -8,6 +8,8 @@ import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 
+const BUILD_DATE = new Date(__BUILD_TIMESTAMP__).toLocaleDateString();
+
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
