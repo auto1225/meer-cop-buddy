@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle } from "lucide-react";
+import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
 import meercopMascot from "@/assets/meercop-mascot.png";
 import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
+import { toast } from "sonner";
 
 
 const _buildDate = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
@@ -32,6 +33,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
     }
   };
 
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -44,6 +46,26 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
       // proceed anyway
     }
     onClose();
+  };
+
+  const handleCheckUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      // Unregister existing service workers to force fresh cache
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+      // Clear caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+      toast.success(t("menu.updateSuccess"));
+      setTimeout(() => window.location.reload(), 800);
+    } catch {
+      window.location.reload();
+    }
   };
 
   if (!isOpen) return null;
@@ -121,6 +143,14 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
         {/* Bottom Menu */}
         <div className="border-t border-white/15 p-2 space-y-0.5">
           {/* Menu Items */}
+          <button
+            onClick={handleCheckUpdate}
+            disabled={isUpdating}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-5 h-5 text-white/70 ${isUpdating ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-bold">{isUpdating ? t("menu.updating") : t("menu.checkUpdate")}</span>
+          </button>
           <button
             onClick={() => setHelpOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"
