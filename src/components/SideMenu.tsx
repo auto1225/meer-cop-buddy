@@ -116,7 +116,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
       {/* Menu Panel - Glassmorphism */}
       <div className="absolute left-0 top-0 bottom-0 w-[75%] max-w-[300px] z-50 flex flex-col animate-slide-in
-        bg-white/10 backdrop-blur-xl border-r border-white/20 text-white">
+        bg-white/10 backdrop-blur-xl border-r border-white/20 text-white overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/15">
@@ -124,7 +124,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             <img src={meercopMascot} alt="MeerCOP" className="w-9 h-9 object-contain drop-shadow-lg" />
             <div>
               <h2 className="font-extrabold text-base drop-shadow">MeerCOP</h2>
-              <span className="text-[10px] text-white/60 font-semibold">
+              <span className="text-[10px] text-white/60 font-semibold leading-tight">
                 {t("menu.lastUpdated")}: {BUILD_DATE}
               </span>
             </div>
@@ -139,8 +139,8 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
           </Button>
         </div>
 
-        {/* Profile Card - Glassmorphism */}
-        <div className="p-4">
+        {/* Profile Card - Scrollable area */}
+        <div className="flex-1 overflow-y-auto styled-scrollbar p-4">
           <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 space-y-4">
             {/* Avatar */}
             <div className="flex flex-col items-center gap-2">
@@ -169,9 +169,6 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             </div>
           </div>
         </div>
-
-        {/* Spacer */}
-        <div className="flex-1" />
 
         {/* Bottom Menu */}
         <div className="border-t border-white/15 p-2 space-y-0.5">
