@@ -1,0 +1,1 @@
+UPDATE devices SET device_type = 'laptop' WHERE device_id LIKE '%_laptop' AND device_type != 'laptop';
