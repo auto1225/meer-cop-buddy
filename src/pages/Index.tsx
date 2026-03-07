@@ -842,6 +842,7 @@ const Index = ({ onExpired }: IndexProps) => {
           if (motionSensitivity) metadataPatch.motionSensitivity = motionSensitivity;
           if (mouseSensitivity) metadataPatch.mouseSensitivity = mouseSensitivity;
           if (alarmPinFromSettings) metadataPatch.alarm_pin = alarmPinFromSettings;
+          if (alarmPinHashFromSettings) metadataPatch.alarm_pin_hash = alarmPinHashFromSettings;
           if (alarmSoundFromSettings) metadataPatch.alarm_sound_id = alarmSoundFromSettings;
           if (requirePcPinFromSettings !== undefined) metadataPatch.require_pc_pin = requirePcPinFromSettings;
           if (camouflageFromSettings !== undefined) metadataPatch.camouflage_mode = camouflageFromSettings;
