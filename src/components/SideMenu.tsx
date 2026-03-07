@@ -23,7 +23,28 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const savedAuth = getSavedAuth();
   const [helpOpen, setHelpOpen] = useState(false);
   const { t } = useTranslation();
-  
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Fetch avatar from public_profiles
+  useEffect(() => {
+    if (!savedAuth?.user_id) return;
+    const fetchAvatar = async () => {
+      try {
+        const { data } = await supabase
+          .from("public_profiles")
+          .select("avatar_url")
+          .eq("user_id", savedAuth.user_id)
+          .maybeSingle();
+        if (data?.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
+      } catch {
+        // silent
+      }
+    };
+    fetchAvatar();
+  }, [savedAuth?.user_id]);
+
 
   const getPlanLabel = (planType?: string) => {
     switch (planType) {
