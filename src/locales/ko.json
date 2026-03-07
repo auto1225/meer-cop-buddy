@@ -406,5 +406,14 @@
   "pwa.installButton": "지금 설치",
   "pwa.later": "나중에",
   "pwa.iosInstructions": "Safari 하단의 공유 버튼(□↑)을 눌러 '홈 화면에 추가'를 선택하세요.",
-  "pwa.iosShareButton": "공유 → 홈 화면에 추가"
+  "pwa.iosShareButton": "공유 → 홈 화면에 추가",
+  "bg.title": "배경 설정",
+  "bg.default": "기본",
+  "bg.sunset": "석양",
+  "bg.night": "밤하늘",
+  "bg.forest": "숲",
+  "bg.ocean": "바다",
+  "bg.aurora": "오로라",
+  "bg.custom": "사용자 지정",
+  "bg.upload": "업로드"
 }
