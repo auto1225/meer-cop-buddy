@@ -174,7 +174,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
-    cameraMotion: false, lid: false, keyboard: false, mouse: false, power: false, microphone: false, usb: false,
+    cameraMotion: false, lid: false, keyboard: false, mouse: false, power: false, microphone: false, usb: false, screenTouch: false,
   });
   const [motionThreshold, setMotionThreshold] = useState(15);
   const [mouseSensitivityPx, setMouseSensitivityPx] = useState(30); // default: normal (≈3cm)
@@ -491,6 +491,7 @@ const Index = ({ onExpired }: IndexProps) => {
         power: sensorSettings.power ?? true,
         microphone: sensorSettings.microphone ?? false,
         usb: sensorSettings.usb ?? false,
+        screenTouch: (sensorSettings as any).screenTouch ?? true,
       });
       console.log("[Index] ✅ sensorSettings applied:", sensorSettings);
     }
@@ -691,6 +692,7 @@ const Index = ({ onExpired }: IndexProps) => {
             power: sensorSettings.power ?? true,
             microphone: sensorSettings.microphone ?? false,
             usb: sensorSettings.usb ?? false,
+            screenTouch: (sensorSettings as any).screenTouch ?? true,
           });
         }
 

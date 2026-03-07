@@ -1,5 +1,6 @@
 import { useRef } from "react";
-import { ArrowLeft, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe } from "lucide-react";
+import { ArrowLeft, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe, Hand, Smartphone } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -44,10 +45,11 @@ const SENSOR_ICONS: Record<string, React.ElementType> = {
   mouse: Mouse,
   usb: Usb,
   power: Power,
+  screenTouch: Hand,
 };
 
 const SENSOR_KEYS: (keyof SensorToggles)[] = [
-  "cameraMotion", "lid", /* "microphone", */ "keyboard", "mouse", "usb", "power",
+  "cameraMotion", "lid", /* "microphone", */ "keyboard", "mouse", "usb", "power", "screenTouch",
 ];
 
 function CustomSoundUploader({ onSoundAdded }: { onSoundAdded: (sound: CustomAlarmSound) => void }) {
@@ -119,8 +121,12 @@ export function SensorSettingsPanel({
   const deviceTypeMap: Record<string, string> = {
     desktop: t("settings.desktop"),
     tablet: t("settings.tablet"),
+    smartphone: t("settings.smartphone"),
   };
   const deviceLabel = deviceTypeMap[deviceType] || t("settings.laptop");
+
+  // Lid sensor is only supported on laptops
+  const isLidSupported = deviceType === "laptop";
 
   const glassCard = "rounded-2xl border border-white/20 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]";
 
@@ -154,6 +160,7 @@ export function SensorSettingsPanel({
               { key: "laptop", label: t("settings.laptop") },
               { key: "desktop", label: t("settings.desktop") },
               { key: "tablet", label: t("settings.tablet") },
+              { key: "smartphone", label: t("settings.smartphone") },
             ]).map(({ key, label }) => (
               <span
                 key={key}
@@ -277,17 +284,25 @@ export function SensorSettingsPanel({
               const Icon = SENSOR_ICONS[key] || Camera;
               const active = sensorToggles[key];
               const label = t(`sensor.${key}`);
+              const isLidRestricted = key === "lid" && !isLidSupported;
               return (
                 <div key={key}>
-                  <div className="flex items-center gap-2.5 py-1.5">
+                  <div
+                    className={`flex items-center gap-2.5 py-1.5 ${isLidRestricted ? "opacity-40" : ""}`}
+                    onClick={() => {
+                      if (isLidRestricted) {
+                        toast.info(t("sensor.lidNotSupported"));
+                      }
+                    }}
+                  >
                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                      active ? "bg-secondary/25" : "bg-white/10"
+                      active && !isLidRestricted ? "bg-secondary/25" : "bg-white/10"
                     }`}>
-                      <Icon className={`w-3 h-3 ${active ? "text-secondary" : "text-white/40"}`} />
+                      <Icon className={`w-3 h-3 ${active && !isLidRestricted ? "text-secondary" : "text-white/40"}`} />
                     </div>
-                    <p className={`text-[11px] font-extrabold flex-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] ${active ? "text-white" : "text-white/50"}`}>{label}</p>
+                    <p className={`text-[11px] font-extrabold flex-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] ${active && !isLidRestricted ? "text-white" : "text-white/50"}`}>{label}</p>
                     <Switch
-                      checked={active}
+                      checked={isLidRestricted ? false : active}
                       disabled
                       className="pointer-events-none opacity-60 shrink-0 scale-75"
                     />
