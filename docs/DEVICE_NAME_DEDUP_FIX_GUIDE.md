@@ -105,6 +105,75 @@ const channel = supabaseLocal.channel(`user-presence-${userId}`);
 
 ---
 
+### 4. ⚠️ 스마트폰 Presence 연결 (스마트폰 "연결됨" 표시 필수)
+
+랩탑 앱은 **공유 DB(`sltxwkdvaapyeosikegj`)**의 `user-alerts-${userId}` 채널에서 `role === "phone"` Presence를 감지하여 스마트폰 연결 상태를 판단합니다.
+
+**스마트폰이 "미연결"로 표시되는 원인:**
+- 스마트폰이 다른 DB의 채널에 접속하고 있음
+- 스마트폰이 `role: "phone"`을 Presence에 포함하지 않음
+- 채널명이 `user-alerts-${userId}`가 아닌 다른 이름 사용
+
+#### 스마트폰에서 반드시 구현해야 할 코드
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+// ⚠️ 반드시 공유 DB 클라이언트 사용 (랩탑과 동일한 Realtime 서버)
+const supabaseShared = createClient(
+  "https://sltxwkdvaapyeosikegj.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdHh3a2R2YWFweWVvc2lrZWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNjg4MjQsImV4cCI6MjA4NTg0NDgyNH0.hj6A8YDTRMQkPid9hfw6vnGC2eQLTmv2JPmQRLv4sZ4"
+);
+
+// 채널명: user-alerts-${userId} (랩탑과 동일)
+const alertChannel = supabaseShared.channel(`user-alerts-${userId}`, {
+  config: { presence: { key: `phone-${userId}` } },  // key는 자유롭게 설정
+});
+
+alertChannel
+  .on("presence", { event: "sync" }, () => {
+    // 랩탑의 알림 상태 감지 등
+  })
+  .on("broadcast", { event: "active_alert" }, (payload) => {
+    // 경보 수신
+  })
+  .subscribe(async (status) => {
+    if (status === "SUBSCRIBED") {
+      // ⚠️ 핵심: role: "phone" 반드시 포함!
+      await alertChannel.track({
+        role: "phone",                          // ← 이 값이 없으면 랩탑에서 감지 불가
+        device_type: "smartphone",
+        user_id: userId,
+        online_at: new Date().toISOString(),
+      });
+      console.log("✅ Phone presence tracked on user-alerts channel");
+    }
+  });
+```
+
+#### 감지 로직 (랩탑 측 - 이미 구현됨)
+```typescript
+// src/hooks/useAlerts.ts 에서:
+const hasPhone = Object.values(state).some((presences) =>
+  (presences as Record<string, unknown>[]).some((p) => p.role === "phone")
+);
+// → hasPhone이 true이면 스마트폰 아이콘이 "연결됨"으로 표시
+```
+
+#### DB API vs Realtime 채널 사용 구분
+
+| 기능 | 사용할 DB | 이유 |
+|------|----------|------|
+| `get-devices` API | **로컬 DB** (`dmvbwyfzueywuwxkjuuy`) | 기기 이름/설정 정확성 |
+| `register-device` API | **로컬 DB** (`dmvbwyfzueywuwxkjuuy`) | 기기 등록 |
+| `update-device` API | **로컬 DB** (`dmvbwyfzueywuwxkjuuy`) | 기기 상태 업데이트 |
+| Presence 채널 (`user-alerts-*`) | **공유 DB** (`sltxwkdvaapyeosikegj`) | 실시간 Presence/알림 |
+| Presence 채널 (`user-presence-*`) | **공유 DB** (`sltxwkdvaapyeosikegj`) | 기기 온라인 상태 |
+| Broadcast 채널 (`user-photos-*`) | **공유 DB** (`sltxwkdvaapyeosikegj`) | 사진 전송 |
+| Broadcast 채널 (`user-commands-*`) | **공유 DB** (`sltxwkdvaapyeosikegj`) | 원격 명령 |
+
+---
+
 ## 🔍 검증 체크리스트
 
 - [ ] 스마트폰 `get-devices` API가 `dmvbwyfzueywuwxkjuuy` 엔드포인트를 호출하는지 확인
@@ -112,3 +181,5 @@ const channel = supabaseLocal.channel(`user-presence-${userId}`);
 - [ ] 외부 공유 DB의 오래된 devices 레코드가 삭제되었는지 확인
 - [ ] 기기 이름 변경 시 로컬 DB에 정확히 반영되는지 확인
 - [ ] 동일 이름 등록 시 자동 접미사가 추가되는지 확인 (예: "2221 (EE03)")
+- [ ] **스마트폰이 `sltxwkdvaapyeosikegj`의 `user-alerts-${userId}` 채널에 `role: "phone"` Presence를 track하는지 확인**
+- [ ] **랩탑 화면에서 스마트폰 아이콘이 "연결됨"으로 표시되는지 확인**
