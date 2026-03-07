@@ -139,8 +139,8 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
           </Button>
         </div>
 
-        {/* Profile Card - Glassmorphism */}
-        <div className="p-4">
+        {/* Profile Card - Scrollable area */}
+        <div className="flex-1 overflow-y-auto styled-scrollbar p-4">
           <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-5 space-y-4">
             {/* Avatar */}
             <div className="flex flex-col items-center gap-2">
@@ -169,9 +169,6 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             </div>
           </div>
         </div>
-
-        {/* Spacer */}
-        <div className="flex-1" />
 
         {/* Bottom Menu */}
         <div className="border-t border-white/15 p-2 space-y-0.5">
