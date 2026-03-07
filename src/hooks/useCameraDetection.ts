@@ -138,7 +138,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
           // ref를 통해 최신 함수를 호출하여 stale closure 방지
           retryTimerRef.current = setTimeout(() => {
             checkAndUpdateRef.current?.();
-          }, 500);
+          }, RETRY_INTERVAL);
         }
       }
       // false → false 는 아무것도 안함
