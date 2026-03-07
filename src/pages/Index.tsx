@@ -676,12 +676,23 @@ const Index = ({ onExpired }: IndexProps) => {
 
     // ✅ 기기 필터링 헬퍼: user-commands 채널은 모든 기기가 공유하므로
     // payload의 device_id가 자신의 기기와 일치하는지 확인
-    const isForThisDevice = (p: Record<string, unknown> | undefined): boolean => {
-      if (!p) return true; // payload 없으면 통과 (하위 호환)
+    const isForThisDevice = (p: Record<string, unknown> | undefined, channelName: string): boolean => {
+      // device-commands-${deviceId} 채널은 이미 기기 특정이므로 항상 통과
+      if (channelName.startsWith('device-commands-')) return true;
+      
+      // user-commands 채널: device_id 필수
+      if (!p) return false;
       const targetId = (p.device_id || p.target_device_id) as string | undefined;
-      if (!targetId) return true; // device_id 미지정이면 통과 (하위 호환)
+      if (!targetId) {
+        // device_id 없으면 serial_key로 매칭 시도
+        const mySerial = savedAuth?.serial_key;
+        const targetSerial = p.serial_key as string | undefined;
+        if (targetSerial && mySerial) return targetSerial === mySerial;
+        console.log("[Index] ⏭️ No device_id/serial_key in payload, ignoring on user-commands channel");
+        return false;
+      }
       const myIds = [currentDevice?.id, sharedDeviceIdState].filter(Boolean);
-      // serial_key 매칭도 지원
+      // serial_key 보조 매칭
       const mySerial = savedAuth?.serial_key;
       const targetSerial = p.serial_key as string | undefined;
       if (targetSerial && mySerial && targetSerial === mySerial) return true;
@@ -689,10 +700,11 @@ const Index = ({ onExpired }: IndexProps) => {
     };
 
     const bindHandlers = (channel: ReturnType<typeof channelManager.getOrCreate>) => {
+      const chName = channel.topic.replace('realtime:', '');
       // monitoring_toggle: payload에서 즉시 상태 적용 + 로컬 DB 동기화
       channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ monitoring_toggle for different device, ignoring");
           return;
         }
@@ -716,7 +728,7 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
         const pRaw = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(pRaw)) {
+        if (!isForThisDevice(pRaw, chName)) {
           console.log("[Index] ⏭️ settings_updated for different device, ignoring");
           return;
         }
@@ -837,7 +849,7 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'remote_alarm_off' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ remote_alarm_off for different device, ignoring");
           return;
         }
@@ -866,7 +878,7 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
         const raw = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(raw)) {
+        if (!isForThisDevice(raw, chName)) {
           console.log("[Index] ⏭️ camouflage_toggle for different device, ignoring");
           return;
         }
@@ -897,7 +909,7 @@ const Index = ({ onExpired }: IndexProps) => {
       // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
       channel.on('broadcast', { event: 'lock_command' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ lock_command for different device, ignoring");
           return;
         }
@@ -913,7 +925,7 @@ const Index = ({ onExpired }: IndexProps) => {
       // 마스코트 보기/숨기기 원격 제어
       channel.on('broadcast', { event: 'mascot_toggle' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ mascot_toggle for different device, ignoring");
           return;
         }
@@ -939,7 +951,7 @@ const Index = ({ onExpired }: IndexProps) => {
       // 메시지 명령: 토스트 알림으로 메시지 표시
       channel.on('broadcast', { event: 'message_command' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ message_command for different device, ignoring");
           return;
         }
