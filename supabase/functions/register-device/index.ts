@@ -16,7 +16,6 @@ function isDefaultName(name: string | null | undefined): boolean {
 /**
  * 동일 user_id 내에서 이름 중복을 방지합니다.
  * 중복 시 시리얼 키 앞 4자리를 접미사로 붙여 고유 이름을 생성합니다.
- * 예: "2221" → "2221 (EE03)"
  */
 async function deduplicateName(
   supabase: any,
@@ -27,7 +26,6 @@ async function deduplicateName(
 ): Promise<string> {
   if (isDefaultName(candidateName)) return candidateName;
 
-  // 같은 user_id, 같은 이름, 다른 device_id를 가진 기기가 있는지 확인
   const { data: sameNameDevices } = await supabase
     .from("devices")
     .select("device_id, device_name, name")
@@ -43,7 +41,6 @@ async function deduplicateName(
 
   if (conflicting.length === 0) return candidateName;
 
-  // 중복 발견 → 시리얼 키 접미사 추가
   if (serialKey && serialKey.length >= 4) {
     const suffix = serialKey.slice(-4).toUpperCase();
     const newName = `${candidateName} (${suffix})`;
@@ -51,7 +48,6 @@ async function deduplicateName(
     return newName;
   }
 
-  // 시리얼 키 없으면 숫자 접미사
   let counter = 2;
   let newName = `${candidateName} (${counter})`;
   const allNames = new Set(sameNameDevices.map((d: any) => (d.device_name || d.name || "").trim().toLowerCase()));
@@ -61,6 +57,27 @@ async function deduplicateName(
   }
   console.log(`[register-device] 🔄 Name conflict: "${candidateName}" → "${newName}"`);
   return newName;
+}
+
+/**
+ * licenses 테이블에서 시리얼 키에 매핑된 기기명(SSOT)을 조회합니다.
+ */
+async function getLicenseDeviceName(
+  supabase: any,
+  serialKey: string,
+  deviceType: string
+): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("licenses")
+      .select("device_name")
+      .eq("serial_key", serialKey)
+      .eq("device_type", deviceType)
+      .maybeSingle();
+    return data?.device_name || null;
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -75,7 +92,6 @@ Deno.serve(async (req) => {
     const finalName = device_name || name || "My Laptop";
     const finalUserId = user_id;
     const finalType = device_type || "laptop";
-    // serial_key가 있으면 고유한 복합 ID 생성 (다중 노트북 지원)
     const compositeDeviceId = serial_key
       ? `${finalUserId}_${serial_key}_${finalType}`
       : `${finalUserId}_${finalType}`;
@@ -93,8 +109,6 @@ Deno.serve(async (req) => {
     );
 
     // ── 시리얼 중복 사용 검증 (재검증 요청은 건너뜀) ──
-    // 같은 compositeDeviceId(=같은 기기)가 온라인인 경우는 재접속이므로 허용
-    // 다른 compositeDeviceId가 같은 시리얼로 온라인인 경우만 차단
     if (serial_key && !is_revalidation) {
       const { data: allWithSerial } = await supabase
         .from("devices")
@@ -108,24 +122,22 @@ Deno.serve(async (req) => {
       });
 
       if (otherOnline) {
-        // ★ last_seen_at이 3분 이상 지난 기기는 stale → 자동 offline 처리 후 허용
         const lastSeen = otherOnline.last_seen_at ? new Date(otherOnline.last_seen_at).getTime() : 0;
-        const staleThreshold = 3 * 60 * 1000; // 3분
+        const staleThreshold = 3 * 60 * 1000;
         const isStale = (Date.now() - lastSeen) > staleThreshold;
 
         if (isStale) {
-          console.log(`[register-device] 🔄 Stale device "${otherOnline.device_name}" auto-offlined (last_seen: ${otherOnline.last_seen_at})`);
+          console.log(`[register-device] 🔄 Stale device "${otherOnline.device_name}" auto-offlined`);
           await supabase
             .from("devices")
             .update({ status: "offline", is_monitoring: false })
             .eq("id", otherOnline.id);
         } else {
           const activeName = otherOnline.device_name || otherOnline.name || "Unknown";
-          console.log(`[register-device] ❌ Serial ${serial_key} already online on different device: ${activeName}`);
           return new Response(
             JSON.stringify({
               error: "serial_in_use",
-              message: `이 시리얼은 현재 다른 기기(${activeName})에서 사용 중입니다. 해당 기기의 연결을 해제한 후 다시 시도해주세요.`,
+              message: `이 시리얼은 현재 다른 기기(${activeName})에서 사용 중입니다.`,
               active_device: activeName,
             }),
             { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -134,7 +146,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check if device already exists for this user + type
+    // ★ SSOT: licenses.device_name에서 이 시리얼의 공식 기기명 조회
+    let ssotName: string | null = null;
+    if (serial_key) {
+      ssotName = await getLicenseDeviceName(supabase, serial_key, finalType);
+      if (ssotName) {
+        console.log(`[register-device] 📛 SSOT name from licenses: "${ssotName}" (serial: ${serial_key})`);
+      }
+    }
+
+    // Check if device already exists
     const { data: existing } = await supabase
       .from("devices")
       .select("*")
@@ -145,21 +166,23 @@ Deno.serve(async (req) => {
     let resultDevice: any;
 
     if (existing) {
-      // ── 기존 기기: 이름 보존 규칙 ──
+      // ── 기존 기기: SSOT 이름 우선 적용 ──
+      // 우선순위: 1. licenses.device_name(SSOT) → 2. 기존 DB 이름(custom) → 3. 요청 이름
       const existingName = existing.device_name || existing.name || "";
-      const existingHasCustomName = !isDefaultName(existingName);
-      const requestHasCustomName = !isDefaultName(finalName);
-
+      
       let resolvedName: string;
-      if (existingHasCustomName) {
+      if (ssotName) {
+        // ★ licenses에 저장된 이름이 최우선 (SSOT)
+        resolvedName = ssotName;
+      } else if (!isDefaultName(existingName)) {
         resolvedName = existingName;
-      } else if (requestHasCustomName) {
+      } else if (!isDefaultName(finalName)) {
         resolvedName = finalName;
       } else {
         resolvedName = existingName || finalName;
       }
 
-      // ★ 중복 이름 검사 및 자동 교정
+      // 중복 이름 검사 및 자동 교정
       resolvedName = await deduplicateName(supabase, finalUserId, resolvedName, compositeDeviceId, serial_key);
 
       const updateFields: Record<string, unknown> = {
@@ -167,6 +190,12 @@ Deno.serve(async (req) => {
         user_id: finalUserId,
         status: "online",
       };
+
+      // ★ device_type이 변경된 경우 업데이트 (시리얼을 다른 종류의 기기에서 사용)
+      if (existing.device_type !== finalType) {
+        updateFields.device_type = finalType;
+        console.log(`[register-device] 🔄 device_type changed: "${existing.device_type}" → "${finalType}"`);
+      }
 
       // 이름이 실제로 변경되었을 때만 업데이트
       if (resolvedName !== existingName) {
@@ -183,14 +212,16 @@ Deno.serve(async (req) => {
         ...existing,
         device_name: resolvedName,
         name: resolvedName,
+        device_type: updateFields.device_type || existing.device_type,
         user_id: finalUserId,
         last_seen_at: updateFields.last_seen_at,
       };
 
-      console.log(`[register-device] ♻️ Existing device updated: name="${resolvedName}" (was="${existingName}", requested="${finalName}", serial="${serial_key || 'none'}")`);
+      console.log(`[register-device] ♻️ Existing device updated: name="${resolvedName}" (ssot="${ssotName}", existing="${existingName}", requested="${finalName}", serial="${serial_key || 'none'}")`);
     } else {
-      // ★ 새 기기: 중복 이름 검사 후 삽입
-      const dedupedName = await deduplicateName(supabase, finalUserId, finalName, compositeDeviceId, serial_key);
+      // ★ 새 기기: SSOT 이름 우선, 없으면 요청 이름 사용
+      const nameToUse = ssotName || finalName;
+      const dedupedName = await deduplicateName(supabase, finalUserId, nameToUse, compositeDeviceId, serial_key);
 
       const { data: inserted, error } = await supabase
         .from("devices")
@@ -218,11 +249,13 @@ Deno.serve(async (req) => {
         );
       }
       resultDevice = inserted;
-      console.log(`[register-device] 🆕 New device inserted: name="${dedupedName}" (requested="${finalName}", serial="${serial_key || 'none'}")`);
+      console.log(`[register-device] 🆕 New device inserted: name="${dedupedName}" (ssot="${ssotName}", requested="${finalName}", serial="${serial_key || 'none'}")`);
     }
 
     // ── Upsert into licenses table if serial_key is provided ──
+    // ★ device_name도 함께 저장 (SSOT 유지)
     if (serial_key && resultDevice?.id) {
+      const deviceNameForLicense = resultDevice.device_name || resultDevice.name || finalName;
       try {
         await supabase
           .from("licenses")
@@ -232,22 +265,23 @@ Deno.serve(async (req) => {
               user_id: finalUserId,
               device_id: resultDevice.id,
               device_type: finalType,
+              device_name: deviceNameForLicense,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "serial_key,device_type" }
           );
-        console.log(`[register-device] ✅ License mapped: ${serial_key} → ${resultDevice.id}`);
+        console.log(`[register-device] ✅ License mapped: ${serial_key} → ${resultDevice.id} (name: "${deviceNameForLicense}")`);
       } catch (licErr) {
         console.error("[register-device] ⚠️ License upsert failed:", licErr);
       }
 
-      // ── 고아 디바이스 자동 정리: 라이선스 매핑 없는 동일 user_id 기기 삭제 ──
+      // ── 고아 디바이스 자동 정리 ──
       try {
         const { data: cleanupResult } = await supabase.rpc("cleanup_orphan_devices", {
           p_user_id: finalUserId,
         });
         if (cleanupResult && cleanupResult > 0) {
-          console.log(`[register-device] 🧹 Cleaned up ${cleanupResult} orphan device(s) for user ${finalUserId}`);
+          console.log(`[register-device] 🧹 Cleaned up ${cleanupResult} orphan device(s)`);
         }
       } catch (cleanupErr) {
         console.warn("[register-device] ⚠️ Orphan cleanup failed:", cleanupErr);
