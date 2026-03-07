@@ -47,6 +47,11 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!getSavedAuth());
   
 
+  // Register current build version on startup
+  useEffect(() => {
+    registerBuildVersion();
+  }, []);
+
   // Global error handler for unhandled promise rejections
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
