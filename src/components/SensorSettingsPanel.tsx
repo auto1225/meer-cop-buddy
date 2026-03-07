@@ -155,7 +155,7 @@ export function SensorSettingsPanel({
         {/* Device Type */}
         <section className={`${glassCard} px-3 py-2.5`}>
           <p className="text-[10px] font-extrabold text-white/80 mb-1.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("settings.deviceType")}</p>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 w-full">
             {([
               { key: "laptop", label: t("settings.laptop") },
               { key: "desktop", label: t("settings.desktop") },
@@ -164,7 +164,7 @@ export function SensorSettingsPanel({
             ]).map(({ key, label }) => (
               <span
                 key={key}
-                className={`text-[10px] px-3 py-1 rounded-full font-bold transition-all ${
+                className={`text-[9px] flex-1 text-center px-1 py-1 rounded-full font-bold transition-all whitespace-nowrap truncate ${
                   key === deviceType
                     ? "bg-secondary text-secondary-foreground shadow-[0_0_12px_hsla(68,100%,64%,0.35)]"
                     : "bg-white/10 text-white/60"
