@@ -46,6 +46,30 @@ export type Database = {
           },
         ]
       }
+      app_versions: {
+        Row: {
+          build_timestamp: number
+          created_at: string
+          id: string
+          release_notes: string | null
+          version_code: string
+        }
+        Insert: {
+          build_timestamp: number
+          created_at?: string
+          id?: string
+          release_notes?: string | null
+          version_code: string
+        }
+        Update: {
+          build_timestamp?: number
+          created_at?: string
+          id?: string
+          release_notes?: string | null
+          version_code?: string
+        }
+        Relationships: []
+      }
       camera_snapshots: {
         Row: {
           created_at: string
