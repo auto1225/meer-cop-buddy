@@ -438,6 +438,8 @@ const Index = ({ onExpired }: IndexProps) => {
       mouse?: boolean;
       usb?: boolean;
       power?: boolean;
+      screenTouch?: boolean;
+      screen_touch?: boolean;
     } | undefined;
 
     const motionSensitivity = (meta?.motionSensitivity || meta?.motion_sensitivity) as string | undefined;
