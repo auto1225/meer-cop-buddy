@@ -133,28 +133,25 @@ Deno.serve(async (req) => {
     }
 
     if (error) {
-      // Duplicate device name from DB/business rule: treat as non-fatal to avoid blank screen
-      const rawMsg = String((error as any)?.message || "");
-      const rawCode = String((error as any)?.code || "");
-      const isDuplicateName =
-        rawCode === "23505" ||
-        rawMsg.includes("DUPLICATE_DEVICE_NAME") ||
-        rawMsg.includes("already used") ||
-        rawMsg.includes("이미 사용 중") ||
-        rawMsg.includes("duplicate");
-
-      if (isDuplicateName) {
+      if (isDuplicateNameError(error)) {
         console.warn("update-device duplicate name conflict (ignored):", error);
         return new Response(
           JSON.stringify({
             device: data ?? null,
             ignored: true,
             reason: "DUPLICATE_DEVICE_NAME",
-            message: rawMsg || "Duplicate device name",
+            message: String((error as any)?.message || "Duplicate device name"),
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      console.error("update-device error:", error);
+      return new Response(
+        JSON.stringify({ error: String((error as any)?.message || "update-device failed") }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
       console.error("update-device error:", error);
       return new Response(
