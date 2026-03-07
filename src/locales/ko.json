@@ -11,6 +11,7 @@
   "settings.laptop": "노트북",
   "settings.desktop": "데스크탑",
   "settings.tablet": "태블릿",
+  "settings.smartphone": "스마트폰",
   "settings.alarmSound": "경보음",
   "settings.volume": "볼륨",
   "settings.uploadSound": "내 기기에서 경보음 선택...",
