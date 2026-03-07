@@ -8,7 +8,8 @@ import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 
-const BUILD_DATE = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now()).toLocaleDateString();
+const _buildDate = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
+const BUILD_DATE = `${_buildDate.toLocaleDateString()} ${_buildDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
 interface SideMenuProps {
   isOpen: boolean;
