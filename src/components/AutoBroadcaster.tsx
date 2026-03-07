@@ -3,7 +3,7 @@ import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "@/lib/supabase";
 import { setSharedDeviceId as setSharedDeviceIdGlobal } from "@/lib/sharedDeviceIdMap";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
-import { getVideoConstraints } from "@/lib/webrtc/qualityPresets";
+import { getVideoConstraints, waitForVideoFrames } from "@/lib/webrtc/qualityPresets";
 
 interface AutoBroadcasterProps {
   deviceId: string | undefined;
