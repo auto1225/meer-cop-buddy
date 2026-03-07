@@ -6,6 +6,32 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const METERED_DOMAIN = "meercop.metered.live";
+
+async function listCredentials(secretKey: string): Promise<{ username: string; password: string } | null> {
+  try {
+    const res = await fetch(
+      `https://${METERED_DOMAIN}/api/v1/turn/credential?secretKey=${secretKey}`,
+      { method: "GET" }
+    );
+    const body = await res.text();
+    if (!res.ok) {
+      console.warn("[TURN] List credentials failed:", res.status, body);
+      return null;
+    }
+    const credentials = JSON.parse(body);
+    if (Array.isArray(credentials) && credentials.length > 0) {
+      const cred = credentials[credentials.length - 1];
+      console.log("[TURN] Reusing existing credential:", cred.username);
+      return cred;
+    }
+    return null;
+  } catch (err) {
+    console.warn("[TURN] List credentials error:", err);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,97 +46,61 @@ serve(async (req) => {
       );
     }
 
-    // First try to list existing credentials
-    const listRes = await fetch(
-      `https://meercop.metered.live/api/v1/turn/credential?secretKey=${secretKey}`,
-      { method: "GET" }
-    );
+    // 1) Try listing existing credentials
+    let cred = await listCredentials(secretKey);
 
-    let cred: { username: string; password: string } | null = null;
-
-    if (listRes.ok) {
-      const credentials = await listRes.json();
-      if (Array.isArray(credentials) && credentials.length > 0) {
-        // Use the most recent existing credential
-        cred = credentials[credentials.length - 1];
-        console.log("[get-turn-credentials] Reusing existing credential for user:", cred!.username);
-      }
-    }
-
-    // If no existing credentials, try to create one
+    // 2) If none found, try creating
     if (!cred) {
-      const createRes = await fetch(
-        `https://meercop.metered.live/api/v1/turn/credential?secretKey=${secretKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ expiryInSeconds: 3600 }),
-        }
-      );
+      try {
+        const createRes = await fetch(
+          `https://${METERED_DOMAIN}/api/v1/turn/credential?secretKey=${secretKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ expiryInSeconds: 86400 }),
+          }
+        );
+        const createBody = await createRes.text();
 
-      if (!createRes.ok) {
-        const text = await createRes.text();
-        console.warn("[get-turn-credentials] Create credential error:", createRes.status, text);
-
-        // 403 = max limit reached. Retry listing (concurrent request may have created one)
-        if (createRes.status === 403) {
-          const retryRes = await fetch(
-            `https://meercop.metered.live/api/v1/turn/credential?secretKey=${secretKey}`,
-            { method: "GET" }
-          );
-          if (retryRes.ok) {
-            const retryCreds = await retryRes.json();
-            if (Array.isArray(retryCreds) && retryCreds.length > 0) {
-              cred = retryCreds[retryCreds.length - 1];
-              console.log("[get-turn-credentials] Reused credential on retry for user:", cred!.username);
-            }
+        if (createRes.ok) {
+          cred = JSON.parse(createBody);
+          console.log("[TURN] Created new credential:", cred!.username);
+        } else {
+          console.warn("[TURN] Create failed:", createRes.status, createBody);
+          // 3) 403 = limit reached → retry list after short delay
+          if (createRes.status === 403) {
+            await new Promise(r => setTimeout(r, 500));
+            cred = await listCredentials(secretKey);
           }
         }
-
-        if (!cred) {
-          return new Response(
-            JSON.stringify({ error: "Failed to create TURN credential", status: createRes.status }),
-            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } else {
-        cred = await createRes.json();
-        console.log("[get-turn-credentials] Created new credential for user:", cred!.username);
+      } catch (err) {
+        console.warn("[TURN] Create error:", err);
       }
     }
 
-    // Return ICE servers in RTCPeerConnection format
+    // 4) If still no credential, return STUN-only config (not an error)
+    if (!cred) {
+      console.warn("[TURN] No credentials available, returning STUN-only");
+      return new Response(JSON.stringify([]), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const iceServers = [
-      {
-        urls: "turn:standard.relay.metered.ca:80",
-        username: cred!.username,
-        credential: cred!.password,
-      },
-      {
-        urls: "turn:standard.relay.metered.ca:80?transport=tcp",
-        username: cred!.username,
-        credential: cred!.password,
-      },
-      {
-        urls: "turn:standard.relay.metered.ca:443",
-        username: cred!.username,
-        credential: cred!.password,
-      },
-      {
-        urls: "turns:standard.relay.metered.ca:443?transport=tcp",
-        username: cred!.username,
-        credential: cred!.password,
-      },
+      { urls: "turn:standard.relay.metered.ca:80", username: cred.username, credential: cred.password },
+      { urls: "turn:standard.relay.metered.ca:80?transport=tcp", username: cred.username, credential: cred.password },
+      { urls: "turn:standard.relay.metered.ca:443", username: cred.username, credential: cred.password },
+      { urls: "turns:standard.relay.metered.ca:443?transport=tcp", username: cred.username, credential: cred.password },
     ];
 
     return new Response(JSON.stringify(iceServers), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("[get-turn-credentials] Error:", err);
-    return new Response(
-      JSON.stringify({ error: "Internal error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("[TURN] Unhandled error:", err);
+    // Return empty array instead of 500 so client falls back to STUN
+    return new Response(JSON.stringify([]), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
