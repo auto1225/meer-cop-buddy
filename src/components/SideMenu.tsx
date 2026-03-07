@@ -124,7 +124,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             <img src={meercopMascot} alt="MeerCOP" className="w-9 h-9 object-contain drop-shadow-lg" />
             <div>
               <h2 className="font-extrabold text-base drop-shadow">MeerCOP</h2>
-              <span className="text-[10px] text-white/60 font-semibold">
+              <span className="text-[10px] text-white/60 font-semibold leading-tight">
                 {t("menu.lastUpdated")}: {BUILD_DATE}
               </span>
             </div>
