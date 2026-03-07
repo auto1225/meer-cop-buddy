@@ -776,9 +776,17 @@ const Index = ({ onExpired }: IndexProps) => {
       });
 
       channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
-        const camouflageOn = payload.payload?.camouflage_mode ?? false;
-        console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageOn);
-        setIsCamouflageMode(camouflageOn);
+        const raw = payload.payload as Record<string, unknown> | undefined;
+        const camouflageRaw = raw?.camouflage_mode ?? raw?.camouflageMode;
+
+        // ✅ payload에 명시적 boolean이 있을 때만 반영 (기본값 false로 강제 해제 금지)
+        if (typeof camouflageRaw !== "boolean") {
+          console.warn("[Index] ⚠️ Ignoring malformed camouflage_toggle payload:", payload.payload);
+          return;
+        }
+
+        console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageRaw);
+        setIsCamouflageMode(camouflageRaw);
       });
 
       // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
