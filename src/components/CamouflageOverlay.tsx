@@ -26,9 +26,9 @@ export function CamouflageOverlay({ isActive }: CamouflageOverlayProps) {
 
     const blockKeys = (e: KeyboardEvent) => {
       // Allow F11 for fullscreen toggle (browser native), block everything else
+      // ⚠️ DO NOT stopPropagation — sensors must still detect keyboard events
       if (e.key !== "F11") {
         e.preventDefault();
-        e.stopPropagation();
       }
     };
 
@@ -54,8 +54,8 @@ export function CamouflageOverlay({ isActive }: CamouflageOverlayProps) {
     <div
       className="fixed inset-0 z-[9999] bg-black"
       style={{ cursor: "none" }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseMove={(e) => e.stopPropagation()}
+      onClick={(e) => e.preventDefault()}
+      onMouseMove={() => { /* allow propagation for sensor detection */ }}
     />
   );
 }
