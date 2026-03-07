@@ -214,22 +214,31 @@ export function useDevices(userId?: string) {
         { event: "*", schema: "public", table: "devices" },
         (payload) => {
           realtimeWorking = true;
+          const newDevice = payload.new as Device;
+          const oldDevice = payload.old as Device;
+
+          // ★ Filter: only process devices belonging to this user
           if (payload.eventType === "INSERT") {
-            setDevices((prev) => [payload.new as Device, ...prev]);
+            if (newDevice.user_id !== userId) return; // 다른 사용자의 기기 무시
+            // ★ Append (not prepend) to preserve array order stability
+            setDevices((prev) => {
+              // Deduplicate: don't add if already exists
+              if (prev.some(d => d.id === newDevice.id)) return prev;
+              return [...prev, newDevice];
+            });
           } else if (payload.eventType === "UPDATE") {
             setDevices((prev) =>
               prev.map((d) => {
-                if (d.id !== (payload.new as Device).id) return d;
-                const updated = payload.new as Device;
-                if (updated.device_type === "smartphone" && !phoneOnlineByPresenceRef.current && updated.status === "online") {
-                  return { ...updated, status: "offline" };
+                if (d.id !== newDevice.id) return d;
+                if (newDevice.device_type === "smartphone" && !phoneOnlineByPresenceRef.current && newDevice.status === "online") {
+                  return { ...newDevice, status: "offline" };
                 }
-                return updated;
+                return newDevice;
               })
             );
           } else if (payload.eventType === "DELETE") {
             setDevices((prev) =>
-              prev.filter((d) => d.id !== (payload.old as Device).id)
+              prev.filter((d) => d.id !== oldDevice.id)
             );
           }
         }
