@@ -338,6 +338,11 @@ export function SensorSettingsPanel({
           </div>
         </section>
 
+        {/* Background Setting */}
+        <section className={`${glassCard} px-3 py-2.5`}>
+          <BackgroundSettings onBackgroundChange={onBackgroundChange || (() => {})} />
+        </section>
+
         {/* Language Setting - Display only (set from smartphone) */}
         <section className={`${glassCard} px-3 py-2.5`}>
           <div className="flex items-center gap-1.5 mb-1.5">
