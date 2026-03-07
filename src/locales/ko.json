@@ -26,6 +26,7 @@
   "sensor.mouse": "마우스",
   "sensor.usb": "USB",
   "sensor.power": "전원 케이블",
+  "sensor.screenTouch": "화면 터치",
   "sensor.motionTest": "모션 테스트",
   "language.title": "언어 / Language",
   "language.changeFromPhone": "스마트폰 앱에서 변경 가능",
