@@ -32,12 +32,12 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const { t } = useTranslation();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Fetch avatar from public_profiles
+  // Fetch avatar from website Supabase's public_profiles
   useEffect(() => {
     if (!savedAuth?.user_id) return;
     const fetchAvatar = async () => {
       try {
-        const { data } = await supabase
+        const { data } = await websiteSupabase
           .from("public_profiles")
           .select("avatar_url")
           .eq("user_id", savedAuth.user_id)
