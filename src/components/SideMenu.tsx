@@ -8,6 +8,13 @@ import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+
+// Website Supabase (master project for auth & profiles)
+const websiteSupabase = createClient(
+  "https://peqgmuicrorjvvburqly.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcWdtdWljcm9yanZ2YnVycWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDA1NzQsImV4cCI6MjA4NzUxNjU3NH0.e5HYG3dSMqhm4ahT-en-nNX2mD95KM_TdKIlfuzdMc4"
+);
 
 const _buildDate = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
 const BUILD_TIMESTAMP = import.meta.env.VITE_BUILD_TIMESTAMP ? Number(import.meta.env.VITE_BUILD_TIMESTAMP) : Date.now();
@@ -25,12 +32,12 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const { t } = useTranslation();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Fetch avatar from public_profiles
+  // Fetch avatar from website Supabase's public_profiles
   useEffect(() => {
     if (!savedAuth?.user_id) return;
     const fetchAvatar = async () => {
       try {
-        const { data } = await supabase
+        const { data } = await websiteSupabase
           .from("public_profiles")
           .select("avatar_url")
           .eq("user_id", savedAuth.user_id)
