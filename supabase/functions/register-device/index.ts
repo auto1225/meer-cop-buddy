@@ -171,6 +171,18 @@ Deno.serve(async (req) => {
       } catch (licErr) {
         console.error("[register-device] ⚠️ License upsert failed:", licErr);
       }
+
+      // ── 고아 디바이스 자동 정리: 라이선스 매핑 없는 동일 user_id 기기 삭제 ──
+      try {
+        const { data: cleanupResult } = await supabase.rpc("cleanup_orphan_devices", {
+          p_user_id: finalUserId,
+        });
+        if (cleanupResult && cleanupResult > 0) {
+          console.log(`[register-device] 🧹 Cleaned up ${cleanupResult} orphan device(s) for user ${finalUserId}`);
+        }
+      } catch (cleanupErr) {
+        console.warn("[register-device] ⚠️ Orphan cleanup failed:", cleanupErr);
+      }
     }
 
     return new Response(
