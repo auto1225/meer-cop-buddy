@@ -26,6 +26,7 @@
   "sensor.mouse": "鼠标",
   "sensor.usb": "USB",
   "sensor.power": "电源线",
+  "sensor.screenTouch": "屏幕触控",
   "sensor.motionTest": "运动测试",
   "language.title": "语言",
   "language.changeFromPhone": "可从智能手机应用更改",
