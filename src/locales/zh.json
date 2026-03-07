@@ -11,6 +11,7 @@
   "settings.laptop": "笔记本",
   "settings.desktop": "台式机",
   "settings.tablet": "平板",
+  "settings.smartphone": "智能手机",
   "settings.alarmSound": "警报声",
   "settings.volume": "音量",
   "settings.uploadSound": "从设备选择警报声...",
