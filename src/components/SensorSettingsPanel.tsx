@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { ArrowLeft, Volume2, Play, Camera, Mic, Keyboard, Mouse, Usb, Power, Monitor, ChevronRight, Upload, Trash2, Music, Globe, Hand, Smartphone } from "lucide-react";
+import { BackgroundSettings } from "@/components/BackgroundSettings";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
