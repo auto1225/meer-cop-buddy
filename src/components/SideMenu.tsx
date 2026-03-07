@@ -48,6 +48,26 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
     onClose();
   };
 
+  const handleCheckUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      // Unregister existing service workers to force fresh cache
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+      // Clear caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+      toast.success(t("menu.updateSuccess"));
+      setTimeout(() => window.location.reload(), 800);
+    } catch {
+      window.location.reload();
+    }
+  };
+
   if (!isOpen) return null;
 
   const serialKey = savedAuth?.serial_key || "—";
