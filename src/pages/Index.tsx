@@ -989,6 +989,7 @@ const Index = ({ onExpired }: IndexProps) => {
           }}
           isMonitoring={isMonitoring}
           deviceType={deviceType}
+          capabilities={savedAuth?.capabilities}
           availableSounds={availableSounds}
           selectedSoundId={selectedSoundId}
           onSoundChange={(id) => {
