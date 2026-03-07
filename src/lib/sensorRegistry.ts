@@ -283,6 +283,37 @@ export function createUsbSensor(): SensorHandler {
   };
 }
 
+// ── 화면 터치(Screen Touch) 센서 ──
+
+export function createTouchSensor(): SensorHandler {
+  let attached = false;
+  const cleanups: Array<() => void> = [];
+
+  return {
+    name: "screenTouch",
+    eventType: "screen_touch" as any,
+    attach(onTrigger) {
+      if (attached) return;
+      attached = true;
+
+      const handler = (_e: TouchEvent) => {
+        onTrigger();
+      };
+
+      window.addEventListener("touchstart", handler, { passive: true });
+      cleanups.push(() => window.removeEventListener("touchstart", handler));
+
+      console.log("[Sensor] ✅ screenTouch attached");
+    },
+    detach() {
+      cleanups.forEach(fn => fn());
+      cleanups.length = 0;
+      attached = false;
+    },
+    isAttached: () => attached,
+  };
+}
+
 // ── 센서 레지스트리 ──
 
 export interface SensorRegistryOptions {
