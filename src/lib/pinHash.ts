@@ -24,13 +24,14 @@ export async function verifyPin(
 ): Promise<boolean> {
   if (!metadata) return inputPin === (localPin || "1234");
 
-  // 1순위: 해시 비교
+  // 1순위: 해시 비교 (같은 device_id로 해싱된 경우)
   if (metadata.alarm_pin_hash) {
     const inputHash = await hashPin(inputPin, deviceId);
-    return inputHash === metadata.alarm_pin_hash;
+    if (inputHash === metadata.alarm_pin_hash) return true;
+    // 해시 불일치 시 (다른 기기에서 생성된 해시일 수 있음) → 폴백 진행
   }
 
-  // 2순위: 평문 폴백 (스마트폰이 해시 저장 시작 전 호환)
+  // 2순위: 평문 비교 (스마트폰에서 설정된 PIN)
   if (metadata.alarm_pin) {
     return inputPin === metadata.alarm_pin;
   }
