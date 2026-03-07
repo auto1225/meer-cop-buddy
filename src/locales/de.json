@@ -266,5 +266,7 @@
   "pwa.installTitle": "MeerCOP installieren!",
   "pwa.installDesc": "Zum Startbildschirm hinzufügen für schnelleren Zugriff.",
   "pwa.installButton": "Jetzt installieren",
-  "pwa.later": "Später"
+  "pwa.later": "Später",
+  "pwa.iosInstructions": "Tippen Sie auf die Teilen-Taste (□↑) unten in Safari und wählen Sie 'Zum Home-Bildschirm'.",
+  "pwa.iosShareButton": "Teilen → Zum Home-Bildschirm"
 }

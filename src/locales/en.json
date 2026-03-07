@@ -404,5 +404,7 @@
   "pwa.installTitle": "Install MeerCOP!",
   "pwa.installDesc": "Add to your home screen for faster, more convenient access.",
   "pwa.installButton": "Install Now",
-  "pwa.later": "Maybe Later"
+  "pwa.later": "Maybe Later",
+  "pwa.iosInstructions": "Tap the Share button (□↑) at the bottom of Safari, then select 'Add to Home Screen'.",
+  "pwa.iosShareButton": "Share → Add to Home Screen"
 }

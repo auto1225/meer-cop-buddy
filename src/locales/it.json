@@ -266,5 +266,7 @@
   "pwa.installTitle": "Installa MeerCOP!",
   "pwa.installDesc": "Aggiungi alla schermata iniziale per un accesso più rapido.",
   "pwa.installButton": "Installa Ora",
-  "pwa.later": "Più Tardi"
+  "pwa.later": "Più Tardi",
+  "pwa.iosInstructions": "Tocca il pulsante Condividi (□↑) in basso in Safari, poi seleziona 'Aggiungi alla schermata Home'.",
+  "pwa.iosShareButton": "Condividi → Schermata Home"
 }

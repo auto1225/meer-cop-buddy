@@ -266,5 +266,7 @@
   "pwa.installTitle": "Pasang MeerCOP!",
   "pwa.installDesc": "Tambah ke skrin utama untuk akses lebih pantas.",
   "pwa.installButton": "Pasang Sekarang",
-  "pwa.later": "Kemudian"
+  "pwa.later": "Kemudian",
+  "pwa.iosInstructions": "Ketik butang Kongsi (□↑) di bahagian bawah Safari, kemudian pilih 'Tambah ke Skrin Utama'.",
+  "pwa.iosShareButton": "Kongsi → Skrin Utama"
 }

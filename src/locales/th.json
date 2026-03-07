@@ -266,5 +266,7 @@
   "pwa.installTitle": "ติดตั้ง MeerCOP!",
   "pwa.installDesc": "เพิ่มไปยังหน้าจอหลักเพื่อเข้าถึงได้เร็วขึ้น",
   "pwa.installButton": "ติดตั้งเลย",
-  "pwa.later": "ภายหลัง"
+  "pwa.later": "ภายหลัง",
+  "pwa.iosInstructions": "แตะปุ่มแชร์ (□↑) ด้านล่างของ Safari แล้วเลือก 'เพิ่มไปยังหน้าจอโฮม'",
+  "pwa.iosShareButton": "แชร์ → เพิ่มไปยังหน้าจอโฮม"
 }

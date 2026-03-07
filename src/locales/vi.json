@@ -266,5 +266,7 @@
   "pwa.installTitle": "Cài đặt MeerCOP!",
   "pwa.installDesc": "Thêm vào màn hình chính để truy cập nhanh hơn.",
   "pwa.installButton": "Cài Ngay",
-  "pwa.later": "Để Sau"
+  "pwa.later": "Để Sau",
+  "pwa.iosInstructions": "Nhấn nút Chia sẻ (□↑) ở cuối Safari, rồi chọn 'Thêm vào Màn hình chính'.",
+  "pwa.iosShareButton": "Chia sẻ → Màn hình chính"
 }

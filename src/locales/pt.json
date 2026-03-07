@@ -266,5 +266,7 @@
   "pwa.installTitle": "Instale o MeerCOP!",
   "pwa.installDesc": "Adicione à tela inicial para acesso mais rápido.",
   "pwa.installButton": "Instalar Agora",
-  "pwa.later": "Depois"
+  "pwa.later": "Depois",
+  "pwa.iosInstructions": "Toque no botão Compartilhar (□↑) na parte inferior do Safari e selecione 'Adicionar à Tela de Início'.",
+  "pwa.iosShareButton": "Compartilhar → Tela de Início"
 }
