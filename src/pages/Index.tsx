@@ -492,6 +492,12 @@ const Index = ({ onExpired }: IndexProps) => {
       console.log("[Index] ✅ camouflage_mode applied:", camouflageFromMeta);
     }
 
+    if (mascotFromMeta !== undefined) {
+      setMascotVisible(mascotFromMeta);
+      localStorage.setItem('meercop-mascot-visible', String(mascotFromMeta));
+      console.log("[Index] ✅ mascot_visible applied:", mascotFromMeta);
+    }
+
     if (languageFromMeta) {
       setAppLanguage(languageFromMeta);
       localStorage.setItem("meercop-language", languageFromMeta);
