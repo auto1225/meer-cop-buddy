@@ -262,5 +262,9 @@
   "permission.later": "Más tarde",
   "permission.done": "Hecho",
   "permission.deniedWarning": "Los permisos denegados deben cambiarse en la configuración del navegador. Estas funciones no estarán disponibles hasta que se otorguen los permisos.",
-  "permission.repeatInfo": "Este aviso aparece cada 24 horas cuando faltan permisos"
+  "permission.repeatInfo": "Este aviso aparece cada 24 horas cuando faltan permisos",
+  "pwa.installTitle": "¡Instala MeerCOP!",
+  "pwa.installDesc": "Agrega a tu pantalla de inicio para un acceso más rápido.",
+  "pwa.installButton": "Instalar Ahora",
+  "pwa.later": "Más Tarde"
 }
