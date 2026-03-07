@@ -226,6 +226,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged, onDuplica
           if (msg.includes("DUPLICATE") || msg.includes("이미 사용 중") || msg.includes("duplicate")) {
             console.warn("[DeviceNameBadge] ⚠️ Duplicate name error ignored:", msg);
             toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
+            onDuplicateName?.(t("device.duplicateDesc"));
             setIsSaving(false);
             return;
           }
