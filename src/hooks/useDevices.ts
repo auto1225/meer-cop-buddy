@@ -102,7 +102,7 @@ export function useDevices(userId?: string) {
       if (isFirstLoad.current) setIsLoading(true);
       
       // 1) 로컬 Lovable Cloud get-devices 우선 시도
-      let deviceList: Device[] = [];
+      let localDevices: Device[] = [];
       let fetched = false;
 
       try {
@@ -116,9 +116,9 @@ export function useDevices(userId?: string) {
         });
         if (res.ok) {
           const data = await res.json();
-          deviceList = data.devices || data || [];
+          localDevices = data.devices || data || [];
           fetched = true;
-          console.log("[useDevices] ✅ Local get-devices fetched:", deviceList.length, "devices");
+          console.log("[useDevices] ✅ Local get-devices fetched:", localDevices.length, "devices");
         } else {
           console.warn("[useDevices] Local get-devices failed:", res.status);
         }
@@ -139,9 +139,9 @@ export function useDevices(userId?: string) {
           });
           if (res.ok) {
             const data = await res.json();
-            deviceList = data.devices || data || [];
+            localDevices = data.devices || data || [];
             fetched = true;
-            console.log("[useDevices] ✅ Shared get-devices fetched:", deviceList.length, "devices");
+            console.log("[useDevices] ✅ Shared get-devices fetched:", localDevices.length, "devices");
           }
         } catch (e) {
           console.warn("[useDevices] Shared get-devices failed:", e);
@@ -157,9 +157,9 @@ export function useDevices(userId?: string) {
             .or(`device_id.eq.${userId},user_id.eq.${userId}`)
             .order("created_at", { ascending: true });
           if (fallbackData && fallbackData.length > 0) {
-            deviceList = fallbackData as unknown as Device[];
+            localDevices = fallbackData as unknown as Device[];
             fetched = true;
-            console.log("[useDevices] ✅ Direct query fetched:", deviceList.length, "devices");
+            console.log("[useDevices] ✅ Direct query fetched:", localDevices.length, "devices");
           }
         } catch (e) {
           console.warn("[useDevices] Direct query failed:", e);
@@ -171,8 +171,34 @@ export function useDevices(userId?: string) {
         return;
       }
 
-      console.log("[useDevices] Edge Function fetched:", deviceList.length, "devices");
-      const correctedList = applyPhonePresenceStatus(deviceList, phoneOnlineByPresenceRef.current);
+      // 4) ★ 공유 DB에서도 조회하여 스마트폰 등 로컬에 없는 기기 병합
+      const localIds = new Set(localDevices.map(d => d.id));
+      try {
+        const sharedRes = await fetch(`${SHARED_SUPABASE_URL}/functions/v1/get-devices`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SHARED_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ user_id: userId }),
+        });
+        if (sharedRes.ok) {
+          const sharedData = await sharedRes.json();
+          const sharedDevices: Device[] = sharedData.devices || sharedData || [];
+          // 로컬에 없는 기기만 추가 (주로 smartphone)
+          for (const sd of sharedDevices) {
+            if (!localIds.has(sd.id)) {
+              localDevices.push(sd);
+              console.log(`[useDevices] ➕ Merged shared device: ${sd.id} (${sd.device_type}, ${sd.name || sd.device_name})`);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[useDevices] Shared DB merge fetch failed:", e);
+      }
+
+      console.log("[useDevices] Edge Function fetched:", localDevices.length, "devices");
+      const correctedList = applyPhonePresenceStatus(localDevices, phoneOnlineByPresenceRef.current);
       setDevices(correctedList);
       setError(null);
     } catch (err) {
