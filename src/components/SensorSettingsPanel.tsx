@@ -121,8 +121,12 @@ export function SensorSettingsPanel({
   const deviceTypeMap: Record<string, string> = {
     desktop: t("settings.desktop"),
     tablet: t("settings.tablet"),
+    smartphone: t("settings.smartphone"),
   };
   const deviceLabel = deviceTypeMap[deviceType] || t("settings.laptop");
+
+  // Lid sensor is only supported on laptops
+  const isLidSupported = deviceType === "laptop";
 
   const glassCard = "rounded-2xl border border-white/20 bg-white/15 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]";
 
