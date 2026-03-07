@@ -52,6 +52,21 @@ const App = () => {
     setIsAuthenticated(true);
   }, []);
 
+  // Landing page is accessible without auth
+  if (typeof window !== 'undefined' && window.location.pathname === '/landing') {
+    return (
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Landing />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <ErrorBoundary>
