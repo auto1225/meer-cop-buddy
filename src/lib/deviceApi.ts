@@ -259,8 +259,8 @@ export async function registerDeviceViaEdge(
             headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
             body: JSON.stringify({ device_id: sharedDeviceId, name: requestedName }),
           })
-            .then(r => r.ok
-              ? console.log("[deviceApi] ✅ Shared DB name patched to:", requestedName)
+            .then(r => (r.ok || r.status === 409)
+              ? console.log("[deviceApi] ✅ Shared DB name patched to:", requestedName, r.status === 409 ? "(409 ignored)" : "")
               : r.text().then(t => console.warn("[deviceApi] ⚠️ Shared name patch failed:", t)))
             .catch(e => console.warn("[deviceApi] ⚠️ Shared name patch error:", e));
         }
