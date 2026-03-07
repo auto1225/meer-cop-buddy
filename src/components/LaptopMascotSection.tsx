@@ -9,19 +9,31 @@ import { useTranslation } from "@/lib/i18n";
 interface LaptopMascotSectionProps {
   isMonitoring: boolean;
   isAlarming?: boolean;
+  /** 외부에서 제어할 수 있는 마스코트 가시성 */
+  mascotVisible?: boolean;
+  /** 외부에서 토글 시 호출되는 콜백 */
+  onMascotToggle?: (visible: boolean) => void;
 }
 
-export function LaptopMascotSection({ isMonitoring, isAlarming = false }: LaptopMascotSectionProps) {
+export function LaptopMascotSection({ isMonitoring, isAlarming = false, mascotVisible: externalVisible, onMascotToggle }: LaptopMascotSectionProps) {
   const { t } = useTranslation();
-  const [mascotVisible, setMascotVisible] = useState(() => {
+
+  // 외부 제어가 없으면 내부 state 사용 (하위 호환)
+  const [internalVisible, setInternalVisible] = useState(() => {
     const saved = localStorage.getItem('meercop-mascot-visible');
     return saved !== 'false';
   });
 
+  const mascotVisible = externalVisible !== undefined ? externalVisible : internalVisible;
+
   const toggleMascot = () => {
     const next = !mascotVisible;
-    setMascotVisible(next);
-    localStorage.setItem('meercop-mascot-visible', String(next));
+    if (onMascotToggle) {
+      onMascotToggle(next);
+    } else {
+      setInternalVisible(next);
+      localStorage.setItem('meercop-mascot-visible', String(next));
+    }
   };
 
   const getMascotConfig = () => {

@@ -181,6 +181,10 @@ const Index = ({ onExpired }: IndexProps) => {
   const [requirePcPin, setRequirePcPin] = useState(true); // require_pc_pin from metadata
   const [showPinKeypad, setShowPinKeypad] = useState(false);
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
+  const [mascotVisible, setMascotVisible] = useState(() => {
+    const saved = localStorage.getItem('meercop-mascot-visible');
+    return saved !== 'false';
+  });
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
     cameraMotion: false, lid: false, keyboard: false, mouse: false, power: false, microphone: false, usb: false, screenTouch: false,
@@ -457,6 +461,7 @@ const Index = ({ onExpired }: IndexProps) => {
     const alarmSoundFromMeta = (meta?.alarm_sound_id || meta?.alarmSoundId) as string | undefined;
     const requirePcPinFromMeta = (meta?.require_pc_pin ?? meta?.requirePcPin) as boolean | undefined;
     const camouflageFromMeta = (meta?.camouflage_mode ?? meta?.camouflageMode) as boolean | undefined;
+    const mascotFromMeta = (meta?.mascot_visible ?? meta?.mascotVisible) as boolean | undefined;
     const languageFromMeta = (meta?.language || meta?.lang) as string | undefined;
 
     if (alarmPinFromMeta) {
@@ -485,6 +490,12 @@ const Index = ({ onExpired }: IndexProps) => {
     if (camouflageFromMeta !== undefined) {
       setIsCamouflageMode(camouflageFromMeta);
       console.log("[Index] ✅ camouflage_mode applied:", camouflageFromMeta);
+    }
+
+    if (mascotFromMeta !== undefined) {
+      setMascotVisible(mascotFromMeta);
+      localStorage.setItem('meercop-mascot-visible', String(mascotFromMeta));
+      console.log("[Index] ✅ mascot_visible applied:", mascotFromMeta);
     }
 
     if (languageFromMeta) {
@@ -862,6 +873,27 @@ const Index = ({ onExpired }: IndexProps) => {
         });
       });
 
+      // 마스코트 보기/숨기기 원격 제어
+      channel.on('broadcast', { event: 'mascot_toggle' }, (payload) => {
+        const visible = payload.payload?.mascot_visible;
+        if (typeof visible !== "boolean") {
+          console.warn("[Index] ⚠️ Ignoring malformed mascot_toggle payload:", payload.payload);
+          return;
+        }
+        console.log("[Index] 📲 Broadcast mascot_toggle received:", visible);
+        setMascotVisible(visible);
+        localStorage.setItem('meercop-mascot-visible', String(visible));
+
+        // DB metadata에도 영속 저장
+        if (currentDevice?.id) {
+          updateDeviceViaEdge(currentDevice.id, {
+            metadata: { mascot_visible: visible },
+          })
+            .then(() => console.log("[Index] ✅ mascot_visible persisted to DB:", visible))
+            .catch((e) => console.warn("[Index] ⚠️ Failed to persist mascot_visible:", e));
+        }
+      });
+
       // 메시지 명령: 토스트 알림으로 메시지 표시
       channel.on('broadcast', { event: 'message_command' }, (payload) => {
         const message = payload.payload?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.");
@@ -1107,6 +1139,17 @@ const Index = ({ onExpired }: IndexProps) => {
         <LaptopMascotSection 
           isMonitoring={isMonitoring} 
           isAlarming={isAlarming}
+          mascotVisible={mascotVisible}
+          onMascotToggle={(visible) => {
+            setMascotVisible(visible);
+            localStorage.setItem('meercop-mascot-visible', String(visible));
+            // DB metadata에도 저장
+            if (currentDevice?.id) {
+              updateDeviceViaEdge(currentDevice.id, {
+                metadata: { mascot_visible: visible },
+              }).catch(() => {});
+            }
+          }}
         />
 
       </div>
