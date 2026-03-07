@@ -254,6 +254,7 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_signaling: { Args: never; Returns: undefined }
+      cleanup_orphan_devices: { Args: { p_user_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
