@@ -6,6 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const duplicateNameIncludes = ["DUPLICATE_DEVICE_NAME", "already used", "이미 사용 중", "duplicate"];
+
+function isDuplicateNameError(err: any): boolean {
+  const rawMsg = String(err?.message || err?.error || "");
+  const rawCode = String(err?.code || "");
+  return rawCode === "23505" || duplicateNameIncludes.some((token) => rawMsg.includes(token));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

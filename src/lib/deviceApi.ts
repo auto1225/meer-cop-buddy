@@ -30,6 +30,18 @@ interface DeviceRow {
 }
 
 // ── 로컬 Lovable Cloud 헬퍼 ──
+function isDuplicateDeviceNameResponse(status: number, payload: any): boolean {
+  const message = String(payload?.message || payload?.error || payload?.details || "");
+  const code = String(payload?.code || "");
+  return (
+    status === 409 ||
+    code === "23505" ||
+    message.includes("DUPLICATE_DEVICE_NAME") ||
+    message.includes("이미 사용 중") ||
+    message.toLowerCase().includes("duplicate")
+  );
+}
+
 function getLocalFunctionUrl(fnName: string): string {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";
   return `https://${projectId}.supabase.co/functions/v1/${fnName}`;
