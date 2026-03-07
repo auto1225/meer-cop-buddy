@@ -57,7 +57,11 @@ const Index = ({ onExpired }: IndexProps) => {
     const saved = localStorage.getItem('meercop-alarm-volume');
     return saved ? parseInt(saved, 10) : 20;
   });
-  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(() => {
+    // Persist device selection across reloads
+    return localStorage.getItem('meercop-current-device-id') || null;
+  });
+  const deviceIdLockedRef = useRef(false); // Once user selects or initial match is done, lock it
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const [sharedDeviceIdState, setSharedDeviceIdState] = useState<string | null>(null);
   const { devices, refetch } = useDevices(savedAuth?.user_id);
