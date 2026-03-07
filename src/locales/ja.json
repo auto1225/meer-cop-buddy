@@ -76,6 +76,7 @@
   "auth.exitDesc": "終了すると、保存されたシリアルナンバーが削除されます。",
   "auth.cancel": "キャンセル",
   "auth.exitBtn": "終了",
+  "auth.useNewSerial": "他のシリアルを入力",
   "auth.serialError": "シリアルナンバーをすべて入力してください。",
   "auth.nameError": "デバイス名を入力してください。",
   "auth.authFailed": "認証に失敗しました。",
