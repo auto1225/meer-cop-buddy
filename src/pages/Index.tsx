@@ -785,8 +785,20 @@ const Index = ({ onExpired }: IndexProps) => {
           return;
         }
 
+        // ✅ DB metadata 재적용으로 즉시 덮어쓰이는 현상 방지
+        broadcastOverrideUntilRef.current = Date.now() + 10000;
+
         console.log("[Index] 📲 Broadcast camouflage_toggle received:", camouflageRaw);
         setIsCamouflageMode(camouflageRaw);
+
+        // ✅ 로컬 DB에도 즉시 반영하여 monitoring 토글/재조회 시 상태 불일치 방지
+        if (currentDevice?.id) {
+          updateDeviceViaEdge(currentDevice.id, {
+            metadata: { camouflage_mode: camouflageRaw },
+          })
+            .then(() => console.log("[Index] ✅ camouflage_mode persisted to local DB:" , camouflageRaw))
+            .catch((e) => console.warn("[Index] ⚠️ Failed to persist camouflage_mode to local DB:", e));
+        }
       });
 
       // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
