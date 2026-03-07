@@ -117,6 +117,7 @@ export function SensorSettingsPanel({
   onPreviewSound,
   appLanguage,
   onLanguageChange,
+  onBackgroundChange,
 }: SensorSettingsPanelProps) {
   const { t } = useTranslation();
 
