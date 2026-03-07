@@ -12,9 +12,10 @@ interface DeviceNameBadgeProps {
   deviceName: string;
   deviceId?: string;
   onNameChanged?: (newName: string) => void;
+  onDuplicateName?: (message: string) => void;
 }
 
-export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceNameBadgeProps) {
+export function DeviceNameBadge({ deviceName, deviceId, onNameChanged, onDuplicateName }: DeviceNameBadgeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(deviceName);
   const [isSaving, setIsSaving] = useState(false);
@@ -209,6 +210,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
 
         if (duplicate) {
           toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
+          onDuplicateName?.(t("device.duplicateDesc"));
           setIsSaving(false);
           return;
         }
@@ -224,6 +226,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
           if (msg.includes("DUPLICATE") || msg.includes("이미 사용 중") || msg.includes("duplicate")) {
             console.warn("[DeviceNameBadge] ⚠️ Duplicate name error ignored:", msg);
             toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
+            onDuplicateName?.(t("device.duplicateDesc"));
             setIsSaving(false);
             return;
           }

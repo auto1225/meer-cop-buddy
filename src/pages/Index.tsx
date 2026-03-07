@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { AlertTriangle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAlarmSoundsForDB } from "@/lib/alarmSounds";
 import { LaptopHeader } from "@/components/LaptopHeader";
@@ -67,6 +68,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const deviceIdLockedRef = useRef(false); // Once user selects or initial match is done, lock it
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const [sharedDeviceIdState, setSharedDeviceIdState] = useState<string | null>(null);
+  const [duplicateNameAlert, setDuplicateNameAlert] = useState<string | null>(null);
   const { devices, refetch } = useDevices(savedAuth?.user_id);
   
   // Debug: log device fetch results
@@ -1009,11 +1011,23 @@ const Index = ({ onExpired }: IndexProps) => {
           onSoundToggle={toggleAlarmEnabled}
         />
 
+        {/* Duplicate Name Alert Banner */}
+        {duplicateNameAlert && (
+          <div className="mx-3 mt-2 flex items-center gap-2 rounded-xl bg-destructive/90 backdrop-blur-sm px-3 py-2 shadow-lg border border-destructive animate-fade-in">
+            <AlertTriangle className="h-4 w-4 text-white shrink-0" />
+            <span className="text-white text-[11px] font-bold flex-1">{duplicateNameAlert}</span>
+            <button onClick={() => setDuplicateNameAlert(null)} className="p-0.5 rounded-full hover:bg-white/20 transition-colors">
+              <X className="h-3 w-3 text-white/80" />
+            </button>
+          </div>
+        )}
+
         {/* Device Name Badge */}
         <DeviceNameBadge 
           deviceName={currentDevice?.name || currentDevice?.device_name || savedAuth?.device_name || "Laptop1"}
           deviceId={currentDevice?.id}
-          onNameChanged={() => refetch()}
+          onNameChanged={() => { setDuplicateNameAlert(null); refetch(); }}
+          onDuplicateName={(msg) => setDuplicateNameAlert(msg)}
         />
 
         {/* Status Icons - Real device status */}
