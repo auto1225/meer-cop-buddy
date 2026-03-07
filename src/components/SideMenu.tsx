@@ -116,7 +116,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
       {/* Menu Panel - Glassmorphism */}
       <div className="absolute left-0 top-0 bottom-0 w-[75%] max-w-[300px] z-50 flex flex-col animate-slide-in
-        bg-white/10 backdrop-blur-xl border-r border-white/20 text-white">
+        bg-white/10 backdrop-blur-xl border-r border-white/20 text-white overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/15">
