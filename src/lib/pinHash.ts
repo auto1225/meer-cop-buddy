@@ -28,17 +28,17 @@ export async function verifyPin(
   if (metadata.alarm_pin_hash) {
     const inputHash = await hashPin(inputPin, deviceId);
     if (inputHash === metadata.alarm_pin_hash) return true;
-    // 해시 불일치 시 (다른 기기에서 생성된 해시일 수 있음) → 폴백 진행
+    // 해시 불일치 → 다른 기기(스마트폰)에서 생성된 해시일 수 있음 → 폴백 진행
   }
 
-  // 2순위: 평문 비교 (스마트폰에서 설정된 PIN)
+  // 2순위: 평문 비교 (스마트폰에서 settings_updated로 전송된 PIN)
   if (metadata.alarm_pin) {
-    return inputPin === metadata.alarm_pin;
+    if (inputPin === metadata.alarm_pin) return true;
   }
 
   // 3순위: localStorage에 저장된 PIN (settings_updated 브로드캐스트로 수신)
-  if (localPin) {
-    return inputPin === localPin;
+  if (localPin && inputPin === localPin) {
+    return true;
   }
 
   // 기본 PIN
