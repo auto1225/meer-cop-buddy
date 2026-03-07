@@ -210,6 +210,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged, onDuplica
 
         if (duplicate) {
           toast({ title: t("device.duplicateName"), description: t("device.duplicateDesc"), variant: "destructive" });
+          onDuplicateName?.(t("device.duplicateDesc"));
           setIsSaving(false);
           return;
         }
