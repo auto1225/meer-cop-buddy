@@ -200,6 +200,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       }
 
       streamRef.current = stream;
+      (window as any).__meercopCameraStreamActive = true;
       retryCountRef.current = 0;
       clearRetryTimer();
 
