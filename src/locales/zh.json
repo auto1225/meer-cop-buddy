@@ -76,6 +76,7 @@
   "auth.exitDesc": "退出后，已保存的序列号将被删除。",
   "auth.cancel": "取消",
   "auth.exitBtn": "退出",
+  "auth.useNewSerial": "使用其他序列号",
   "auth.serialError": "请输入完整的序列号。",
   "auth.nameError": "请输入设备名称。",
   "auth.authFailed": "认证失败。",
