@@ -284,14 +284,14 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       if (match) console.log(`[AutoBroadcaster] 🔑 Matched by serial_key: ${localSerialKey}`);
     }
 
-    // Strategy 2: Match by name + type (laptop/desktop/notebook/tablet treated as same group)
-    if (!match) match = sharedDevices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isComputerType(d.device_type) && isComputerType(localType));
+    // Strategy 2: Match by name + type (all managed device types treated as same group)
+    if (!match) match = sharedDevices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isManagedDevice(d.device_type) && isManagedDevice(localType));
     
-    // Strategy 3: If only one computer exists, use it
+    // Strategy 3: If only one managed device exists, use it
     if (!match) {
-      const computers = sharedDevices.filter((d: any) => isComputerType(d.device_type));
-      if (computers.length === 1) {
-        match = computers[0];
+      const managed = sharedDevices.filter((d: any) => isManagedDevice(d.device_type));
+      if (managed.length === 1) {
+        match = managed[0];
         console.log(`[AutoBroadcaster] 🎯 Only one computer in shared DB, using it`);
       }
     }
