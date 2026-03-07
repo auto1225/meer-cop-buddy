@@ -909,7 +909,7 @@ const Index = ({ onExpired }: IndexProps) => {
       // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
       channel.on('broadcast', { event: 'lock_command' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ lock_command for different device, ignoring");
           return;
         }
