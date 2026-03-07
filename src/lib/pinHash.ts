@@ -22,7 +22,8 @@ export async function verifyPin(
   metadata: { alarm_pin_hash?: string; alarm_pin?: string } | null,
   localPin?: string
 ): Promise<boolean> {
-  const hasConfiguredPin = !!(metadata?.alarm_pin_hash || metadata?.alarm_pin || localPin);
+  const hasMetaPin = !!(metadata?.alarm_pin_hash || metadata?.alarm_pin);
+  const hasLocalPin = !!(localPin && localPin !== "1234");
 
   if (!metadata) return inputPin === (localPin || "1234");
 
@@ -37,13 +38,13 @@ export async function verifyPin(
     if (inputPin === metadata.alarm_pin) return true;
   }
 
-  // 3순위: localStorage에 저장된 PIN
-  if (localPin && inputPin === localPin) {
+  // 3순위: localStorage PIN (메타데이터에 PIN이 없을 때만)
+  if (!hasMetaPin && localPin && inputPin === localPin) {
     return true;
   }
 
-  // PIN이 설정되어 있으면 기본값 폴백 차단
-  if (hasConfiguredPin) return false;
+  // 메타데이터 또는 로컬에 커스텀 PIN이 설정되어 있으면 기본값 차단
+  if (hasMetaPin || hasLocalPin) return false;
 
   // PIN이 한 번도 설정된 적 없는 경우에만 기본값 허용
   return inputPin === "1234";
