@@ -37,6 +37,8 @@
   "alert.mouse": "Gerakan tetikus dikesan!",
   "alert.usb": "Perubahan peranti USB dikesan!",
   "alert.lid": "Perubahan penutup laptop dikesan!",
+  "alert.screenTouch": "Sentuhan skrin dikesan!",
+  "sensor.lidNotSupported": "Pengesanan penutup tidak disokong pada jenis peranti ini.",
   "alert.default": "Gerakan dikesan!",
   "pin.title": "Matikan penggera",
   "pin.subtitle": "Masukkan PIN 4 digit",

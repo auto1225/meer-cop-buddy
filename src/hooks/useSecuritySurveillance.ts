@@ -382,6 +382,7 @@ export function useSecuritySurveillance({
     if (toggles.lid) enabledSensors.push("lid");
     if (toggles.power) enabledSensors.push("power");
     if (toggles.usb) enabledSensors.push("usb");
+    if (toggles.screenTouch) enabledSensors.push("screenTouch");
 
     sensorRegistryRef.current.attachSensors(enabledSensors, (eventType) => {
       if (isMonitoringRef.current) {

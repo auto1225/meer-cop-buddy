@@ -37,6 +37,8 @@
   "alert.mouse": "Mausbewegung erkannt!",
   "alert.usb": "USB-Gerätewechsel erkannt!",
   "alert.lid": "Laptop-Deckeländerung erkannt!",
+  "alert.screenTouch": "Bildschirmberührung erkannt!",
+  "sensor.lidNotSupported": "Deckelerkennung wird auf diesem Gerätetyp nicht unterstützt.",
   "alert.default": "Bewegung erkannt!",
   "pin.title": "Alarm deaktivieren",
   "pin.subtitle": "4-stellige PIN eingeben",

@@ -37,6 +37,8 @@
   "alert.mouse": "Movimento del mouse rilevato!",
   "alert.usb": "Cambio dispositivo USB rilevato!",
   "alert.lid": "Cambio coperchio del laptop rilevato!",
+  "alert.screenTouch": "Tocco dello schermo rilevato!",
+  "sensor.lidNotSupported": "Il rilevamento del coperchio non è supportato su questo tipo di dispositivo.",
   "alert.default": "Movimento rilevato!",
   "pin.title": "Disattiva allarme",
   "pin.subtitle": "Inserisci PIN a 4 cifre",

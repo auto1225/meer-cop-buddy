@@ -37,6 +37,8 @@
   "alert.mouse": "Phát hiện di chuyển chuột!",
   "alert.usb": "Phát hiện thay đổi thiết bị USB!",
   "alert.lid": "Phát hiện thay đổi nắp laptop!",
+  "alert.screenTouch": "Phát hiện chạm màn hình!",
+  "sensor.lidNotSupported": "Phát hiện nắp không được hỗ trợ trên loại thiết bị này.",
   "alert.default": "Phát hiện chuyển động!",
   "pin.title": "Tắt báo động",
   "pin.subtitle": "Nhập mã PIN 4 chữ số",

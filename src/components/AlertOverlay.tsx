@@ -32,6 +32,7 @@ export function AlertOverlay({ isActive, onDismiss, eventType }: AlertOverlayPro
     if (eventType === "mouse") return t("alert.mouse");
     if (eventType === "usb") return t("alert.usb");
     if (eventType === "lid") return t("alert.lid");
+    if (eventType === "screen_touch") return t("alert.screenTouch");
     return t("alert.default");
   };
 

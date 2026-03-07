@@ -346,6 +346,7 @@ export function createSensorRegistry(options: SensorRegistryOptions): SensorRegi
     createLidSensor(),
     createPowerSensor(),
     createUsbSensor(),
+    createTouchSensor(),
   ];
 
   allSensors.forEach(s => sensors.set(s.name, s));

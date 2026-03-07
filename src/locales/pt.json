@@ -37,6 +37,8 @@
   "alert.mouse": "Movimento do mouse detectado!",
   "alert.usb": "Alteração de dispositivo USB detectada!",
   "alert.lid": "Alteração na tampa do laptop detectada!",
+  "alert.screenTouch": "Toque na tela detectado!",
+  "sensor.lidNotSupported": "A detecção de tampa não é suportada neste tipo de dispositivo.",
   "alert.default": "Movimento detectado!",
   "pin.title": "Desativar alarme",
   "pin.subtitle": "Digite o PIN de 4 dígitos",

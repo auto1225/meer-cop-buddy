@@ -284,17 +284,25 @@ export function SensorSettingsPanel({
               const Icon = SENSOR_ICONS[key] || Camera;
               const active = sensorToggles[key];
               const label = t(`sensor.${key}`);
+              const isLidRestricted = key === "lid" && !isLidSupported;
               return (
                 <div key={key}>
-                  <div className="flex items-center gap-2.5 py-1.5">
+                  <div
+                    className={`flex items-center gap-2.5 py-1.5 ${isLidRestricted ? "opacity-40" : ""}`}
+                    onClick={() => {
+                      if (isLidRestricted) {
+                        toast.info(t("sensor.lidNotSupported"));
+                      }
+                    }}
+                  >
                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                      active ? "bg-secondary/25" : "bg-white/10"
+                      active && !isLidRestricted ? "bg-secondary/25" : "bg-white/10"
                     }`}>
-                      <Icon className={`w-3 h-3 ${active ? "text-secondary" : "text-white/40"}`} />
+                      <Icon className={`w-3 h-3 ${active && !isLidRestricted ? "text-secondary" : "text-white/40"}`} />
                     </div>
-                    <p className={`text-[11px] font-extrabold flex-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] ${active ? "text-white" : "text-white/50"}`}>{label}</p>
+                    <p className={`text-[11px] font-extrabold flex-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)] ${active && !isLidRestricted ? "text-white" : "text-white/50"}`}>{label}</p>
                     <Switch
-                      checked={active}
+                      checked={isLidRestricted ? false : active}
                       disabled
                       className="pointer-events-none opacity-60 shrink-0 scale-75"
                     />

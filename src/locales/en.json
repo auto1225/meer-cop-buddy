@@ -37,6 +37,8 @@
   "alert.mouse": "Mouse movement detected!",
   "alert.usb": "USB device change detected!",
   "alert.lid": "Laptop lid change detected!",
+  "alert.screenTouch": "Screen touch detected!",
+  "sensor.lidNotSupported": "Lid detection is not supported on this device type.",
   "alert.default": "Movement detected!",
   "pin.title": "Dismiss Alert",
   "pin.subtitle": "Enter 4-digit PIN",

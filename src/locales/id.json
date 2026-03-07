@@ -37,6 +37,8 @@
   "alert.mouse": "Gerakan mouse terdeteksi!",
   "alert.usb": "Perubahan perangkat USB terdeteksi!",
   "alert.lid": "Perubahan tutup laptop terdeteksi!",
+  "alert.screenTouch": "Sentuhan layar terdeteksi!",
+  "sensor.lidNotSupported": "Deteksi tutup tidak didukung pada jenis perangkat ini.",
   "alert.default": "Gerakan terdeteksi!",
   "pin.title": "Matikan alarm",
   "pin.subtitle": "Masukkan PIN 4 digit",
