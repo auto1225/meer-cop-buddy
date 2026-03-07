@@ -52,20 +52,52 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const handleCheckUpdate = async () => {
     setIsUpdating(true);
     try {
-      // Unregister existing service workers to force fresh cache
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(r => r.unregister()));
+      // DB에서 최신 버전 정보 조회
+      const { data, error } = await supabase
+        .from("app_versions")
+        .select("build_timestamp, version_code, release_notes")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !data) {
+        toast.error(t("menu.updateCheckFailed"));
+        setIsUpdating(false);
+        return;
       }
-      // Clear caches
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(name => caches.delete(name)));
+
+      const latestTimestamp = Number(data.build_timestamp);
+
+      if (latestTimestamp <= BUILD_TIMESTAMP) {
+        // 이미 최신 버전
+        toast.success(t("menu.alreadyUpToDate"));
+        setIsUpdating(false);
+        return;
       }
-      toast.success(t("menu.updateSuccess"));
-      setTimeout(() => window.location.reload(), 800);
+
+      // 업데이트 필요 — 확인 메시지 후 진행
+      toast(t("menu.updateAvailable"), {
+        description: data.release_notes || "",
+        action: {
+          label: t("menu.updateNow"),
+          onClick: async () => {
+            if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(registrations.map(r => r.unregister()));
+            }
+            if ('caches' in window) {
+              const cacheNames = await caches.keys();
+              await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+            window.location.reload();
+          },
+        },
+        duration: 10000,
+      });
+      setIsUpdating(false);
     } catch {
-      window.location.reload();
+      toast.error(t("menu.updateCheckFailed"));
+      setIsUpdating(false);
     }
   };
 
