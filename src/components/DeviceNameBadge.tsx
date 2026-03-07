@@ -190,7 +190,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
     try {
       const saved = getSavedAuth();
 
-      // 다중 노트북 환경에서 이름 충돌 방지: 현재 기기 제외 + 컴퓨터 계열만 검사
+      // 다중 기기 환경에서 이름 충돌 방지: 현재 기기 제외, 동일 사용자 내 모든 기기 검사
       if (saved?.user_id && deviceId) {
         const normalized = trimmed.toLowerCase();
         const allDevices = await fetchDevicesViaEdge(saved.user_id);
@@ -200,11 +200,10 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceN
           const isSameDevice = !!did && did === deviceId;
           if (isSameDevice) return false;
 
-          const type = (d.device_type || "").toString().toLowerCase();
-          const isComputer = ["laptop", "desktop", "notebook"].includes(type);
-          if (!isComputer) return false;
-
+          // 스마트폰 기본 이름은 제외 (My Smartphone 등)
           const candidate = (d.name || d.device_name || "").toString().trim().toLowerCase();
+          if (!candidate || candidate === "my smartphone") return false;
+
           return candidate === normalized;
         });
 
