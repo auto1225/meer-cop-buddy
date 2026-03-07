@@ -102,14 +102,24 @@ const Index = ({ onExpired }: IndexProps) => {
 
         const isComputerType = (t: string) => ["laptop", "desktop", "notebook"].includes(t);
 
+        // 매칭 우선순위: device_id → serial_key(metadata) → 이름+타입 → 단일컴퓨터 → ID직접
+        const mySerialKey = savedAuth?.serial_key;
         const match =
           devices.find((d: any) => localCompositeId && d.device_id === localCompositeId) ||
+          devices.find((d: any) => mySerialKey && d.metadata?.serial_key === mySerialKey) ||
           devices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isComputerType(d.device_type) && isComputerType(localType)) ||
+          devices.find((d: any) => localName && (d.device_name === localName || d.name === localName)) ||
           devices.find((d: any) => {
             const computers = devices.filter((dd: any) => isComputerType(dd.device_type));
             return computers.length === 1 && isComputerType(d.device_type) && isComputerType(localType);
           }) ||
           devices.find((d: any) => d.id === currentDeviceId);
+        
+        console.log("[Index] 🔍 Shared DB match attempt:", {
+          localCompositeId, mySerialKey, localName, localType,
+          sharedDevices: devices.map((d: any) => ({ id: d.id, device_id: d.device_id, name: d.name || d.device_name, type: d.device_type, serial: d.metadata?.serial_key })),
+          matchResult: match?.id
+        });
 
         if (match?.id) {
           setSharedDeviceId(currentDeviceId, match.id); // 전역 매핑 등록
@@ -683,19 +693,22 @@ const Index = ({ onExpired }: IndexProps) => {
       // user-commands 채널: device_id 필수
       if (!p) return false;
       const targetId = (p.device_id || p.target_device_id) as string | undefined;
+      const mySerial = savedAuth?.serial_key;
+      const targetSerial = p.serial_key as string | undefined;
+      const myIds = [currentDevice?.id, sharedDeviceIdState].filter(Boolean);
+      
+      console.log("[Index] 🔍 isForThisDevice check:", {
+        targetId, targetSerial, myIds, mySerial, sharedDeviceIdState,
+        channel: channelName,
+      });
+      
+      // serial_key 매칭 (가장 신뢰할 수 있는 식별자)
+      if (targetSerial && mySerial) return targetSerial === mySerial;
+      
       if (!targetId) {
-        // device_id 없으면 serial_key로 매칭 시도
-        const mySerial = savedAuth?.serial_key;
-        const targetSerial = p.serial_key as string | undefined;
-        if (targetSerial && mySerial) return targetSerial === mySerial;
         console.log("[Index] ⏭️ No device_id/serial_key in payload, ignoring on user-commands channel");
         return false;
       }
-      const myIds = [currentDevice?.id, sharedDeviceIdState].filter(Boolean);
-      // serial_key 보조 매칭
-      const mySerial = savedAuth?.serial_key;
-      const targetSerial = p.serial_key as string | undefined;
-      if (targetSerial && mySerial && targetSerial === mySerial) return true;
       return myIds.includes(targetId);
     };
 
