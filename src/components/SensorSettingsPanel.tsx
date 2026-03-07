@@ -108,6 +108,7 @@ export function SensorSettingsPanel({
   onAlarmVolumeChange,
   isMonitoring,
   deviceType = "laptop",
+  capabilities,
   availableSounds,
   selectedSoundId,
   onSoundChange,
