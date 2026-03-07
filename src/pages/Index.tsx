@@ -944,6 +944,27 @@ const Index = ({ onExpired }: IndexProps) => {
             .then(() => console.log("[Index] ✅ camouflage_mode persisted to local DB:" , camouflageRaw))
             .catch((e) => console.warn("[Index] ⚠️ Failed to persist camouflage_mode to local DB:", e));
         }
+
+        // ✅ ACK 브로드캐스트: 스마트폰에 적용 완료 알림
+        try {
+          const ackChannel = channelManager.get(`user-commands-${savedAuth.user_id}`);
+          if (ackChannel) {
+            ackChannel.send({
+              type: 'broadcast',
+              event: 'command_ack',
+              payload: {
+                command: 'camouflage_toggle',
+                camouflage_mode: camouflageRaw,
+                device_id: currentDevice?.id,
+                device_name: currentDevice?.device_name,
+                acked_at: new Date().toISOString(),
+              },
+            });
+            console.log("[Index] ✅ command_ack sent for camouflage_toggle:", camouflageRaw);
+          }
+        } catch (e) {
+          console.warn("[Index] ⚠️ Failed to send command_ack:", e);
+        }
       });
 
       // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
