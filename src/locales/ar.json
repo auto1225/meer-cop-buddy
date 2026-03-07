@@ -39,6 +39,7 @@
   "alert.lid": "تم اكتشاف تغيير غطاء الحاسوب!",
   "alert.screenTouch": "تم اكتشاف لمس الشاشة!",
   "sensor.lidNotSupported": "اكتشاف الغطاء غير مدعوم على هذا النوع من الأجهزة.",
+  "sensor.touchNotAvailable": "هذه الميزة غير متاحة في خطتك الحالية.",
   "alert.default": "تم اكتشاف حركة!",
   "pin.title": "إلغاء التنبيه",
   "pin.subtitle": "أدخل رمز PIN المكون من 4 أرقام",

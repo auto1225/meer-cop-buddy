@@ -39,6 +39,7 @@
   "alert.lid": "Perubahan tutup laptop terdeteksi!",
   "alert.screenTouch": "Sentuhan layar terdeteksi!",
   "sensor.lidNotSupported": "Deteksi tutup tidak didukung pada jenis perangkat ini.",
+  "sensor.touchNotAvailable": "Fitur ini tidak tersedia pada paket Anda saat ini.",
   "alert.default": "Gerakan terdeteksi!",
   "pin.title": "Matikan alarm",
   "pin.subtitle": "Masukkan PIN 4 digit",

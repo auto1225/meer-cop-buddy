@@ -39,6 +39,7 @@
   "alert.lid": "¡Se detectó cambio en la tapa del portátil!",
   "alert.screenTouch": "¡Se detectó toque en la pantalla!",
   "sensor.lidNotSupported": "La detección de tapa no es compatible con este tipo de dispositivo.",
+  "sensor.touchNotAvailable": "Esta función no está disponible en su plan actual.",
   "alert.default": "¡Se detectó movimiento!",
   "pin.title": "Desactivar alarma",
   "pin.subtitle": "Ingrese PIN de 4 dígitos",

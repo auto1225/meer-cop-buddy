@@ -15,6 +15,7 @@ export interface SerialAuthData {
   plan_type: "free" | "basic" | "premium";
   expires_at: string | null;
   remaining_days: number | null;
+  capabilities?: Record<string, boolean>;
 }
 
 // ── Storage 유틸 (sessionStorage 우선, localStorage는 복구용 폴백) ──
@@ -198,6 +199,15 @@ export async function validateSerial(
     resolvedName = deviceName; // 모두 기본값이면 사용자 입력 사용
   }
 
+  // Parse capabilities from verify-serial response
+  const capabilities: Record<string, boolean> = {};
+  const rawCaps = s.capabilities || data.capabilities;
+  if (rawCaps && typeof rawCaps === "object") {
+    for (const [k, v] of Object.entries(rawCaps)) {
+      capabilities[k] = v === true || v === "true";
+    }
+  }
+
   const authData: SerialAuthData = {
     serial_key: s.serial_key || key,
     device_id: registeredDevice?.id || s.id || s.device_id || "",
@@ -207,6 +217,7 @@ export async function validateSerial(
     plan_type: s.plan_type || "free",
     expires_at: s.expires_at || null,
     remaining_days: s.remaining_days ?? null,
+    capabilities: Object.keys(capabilities).length > 0 ? capabilities : undefined,
   };
 
   saveAuth(authData);
@@ -301,6 +312,15 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       resolvedName = s.device_name;
     }
 
+    // Parse updated capabilities
+    const updatedCaps: Record<string, boolean> = {};
+    const rawCaps = s.capabilities || {};
+    if (rawCaps && typeof rawCaps === "object") {
+      for (const [k, v] of Object.entries(rawCaps)) {
+        updatedCaps[k] = v === true || v === "true";
+      }
+    }
+
     const updated: SerialAuthData = {
       ...saved,
       plan_type: s.plan_type || saved.plan_type,
@@ -309,6 +329,7 @@ export async function revalidateSerial(): Promise<SerialAuthData | null> {
       device_id: normalizedDeviceId,
       user_id: s.user_id || saved.user_id,
       device_name: resolvedName,
+      capabilities: Object.keys(updatedCaps).length > 0 ? updatedCaps : saved.capabilities,
     };
 
     saveAuth(updated);

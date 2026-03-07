@@ -493,7 +493,7 @@ const Index = ({ onExpired }: IndexProps) => {
         power: sensorSettings.power ?? true,
         microphone: sensorSettings.microphone ?? false,
         usb: sensorSettings.usb ?? false,
-        screenTouch: sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true,
+        screenTouch: (savedAuth?.capabilities?.sensor_touch !== false) && (sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true),
       });
       console.log("[Index] ✅ sensorSettings applied:", sensorSettings);
     }
@@ -696,7 +696,7 @@ const Index = ({ onExpired }: IndexProps) => {
             power: sensorSettings.power ?? true,
             microphone: sensorSettings.microphone ?? false,
             usb: sensorSettings.usb ?? false,
-            screenTouch: sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true,
+            screenTouch: (savedAuth?.capabilities?.sensor_touch !== false) && (sensorSettings.screenTouch ?? sensorSettings.screen_touch ?? true),
           });
         }
 
@@ -989,6 +989,7 @@ const Index = ({ onExpired }: IndexProps) => {
           }}
           isMonitoring={isMonitoring}
           deviceType={deviceType}
+          capabilities={savedAuth?.capabilities}
           availableSounds={availableSounds}
           selectedSoundId={selectedSoundId}
           onSoundChange={(id) => {

@@ -39,6 +39,7 @@
   "alert.lid": "Dizüstü kapak değişikliği algılandı!",
   "alert.screenTouch": "Ekran dokunuşu algılandı!",
   "sensor.lidNotSupported": "Kapak algılama bu cihaz türünde desteklenmiyor.",
+  "sensor.touchNotAvailable": "Bu özellik mevcut planınızda kullanılamaz.",
   "alert.default": "Hareket algılandı!",
   "pin.title": "Alarmı kapat",
   "pin.subtitle": "4 haneli PIN girin",

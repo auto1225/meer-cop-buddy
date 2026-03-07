@@ -39,6 +39,7 @@
   "alert.lid": "ノートPCの蓋の変化が検知されました！",
   "alert.screenTouch": "画面タッチが検知されました！",
   "sensor.lidNotSupported": "このデバイスタイプでは蓋検知はサポートされていません。",
+  "sensor.touchNotAvailable": "この機能は現在のプランではご利用いただけません。",
   "alert.default": "動きが検知されました！",
   "pin.title": "警報解除",
   "pin.subtitle": "4桁のPINを入力してください",

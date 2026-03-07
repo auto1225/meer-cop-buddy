@@ -39,6 +39,7 @@
   "alert.lid": "Changement du capot détecté !",
   "alert.screenTouch": "Toucher d'écran détecté !",
   "sensor.lidNotSupported": "La détection du couvercle n'est pas prise en charge sur ce type d'appareil.",
+  "sensor.touchNotAvailable": "Cette fonctionnalité n'est pas disponible dans votre plan actuel.",
   "alert.default": "Mouvement détecté !",
   "pin.title": "Désactiver l'alarme",
   "pin.subtitle": "Entrez le code PIN à 4 chiffres",

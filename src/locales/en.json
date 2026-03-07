@@ -39,6 +39,7 @@
   "alert.lid": "Laptop lid change detected!",
   "alert.screenTouch": "Screen touch detected!",
   "sensor.lidNotSupported": "Lid detection is not supported on this device type.",
+  "sensor.touchNotAvailable": "This feature is not available on your current plan.",
   "alert.default": "Movement detected!",
   "pin.title": "Dismiss Alert",
   "pin.subtitle": "Enter 4-digit PIN",
