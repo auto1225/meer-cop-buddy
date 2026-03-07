@@ -250,7 +250,8 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     const localCompositeId = localDevice?.device_id;
     const localName = localDevice?.device_name || localDevice?.name;
     const localType = localDevice?.device_type || "laptop";
-    const isComputerType = (t: string) => ["laptop", "desktop", "notebook"].includes(t);
+    const isComputerType = (t: string) => ["laptop", "desktop", "notebook", "tablet"].includes(t);
+    const localSerialKey = (localDevice?.metadata as any)?.serial_key || "";
 
     // ★ Check persisted shared ID first (prevents drift on list changes)
     if (!sharedIdResolvedOnceRef.current) {
