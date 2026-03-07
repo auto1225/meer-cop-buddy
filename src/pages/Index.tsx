@@ -1064,6 +1064,7 @@ const Index = ({ onExpired }: IndexProps) => {
               }).catch(e => console.error("[Index] Failed to save language:", e));
             }
           }}
+          onBackgroundChange={(bg) => setBackgroundSetting(bg)}
         />
 
         {/* Camera Modal */}
