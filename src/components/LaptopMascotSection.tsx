@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { X, Eye } from "lucide-react";
 import meercopIdle from "@/assets/meercop-idle.png";
 import meercopMonitoring from "@/assets/meercop-monitoring.png";
 import meercopAlert from "@/assets/meercop-alert.png";
