@@ -903,6 +903,9 @@ const Index = ({ onExpired }: IndexProps) => {
 
   const handleDeviceSelect = useCallback((deviceId: string) => {
     setCurrentDeviceId(deviceId);
+    localStorage.setItem('meercop-current-device-id', deviceId);
+    deviceIdLockedRef.current = true;
+    console.log("[Index] 🔒 Device manually selected & locked:", deviceId);
   }, []);
 
   // Wake Lock: 감시 중 화면 꺼짐 방지
