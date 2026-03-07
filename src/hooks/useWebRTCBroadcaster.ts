@@ -392,9 +392,9 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       return;
     }
 
-    // Check if video track is muted (producing no frames)
+    // Android에서 muted는 일시적일 수 있어 stale 판단에서 제외
     const videoTrack = streamRef.current.getVideoTracks()[0];
-    const isVideoStale = videoTrack && (videoTrack.muted || !videoTrack.enabled);
+    const isVideoStale = !videoTrack || videoTrack.readyState !== "live" || !videoTrack.enabled;
 
     try {
       // 1. Check for new viewer-joins (with mutex guard)
@@ -407,10 +407,10 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
         !creatingPeerRef.current.has(join.session_id)
       );
 
-      // Only restart if video track is actually stale (muted/disabled),
-      // NOT just because there are no active peers (that's normal for first viewer)
+      // Only restart if video track is truly dead,
+      // NOT just because Android temporarily reports muted
       if (newJoins.length > 0 && isVideoStale) {
-        console.log(`[Broadcaster] 🔄 New viewer detected with stale video track — requesting full restart`);
+        console.log(`[Broadcaster] 🔄 New viewer detected with dead video track — requesting full restart`);
         window.dispatchEvent(new CustomEvent("broadcast-needs-restart"));
         return;
       }
