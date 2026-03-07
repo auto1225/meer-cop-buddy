@@ -192,6 +192,12 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       const actualSettings = stream.getVideoTracks()[0]?.getSettings();
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 📐 Actual resolution: ${actualSettings?.width}x${actualSettings?.height} @${actualSettings?.frameRate}fps`);
 
+      // 🆕 카메라 워밍업: 실제 프레임이 생성될 때까지 대기 (Android 태블릿 검정화면 방지)
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        await waitForVideoFrames(videoTrack, 5000);
+      }
+
       streamRef.current = stream;
       retryCountRef.current = 0;
       clearRetryTimer();
