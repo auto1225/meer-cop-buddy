@@ -11,6 +11,7 @@
   "settings.laptop": "حاسوب محمول",
   "settings.desktop": "حاسوب مكتبي",
   "settings.tablet": "جهاز لوحي",
+  "settings.smartphone": "هاتف ذكي",
   "settings.alarmSound": "صوت التنبيه",
   "settings.volume": "مستوى الصوت",
   "settings.uploadSound": "اختر صوت تنبيه من الجهاز...",
