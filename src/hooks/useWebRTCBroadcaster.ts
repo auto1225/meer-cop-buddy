@@ -3,6 +3,7 @@ import { supabaseShared } from "@/lib/supabase";
 import { updateDeviceViaEdge } from "@/lib/deviceApi";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { getIceServers } from "@/lib/iceServers";
+import { waitForVideoFrames } from "@/lib/webrtc/qualityPresets";
 
 interface UseWebRTCBroadcasterOptions {
   deviceId: string;
@@ -154,11 +155,13 @@ export function useWebRTCBroadcaster({ deviceId }: UseWebRTCBroadcasterOptions) 
       console.warn("[Broadcaster] ⚠️ No live video track — attempting camera re-acquisition");
       try {
         const newStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 15, max: 30 }, facingMode: "user" },
+          video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 15, max: 30 }, facingMode: { ideal: "user" } },
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
         const newVideoTracks = newStream.getVideoTracks().filter(t => t.readyState === "live");
         if (newVideoTracks.length > 0) {
+          // 카메라 워밍업 대기
+          await waitForVideoFrames(newVideoTracks[0], 5000);
           // 기존 스트림의 죽은 트랙 정리 후 새 트랙 추가
           streamRef.current.getTracks().forEach(t => { t.stop(); });
           streamRef.current = newStream;

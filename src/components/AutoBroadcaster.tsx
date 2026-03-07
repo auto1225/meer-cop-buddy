@@ -3,7 +3,7 @@ import { fetchDeviceViaEdge, updateDeviceViaEdge } from "@/lib/deviceApi";
 import { SHARED_SUPABASE_URL, SHARED_SUPABASE_ANON_KEY, supabaseShared } from "@/lib/supabase";
 import { setSharedDeviceId as setSharedDeviceIdGlobal } from "@/lib/sharedDeviceIdMap";
 import { useWebRTCBroadcaster } from "@/hooks/useWebRTCBroadcaster";
-import { getVideoConstraints } from "@/lib/webrtc/qualityPresets";
+import { getVideoConstraints, waitForVideoFrames } from "@/lib/webrtc/qualityPresets";
 
 interface AutoBroadcasterProps {
   deviceId: string | undefined;
@@ -191,6 +191,12 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
       // 실제 적용된 해상도 로그
       const actualSettings = stream.getVideoTracks()[0]?.getSettings();
       console.log(`[AutoBroadcaster:${instanceIdRef.current}] 📐 Actual resolution: ${actualSettings?.width}x${actualSettings?.height} @${actualSettings?.frameRate}fps`);
+
+      // 🆕 카메라 워밍업: 실제 프레임이 생성될 때까지 대기 (Android 태블릿 검정화면 방지)
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        await waitForVideoFrames(videoTrack, 5000);
+      }
 
       streamRef.current = stream;
       retryCountRef.current = 0;
