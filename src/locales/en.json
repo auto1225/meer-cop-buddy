@@ -151,6 +151,8 @@
   "help.s5.sensitivityContent": "**Camera Motion Sensitivity:**\n• **Sensitive** — Detects small movements (~3% change)\n• **Normal** — Regular movement detection (default, ~15%)\n• **Insensitive** — Only large movements (~80%)\n\n**Mouse Sensitivity:**\n• **Sensitive** — 5px+ movement detected\n• **Normal** — 30px+ movement detected (default)\n• **Insensitive** — 100px+ movement detected\n\nSensitivity is changed from the **smartphone app**.",
   "help.s5.pin": "PIN Settings (Alarm Dismiss Password)",
   "help.s5.pinContent": "A **4-digit password** required to dismiss alarms.\n\n• **Default PIN**: 1234\n• Can be changed from the smartphone app.\n• **Require PIN on PC** setting:\n  - **Enabled (default)**: PIN required to dismiss alarm on laptop\n  - **Disabled**: Instant dismiss without PIN\n• Remote dismiss from smartphone is **always PIN-free**.",
+  "help.s5.mascotDisplay": "Character Display",
+  "help.s5.mascotDisplayContent": "Control **visibility** of the MeerCOP mascot character and speech bubble.\n\n• **ON (default)**: Mascot character and status speech bubble are shown on the main screen.\n• **OFF**: Mascot and speech bubble are hidden.\n\nEven when hidden, the **MeerCOP ON/OFF status bar** at the bottom is always visible.\nSettings are auto-saved and persist across app restarts.",
   "help.s5.language": "Language Settings",
   "help.s5.languageContent": "MeerCOP supports **17 languages**:\nKorean, English, 日本語, 中文, Español, Français, Deutsch, Italiano, Português, Русский, العربية, हिन्दी, Tiếng Việt, ภาษาไทย, Bahasa Indonesia, Bahasa Melayu, Türkçe\n\nLanguage is changed from the **smartphone app** and reflects immediately on the laptop.\nOn laptop settings, you can only view the currently selected language.",
 
