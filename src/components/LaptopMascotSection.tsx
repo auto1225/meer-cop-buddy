@@ -80,10 +80,10 @@ export function LaptopMascotSection({ isMonitoring, isAlarming = false }: Laptop
           <div className="relative z-10 mb-[32%]">
             <button
               onClick={toggleMascot}
-              className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 flex items-center justify-center hover:bg-white/25 transition-colors"
+              className="w-7 h-7 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 flex items-center justify-center hover:bg-white/25 transition-colors"
               title="캐릭터 보기"
             >
-              <Eye className="w-5 h-5 text-white/70" />
+              <Eye className="w-3.5 h-3.5 text-white/70" />
             </button>
           </div>
         )
