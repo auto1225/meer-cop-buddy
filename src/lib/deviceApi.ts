@@ -317,9 +317,8 @@ export async function updateDeviceViaEdge(
     localUpdates.device_name = localUpdates.name;
   }
 
-  // Shared project must avoid device_name (schema cache mismatch in legacy project)
+  // 공유 DB에도 device_name 포함 (licenses.device_name SSOT 동기화 위해)
   const sharedUpdates: Record<string, unknown> = { ...localUpdates };
-  delete sharedUpdates.device_name;
 
   // 1) 로컬 우선
   let localOk = false;
