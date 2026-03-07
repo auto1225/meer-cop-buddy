@@ -704,7 +704,7 @@ const Index = ({ onExpired }: IndexProps) => {
       // monitoring_toggle: payload에서 즉시 상태 적용 + 로컬 DB 동기화
       channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ monitoring_toggle for different device, ignoring");
           return;
         }
