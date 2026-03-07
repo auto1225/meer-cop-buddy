@@ -144,6 +144,14 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
         <div className="border-t border-white/15 p-2 space-y-0.5">
           {/* Menu Items */}
           <button
+            onClick={handleCheckUpdate}
+            disabled={isUpdating}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-5 h-5 text-white/70 ${isUpdating ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-bold">{isUpdating ? t("menu.updating") : t("menu.checkUpdate")}</span>
+          </button>
+          <button
             onClick={() => setHelpOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"
           >
