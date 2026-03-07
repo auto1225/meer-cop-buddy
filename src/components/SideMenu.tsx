@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle } from "lucide-react";
+import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
 import meercopMascot from "@/assets/meercop-mascot.png";
 import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
+import { toast } from "sonner";
 
 
 const _buildDate = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
