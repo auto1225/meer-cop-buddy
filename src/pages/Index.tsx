@@ -715,8 +715,12 @@ const Index = ({ onExpired }: IndexProps) => {
       });
 
       channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
+        const pRaw = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(pRaw)) {
+          console.log("[Index] ⏭️ settings_updated for different device, ignoring");
+          return;
+        }
         console.log("[Index] 📲 Broadcast settings_updated received:", payload.payload);
-
         // ✅ 브로드캐스트 가드 활성화 — 10초간 metadata useEffect의 덮어쓰기 방지
         broadcastOverrideUntilRef.current = Date.now() + 10000;
 
