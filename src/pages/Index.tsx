@@ -461,6 +461,7 @@ const Index = ({ onExpired }: IndexProps) => {
     const alarmSoundFromMeta = (meta?.alarm_sound_id || meta?.alarmSoundId) as string | undefined;
     const requirePcPinFromMeta = (meta?.require_pc_pin ?? meta?.requirePcPin) as boolean | undefined;
     const camouflageFromMeta = (meta?.camouflage_mode ?? meta?.camouflageMode) as boolean | undefined;
+    const mascotFromMeta = (meta?.mascot_visible ?? meta?.mascotVisible) as boolean | undefined;
     const languageFromMeta = (meta?.language || meta?.lang) as string | undefined;
 
     if (alarmPinFromMeta) {
