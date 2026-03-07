@@ -938,8 +938,13 @@ const Index = ({ onExpired }: IndexProps) => {
 
       // 메시지 명령: 토스트 알림으로 메시지 표시
       channel.on('broadcast', { event: 'message_command' }, (payload) => {
-        const message = payload.payload?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.");
-        const title = payload.payload?.title || (appLanguage === "en" ? "📩 Remote Message" : "📩 원격 메시지");
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ message_command for different device, ignoring");
+          return;
+        }
+        const message = (p?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.")) as string;
+        const title = (p?.title || (appLanguage === "en" ? "📩 Remote Message" : "📩 원격 메시지")) as string;
         console.log("[Index] 💬 Broadcast message_command received:", message);
         toast({
           title,
