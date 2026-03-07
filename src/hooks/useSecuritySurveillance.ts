@@ -51,6 +51,7 @@ const DEFAULT_SENSOR_TOGGLES: SensorToggles = {
   power: true,
   microphone: false,
   usb: false,
+  screenTouch: true,
 };
 
 interface UseSecuritySurveillanceOptions {
