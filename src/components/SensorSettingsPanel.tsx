@@ -284,18 +284,22 @@ export function SensorSettingsPanel({
           </div>
 
           <div>
-            {SENSOR_KEYS.map((key, idx) => {
+          {SENSOR_KEYS.map((key, idx) => {
               const Icon = SENSOR_ICONS[key] || Camera;
               const active = sensorToggles[key];
               const label = t(`sensor.${key}`);
               const isLidRestricted = key === "lid" && !isLidSupported;
+              const isTouchRestricted = key === "screenTouch" && !isTouchCapable;
+              const isRestricted = isLidRestricted || isTouchRestricted;
               return (
                 <div key={key}>
                   <div
-                    className={`flex items-center gap-2.5 py-1.5 ${isLidRestricted ? "opacity-40" : ""}`}
+                    className={`flex items-center gap-2.5 py-1.5 ${isRestricted ? "opacity-40" : ""}`}
                     onClick={() => {
                       if (isLidRestricted) {
                         toast.info(t("sensor.lidNotSupported"));
+                      } else if (isTouchRestricted) {
+                        toast.info(t("sensor.touchNotAvailable") || "이 기능은 현재 플랜에서 사용할 수 없습니다.");
                       }
                     }}
                   >
