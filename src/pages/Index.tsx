@@ -102,14 +102,24 @@ const Index = ({ onExpired }: IndexProps) => {
 
         const isComputerType = (t: string) => ["laptop", "desktop", "notebook"].includes(t);
 
+        // 매칭 우선순위: device_id → serial_key(metadata) → 이름+타입 → 단일컴퓨터 → ID직접
+        const mySerialKey = savedAuth?.serial_key;
         const match =
           devices.find((d: any) => localCompositeId && d.device_id === localCompositeId) ||
+          devices.find((d: any) => mySerialKey && d.metadata?.serial_key === mySerialKey) ||
           devices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isComputerType(d.device_type) && isComputerType(localType)) ||
+          devices.find((d: any) => localName && (d.device_name === localName || d.name === localName)) ||
           devices.find((d: any) => {
             const computers = devices.filter((dd: any) => isComputerType(dd.device_type));
             return computers.length === 1 && isComputerType(d.device_type) && isComputerType(localType);
           }) ||
           devices.find((d: any) => d.id === currentDeviceId);
+        
+        console.log("[Index] 🔍 Shared DB match attempt:", {
+          localCompositeId, mySerialKey, localName, localType,
+          sharedDevices: devices.map((d: any) => ({ id: d.id, device_id: d.device_id, name: d.name || d.device_name, type: d.device_type, serial: d.metadata?.serial_key })),
+          matchResult: match?.id
+        });
 
         if (match?.id) {
           setSharedDeviceId(currentDeviceId, match.id); // 전역 매핑 등록
