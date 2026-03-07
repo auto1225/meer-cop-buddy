@@ -113,6 +113,22 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
         {/* Bottom Menu */}
         <div className="border-t border-white/15 p-2 space-y-0.5">
+          {/* PWA Install */}
+          {canInstall && (
+            <button
+              onClick={install}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <Download className="w-5 h-5 text-accent" />
+              <span className="text-sm font-bold">{t("menu.installApp")}</span>
+            </button>
+          )}
+          {isInstalled && (
+            <div className="flex items-center gap-3 px-4 py-2 text-white/50">
+              <CheckCircle className="w-5 h-5" />
+              <span className="text-sm font-bold">{t("menu.appInstalled")}</span>
+            </div>
+          )}
           <button
             onClick={() => setHelpOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors"
