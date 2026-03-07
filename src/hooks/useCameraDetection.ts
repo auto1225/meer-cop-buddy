@@ -173,7 +173,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       debounceTimerRef.current = setTimeout(() => {
         console.log("[CameraDetection] 🔄 Device change → checking status");
         checkAndUpdateRef.current?.();
-      }, 1000);
+      }, DEVICECHANGE_DEBOUNCE);
     };
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
