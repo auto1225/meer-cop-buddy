@@ -941,6 +941,8 @@ const Index = ({ onExpired }: IndexProps) => {
     <PermissionGateModal />
     {/* Camouflage Overlay - OUTSIDE ResizableContainer to cover entire viewport */}
     <CamouflageOverlay isActive={isCamouflageMode} />
+    {/* PWA Install Popup */}
+    <PwaInstallPopup />
     <ResizableContainer
       initialWidth={300}
       initialHeight={520}
