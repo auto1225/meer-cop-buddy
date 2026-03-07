@@ -606,6 +606,7 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
           track.stop();
         });
       }
+      (window as any).__meercopCameraStreamActive = false;
     };
   }, [clearRetryTimer]);
 
