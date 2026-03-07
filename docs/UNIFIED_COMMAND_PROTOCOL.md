@@ -19,6 +19,7 @@
 | 경보 해제 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
 | 잠금 명령 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
 | 메시지 전송 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
+| 마스코트 보기/숨기기 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
 | 위치 요청 | **DB metadata** | `devices.metadata.locate_requested` | 📱→💻 |
 | 네트워크 요청 | **DB metadata** | `devices.metadata.network_info_requested` | 📱→💻 |
 | 경보 발생/해제 | **Presence** | `user-alerts-${userId}` | 💻→📱 |
