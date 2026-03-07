@@ -33,6 +33,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
     }
   };
 
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
