@@ -26,6 +26,7 @@
   "sensor.mouse": "الفأرة",
   "sensor.usb": "USB",
   "sensor.power": "كابل الطاقة",
+  "sensor.screenTouch": "لمس الشاشة",
   "sensor.motionTest": "اختبار الحركة",
   "language.title": "اللغة",
   "language.changeFromPhone": "يمكن تغييرها من تطبيق الهاتف الذكي",
