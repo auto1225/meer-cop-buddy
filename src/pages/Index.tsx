@@ -693,19 +693,22 @@ const Index = ({ onExpired }: IndexProps) => {
       // user-commands 채널: device_id 필수
       if (!p) return false;
       const targetId = (p.device_id || p.target_device_id) as string | undefined;
+      const mySerial = savedAuth?.serial_key;
+      const targetSerial = p.serial_key as string | undefined;
+      const myIds = [currentDevice?.id, sharedDeviceIdState].filter(Boolean);
+      
+      console.log("[Index] 🔍 isForThisDevice check:", {
+        targetId, targetSerial, myIds, mySerial, sharedDeviceIdState,
+        channel: channelName,
+      });
+      
+      // serial_key 매칭 (가장 신뢰할 수 있는 식별자)
+      if (targetSerial && mySerial) return targetSerial === mySerial;
+      
       if (!targetId) {
-        // device_id 없으면 serial_key로 매칭 시도
-        const mySerial = savedAuth?.serial_key;
-        const targetSerial = p.serial_key as string | undefined;
-        if (targetSerial && mySerial) return targetSerial === mySerial;
         console.log("[Index] ⏭️ No device_id/serial_key in payload, ignoring on user-commands channel");
         return false;
       }
-      const myIds = [currentDevice?.id, sharedDeviceIdState].filter(Boolean);
-      // serial_key 보조 매칭
-      const mySerial = savedAuth?.serial_key;
-      const targetSerial = p.serial_key as string | undefined;
-      if (targetSerial && mySerial && targetSerial === mySerial) return true;
       return myIds.includes(targetId);
     };
 
