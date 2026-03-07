@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     if (serial_key && !is_revalidation) {
       const { data: allWithSerial } = await supabase
         .from("devices")
-        .select("id, device_id, device_name, name, status")
+        .select("id, device_id, device_name, name, status, last_seen_at")
         .eq("user_id", finalUserId)
         .eq("status", "online");
 
