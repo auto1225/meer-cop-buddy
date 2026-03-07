@@ -30,6 +30,18 @@ interface DeviceRow {
 }
 
 // ── 로컬 Lovable Cloud 헬퍼 ──
+function isDuplicateDeviceNameResponse(status: number, payload: any): boolean {
+  const message = String(payload?.message || payload?.error || payload?.details || "");
+  const code = String(payload?.code || "");
+  return (
+    status === 409 ||
+    code === "23505" ||
+    message.includes("DUPLICATE_DEVICE_NAME") ||
+    message.includes("이미 사용 중") ||
+    message.toLowerCase().includes("duplicate")
+  );
+}
+
 function getLocalFunctionUrl(fnName: string): string {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";
   return `https://${projectId}.supabase.co/functions/v1/${fnName}`;
@@ -306,10 +318,18 @@ export async function updateDeviceViaEdge(
       headers: { "Content-Type": "application/json", apikey: getLocalAnonKey() },
       body: JSON.stringify({ device_id: deviceId, updates: localUpdates }),
     });
-    if (res.ok || res.status === 409) {
-      // 409 duplicate-name from backend should not break runtime
-      console.log(`[deviceApi] ✅ Local updated device ${deviceId}${res.status === 409 ? " (409 ignored)" : ""}`);
+
+    if (res.ok) {
+      console.log(`[deviceApi] ✅ Local updated device ${deviceId}`);
       localOk = true;
+    } else {
+      const payload = await res.json().catch(() => ({}));
+      if (isDuplicateDeviceNameResponse(res.status, payload)) {
+        console.warn(`[deviceApi] ⚠️ Local duplicate device name ignored for ${deviceId}`);
+        localOk = true;
+      } else {
+        console.warn("[deviceApi] ⚠️ Local update-device failed:", res.status, payload);
+      }
     }
   } catch (err) {
     console.warn("[deviceApi] Local update-device error:", err);

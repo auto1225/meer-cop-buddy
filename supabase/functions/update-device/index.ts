@@ -6,6 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const duplicateNameIncludes = ["DUPLICATE_DEVICE_NAME", "already used", "이미 사용 중", "duplicate"];
+
+function isDuplicateNameError(err: any): boolean {
+  const rawMsg = String(err?.message || err?.error || "");
+  const rawCode = String(err?.code || "");
+  return rawCode === "23505" || duplicateNameIncludes.some((token) => rawMsg.includes(token));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -125,24 +133,14 @@ Deno.serve(async (req) => {
     }
 
     if (error) {
-      // Duplicate device name from DB/business rule: treat as non-fatal to avoid blank screen
-      const rawMsg = String((error as any)?.message || "");
-      const rawCode = String((error as any)?.code || "");
-      const isDuplicateName =
-        rawCode === "23505" ||
-        rawMsg.includes("DUPLICATE_DEVICE_NAME") ||
-        rawMsg.includes("already used") ||
-        rawMsg.includes("이미 사용 중") ||
-        rawMsg.includes("duplicate");
-
-      if (isDuplicateName) {
+      if (isDuplicateNameError(error)) {
         console.warn("update-device duplicate name conflict (ignored):", error);
         return new Response(
           JSON.stringify({
             device: data ?? null,
             ignored: true,
             reason: "DUPLICATE_DEVICE_NAME",
-            message: rawMsg || "Duplicate device name",
+            message: String((error as any)?.message || "Duplicate device name"),
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -150,10 +148,11 @@ Deno.serve(async (req) => {
 
       console.error("update-device error:", error);
       return new Response(
-        JSON.stringify({ error: rawMsg || "update-device failed" }),
+        JSON.stringify({ error: String((error as any)?.message || "update-device failed") }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     return new Response(
       JSON.stringify({ device: data }),
@@ -161,8 +160,21 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("update-device error:", err);
+
+    if (isDuplicateNameError(err)) {
+      return new Response(
+        JSON.stringify({
+          device: null,
+          ignored: true,
+          reason: "DUPLICATE_DEVICE_NAME",
+          message: String((err as any)?.message || "Duplicate device name"),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: (err as any)?.message || "update-device failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
