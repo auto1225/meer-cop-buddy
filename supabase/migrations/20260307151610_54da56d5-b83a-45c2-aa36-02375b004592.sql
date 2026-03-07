@@ -1,0 +1,1 @@
+UPDATE devices SET name = '2221', device_name = '2221' WHERE id = '527a9942-fbba-4e26-b1ce-7b7f128fe191';
