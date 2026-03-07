@@ -260,9 +260,16 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
         if (persisted) {
           const match = sharedDevices.find((d: any) => d.id === persisted);
           if (match) {
-            console.log(`[AutoBroadcaster] 💾 Using persisted shared ID: ${persisted}`);
-            sharedIdResolvedOnceRef.current = true;
-            return { id: match.id, is_streaming_requested: match.is_streaming_requested ?? false };
+            // ★ Validate persisted ID actually belongs to THIS device (by serial_key)
+            const matchSerial = (match.metadata as any)?.serial_key;
+            if (localSerialKey && matchSerial && matchSerial !== localSerialKey) {
+              console.warn(`[AutoBroadcaster] 🚫 Persisted ID ${persisted} has serial ${matchSerial} ≠ local ${localSerialKey}, clearing`);
+              localStorage.removeItem(SHARED_ID_STORAGE_KEY);
+            } else {
+              console.log(`[AutoBroadcaster] 💾 Using persisted shared ID: ${persisted}`);
+              sharedIdResolvedOnceRef.current = true;
+              return { id: match.id, is_streaming_requested: match.is_streaming_requested ?? false };
+            }
           }
         }
       } catch {}
