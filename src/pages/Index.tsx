@@ -674,17 +674,36 @@ const Index = ({ onExpired }: IndexProps) => {
 
     const channels = channelNames.map((name) => channelManager.getOrCreate(name));
 
+    // ✅ 기기 필터링 헬퍼: user-commands 채널은 모든 기기가 공유하므로
+    // payload의 device_id가 자신의 기기와 일치하는지 확인
+    const isForThisDevice = (p: Record<string, unknown> | undefined): boolean => {
+      if (!p) return true; // payload 없으면 통과 (하위 호환)
+      const targetId = (p.device_id || p.target_device_id) as string | undefined;
+      if (!targetId) return true; // device_id 미지정이면 통과 (하위 호환)
+      const myIds = [currentDevice?.id, sharedDeviceIdState].filter(Boolean);
+      // serial_key 매칭도 지원
+      const mySerial = savedAuth?.serial_key;
+      const targetSerial = p.serial_key as string | undefined;
+      if (targetSerial && mySerial && targetSerial === mySerial) return true;
+      return myIds.includes(targetId);
+    };
+
     const bindHandlers = (channel: ReturnType<typeof channelManager.getOrCreate>) => {
       // monitoring_toggle: payload에서 즉시 상태 적용 + 로컬 DB 동기화
       channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
-        const enable = payload.payload?.is_monitoring;
-        console.log("[Index] 📲 Broadcast monitoring_toggle received:", enable, payload.payload);
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ monitoring_toggle for different device, ignoring");
+          return;
+        }
+        const enable = p?.is_monitoring;
+        console.log("[Index] 📲 Broadcast monitoring_toggle received:", enable, p);
 
         // ✅ 브로드캐스트 가드 — refetch 시 DB의 stale 값이 위장모드 등 다른 상태를 덮어쓰지 못하게 함
         broadcastOverrideUntilRef.current = Date.now() + 10000;
 
         if (enable !== undefined) {
-          setIsMonitoring(enable);
+          setIsMonitoring(enable as boolean);
           // 로컬 DB에도 동기화
           if (currentDevice?.id) {
             updateDeviceViaEdge(currentDevice.id, { is_monitoring: enable }).catch(err =>
