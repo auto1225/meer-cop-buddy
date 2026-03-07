@@ -68,6 +68,7 @@ const Index = ({ onExpired }: IndexProps) => {
   const deviceIdLockedRef = useRef(false); // Once user selects or initial match is done, lock it
   const [currentEventType, setCurrentEventType] = useState<string | undefined>();
   const [sharedDeviceIdState, setSharedDeviceIdState] = useState<string | null>(null);
+  const [duplicateNameAlert, setDuplicateNameAlert] = useState<string | null>(null);
   const { devices, refetch } = useDevices(savedAuth?.user_id);
   
   // Debug: log device fetch results
