@@ -61,6 +61,8 @@
   "menu.planBasic": "Pelan Asas",
   "menu.planPremium": "Pelan Premium",
   "menu.help": "Soal Jawab / Bantuan",
+  "menu.installApp": "Pasang Aplikasi",
+  "menu.appInstalled": "Telah Dipasang",
   "menu.logout": "Log keluar",
   "menu.guest": "Tetamu",
   "auth.checkSerial": "Semak nombor siri di Aplikasi → Tetapan",

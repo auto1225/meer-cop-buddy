@@ -61,6 +61,8 @@
   "menu.planBasic": "Basic Plan",
   "menu.planPremium": "Premium Plan",
   "menu.help": "Q&A / Help",
+  "menu.installApp": "Install App",
+  "menu.appInstalled": "App Installed",
   "menu.logout": "Logout",
   "menu.guest": "Guest",
   "auth.checkSerial": "Check serial number in Smartphone App → Settings",

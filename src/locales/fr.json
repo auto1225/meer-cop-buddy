@@ -61,6 +61,8 @@
   "menu.planBasic": "Plan Basique",
   "menu.planPremium": "Plan Premium",
   "menu.help": "Q&R / Aide",
+  "menu.installApp": "Installer l'app",
+  "menu.appInstalled": "App installée",
   "menu.logout": "Déconnexion",
   "menu.guest": "Invité",
   "auth.checkSerial": "Vérifiez le numéro de série dans App Smartphone → Paramètres",

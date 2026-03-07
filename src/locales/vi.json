@@ -61,6 +61,8 @@
   "menu.planBasic": "Gói Cơ bản",
   "menu.planPremium": "Gói Cao cấp",
   "menu.help": "Hỏi đáp / Trợ giúp",
+  "menu.installApp": "Cài đặt ứng dụng",
+  "menu.appInstalled": "Đã cài đặt",
   "menu.logout": "Đăng xuất",
   "menu.guest": "Khách",
   "auth.checkSerial": "Kiểm tra số sê-ri trong Ứng dụng → Cài đặt",

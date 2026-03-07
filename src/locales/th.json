@@ -61,6 +61,8 @@
   "menu.planBasic": "แพ็กเกจพื้นฐาน",
   "menu.planPremium": "แพ็กเกจพรีเมียม",
   "menu.help": "ถาม-ตอบ / ช่วยเหลือ",
+  "menu.installApp": "ติดตั้งแอป",
+  "menu.appInstalled": "ติดตั้งแล้ว",
   "menu.logout": "ออกจากระบบ",
   "menu.guest": "ผู้เยี่ยมชม",
   "auth.checkSerial": "ตรวจสอบหมายเลขซีเรียลในแอป → ตั้งค่า",
