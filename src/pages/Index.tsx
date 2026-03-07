@@ -643,9 +643,14 @@ const Index = ({ onExpired }: IndexProps) => {
   }, [currentDevice?.id, savedAuth?.user_id]);
 
   // ── Single Source of Truth: DB의 is_monitoring을 그대로 반영 ──
-  // Broadcast는 refetch 트리거 역할만 하고, 실제 상태는 DB만 따른다.
+  // 단, 브로드캐스트 가드 활성 중에는 DB의 stale 값으로 덮어쓰기 방지
   useEffect(() => {
     if (!currentDevice) return;
+    // ✅ 브로드캐스트 가드가 활성 상태이면 DB 값 무시 (stale reversion 방지)
+    if (Date.now() < broadcastOverrideUntilRef.current) {
+      console.log("[Index] ⏭️ Skipping is_monitoring DB sync (broadcast override active)");
+      return;
+    }
     const mon = (currentDevice as unknown as Record<string, unknown>).is_monitoring;
     if (mon === undefined) return;
     const val = mon === true;
