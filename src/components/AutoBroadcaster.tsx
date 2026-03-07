@@ -278,7 +278,13 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
     // Strategy 1: Match by composite device_id text field
     let match = sharedDevices.find((d: any) => localCompositeId && d.device_id === localCompositeId);
     
-    // Strategy 2: Match by name + type (laptop/desktop/notebook treated as same group)
+    // Strategy 1.5: Match by serial_key in metadata (most reliable cross-DB identifier)
+    if (!match && localSerialKey) {
+      match = sharedDevices.find((d: any) => (d.metadata as any)?.serial_key === localSerialKey);
+      if (match) console.log(`[AutoBroadcaster] 🔑 Matched by serial_key: ${localSerialKey}`);
+    }
+
+    // Strategy 2: Match by name + type (laptop/desktop/notebook/tablet treated as same group)
     if (!match) match = sharedDevices.find((d: any) => localName && (d.device_name === localName || d.name === localName) && isComputerType(d.device_type) && isComputerType(localType));
     
     // Strategy 3: If only one computer exists, use it
