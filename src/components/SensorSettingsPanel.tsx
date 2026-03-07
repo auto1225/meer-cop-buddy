@@ -37,6 +37,7 @@ interface SensorSettingsPanelProps {
   onPreviewSound: (id: string) => void;
   appLanguage: string;
   onLanguageChange: (lang: string) => void;
+  onBackgroundChange?: (bg: { id: string; value: string }) => void;
 }
 
 const SENSOR_ICONS: Record<string, React.ElementType> = {
