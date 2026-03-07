@@ -21,7 +21,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const savedAuth = getSavedAuth();
   const [helpOpen, setHelpOpen] = useState(false);
   const { t } = useTranslation();
-  const { canInstall, isInstalled, install } = usePwaInstall();
+  
 
   const getPlanLabel = (planType?: string) => {
     switch (planType) {
