@@ -262,5 +262,9 @@
   "permission.later": "Nanti",
   "permission.done": "Selesai",
   "permission.deniedWarning": "Izin yang ditolak harus diubah di pengaturan browser. Fitur-fitur ini tidak akan tersedia sampai izin diberikan.",
-  "permission.repeatInfo": "Pemberitahuan ini muncul setiap 24 jam ketika ada izin yang belum diberikan"
+  "permission.repeatInfo": "Pemberitahuan ini muncul setiap 24 jam ketika ada izin yang belum diberikan",
+  "pwa.installTitle": "Instal MeerCOP!",
+  "pwa.installDesc": "Tambahkan ke layar utama untuk akses lebih cepat.",
+  "pwa.installButton": "Instal Sekarang",
+  "pwa.later": "Nanti"
 }

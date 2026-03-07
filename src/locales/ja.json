@@ -400,5 +400,9 @@
   "permission.later": "後で",
   "permission.done": "完了",
   "permission.deniedWarning": "拒否された権限はブラウザの設定から直接変更する必要があります。権限が許可されるまで該当機能は使用できません。",
-  "permission.repeatInfo": "この案内は未許可の権限がある場合、24時間ごとに表示されます"
+  "permission.repeatInfo": "この案内は未許可の権限がある場合、24時間ごとに表示されます",
+  "pwa.installTitle": "アプリをインストール！",
+  "pwa.installDesc": "ホーム画面に追加して、より速く便利に使いましょう。",
+  "pwa.installButton": "今すぐインストール",
+  "pwa.later": "後で"
 }

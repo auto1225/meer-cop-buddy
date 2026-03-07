@@ -262,5 +262,9 @@
   "permission.later": "Daha sonra",
   "permission.done": "Tamam",
   "permission.deniedWarning": "Reddedilen izinler tarayıcı ayarlarından değiştirilmelidir. Bu özellikler izinler verilene kadar kullanılamaz.",
-  "permission.repeatInfo": "Bu bildirim eksik izinler olduğunda her 24 saatte bir görüntülenir"
+  "permission.repeatInfo": "Bu bildirim eksik izinler olduğunda her 24 saatte bir görüntülenir",
+  "pwa.installTitle": "MeerCOP'u Kurun!",
+  "pwa.installDesc": "Ana ekrana ekleyin, daha hızlı erişim sağlayın.",
+  "pwa.installButton": "Şimdi Kur",
+  "pwa.later": "Daha Sonra"
 }
