@@ -26,6 +26,7 @@
   "sensor.mouse": "माउस",
   "sensor.usb": "USB",
   "sensor.power": "पावर केबल",
+  "sensor.screenTouch": "स्क्रीन टच",
   "sensor.motionTest": "मोशन टेस्ट",
   "language.title": "भाषा",
   "language.changeFromPhone": "स्मार्टफोन ऐप से बदला जा सकता है",
