@@ -16,6 +16,7 @@ import { NetworkInfoModal } from "@/components/NetworkInfoModal";
 import { AutoBroadcaster } from "@/components/AutoBroadcaster";
 import { PermissionGateModal } from "@/components/PermissionGateModal";
 import { CamouflageOverlay } from "@/components/CamouflageOverlay";
+import { PwaInstallPopup } from "@/components/PwaInstallPopup";
 import { useDevices } from "@/hooks/useDevices";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
