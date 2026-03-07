@@ -955,13 +955,25 @@ const Index = ({ onExpired }: IndexProps) => {
       baseWidth={300}
       baseHeight={520}
     >
-      <div 
+       <div 
         className="w-full h-full flex flex-col relative overflow-hidden"
-        style={{
-          backgroundImage: `url(${mainBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center bottom',
-        }}
+        style={
+          backgroundSetting.value === "__default__"
+            ? {
+                backgroundImage: `url(${mainBg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center bottom',
+              }
+            : backgroundSetting.value.startsWith("data:")
+              ? {
+                  backgroundImage: `url(${backgroundSetting.value})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : {
+                  background: backgroundSetting.value,
+                }
+        }
       >
 
         {/* Auto Broadcaster - listens for streaming requests from smartphone */}
