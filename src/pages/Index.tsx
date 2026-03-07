@@ -181,6 +181,10 @@ const Index = ({ onExpired }: IndexProps) => {
   const [requirePcPin, setRequirePcPin] = useState(true); // require_pc_pin from metadata
   const [showPinKeypad, setShowPinKeypad] = useState(false);
   const [isCamouflageMode, setIsCamouflageMode] = useState(false);
+  const [mascotVisible, setMascotVisible] = useState(() => {
+    const saved = localStorage.getItem('meercop-mascot-visible');
+    return saved !== 'false';
+  });
   // Sensor toggles from smartphone metadata
   const [sensorToggles, setSensorToggles] = useState<SensorToggles>({
     cameraMotion: false, lid: false, keyboard: false, mouse: false, power: false, microphone: false, usb: false, screenTouch: false,
