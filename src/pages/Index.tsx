@@ -674,17 +674,36 @@ const Index = ({ onExpired }: IndexProps) => {
 
     const channels = channelNames.map((name) => channelManager.getOrCreate(name));
 
+    // ✅ 기기 필터링 헬퍼: user-commands 채널은 모든 기기가 공유하므로
+    // payload의 device_id가 자신의 기기와 일치하는지 확인
+    const isForThisDevice = (p: Record<string, unknown> | undefined): boolean => {
+      if (!p) return true; // payload 없으면 통과 (하위 호환)
+      const targetId = (p.device_id || p.target_device_id) as string | undefined;
+      if (!targetId) return true; // device_id 미지정이면 통과 (하위 호환)
+      const myIds = [currentDevice?.id, sharedDeviceIdState].filter(Boolean);
+      // serial_key 매칭도 지원
+      const mySerial = savedAuth?.serial_key;
+      const targetSerial = p.serial_key as string | undefined;
+      if (targetSerial && mySerial && targetSerial === mySerial) return true;
+      return myIds.includes(targetId);
+    };
+
     const bindHandlers = (channel: ReturnType<typeof channelManager.getOrCreate>) => {
       // monitoring_toggle: payload에서 즉시 상태 적용 + 로컬 DB 동기화
       channel.on('broadcast', { event: 'monitoring_toggle' }, (payload) => {
-        const enable = payload.payload?.is_monitoring;
-        console.log("[Index] 📲 Broadcast monitoring_toggle received:", enable, payload.payload);
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ monitoring_toggle for different device, ignoring");
+          return;
+        }
+        const enable = p?.is_monitoring;
+        console.log("[Index] 📲 Broadcast monitoring_toggle received:", enable, p);
 
         // ✅ 브로드캐스트 가드 — refetch 시 DB의 stale 값이 위장모드 등 다른 상태를 덮어쓰지 못하게 함
         broadcastOverrideUntilRef.current = Date.now() + 10000;
 
         if (enable !== undefined) {
-          setIsMonitoring(enable);
+          setIsMonitoring(enable as boolean);
           // 로컬 DB에도 동기화
           if (currentDevice?.id) {
             updateDeviceViaEdge(currentDevice.id, { is_monitoring: enable }).catch(err =>
@@ -696,8 +715,12 @@ const Index = ({ onExpired }: IndexProps) => {
       });
 
       channel.on('broadcast', { event: 'settings_updated' }, (payload) => {
+        const pRaw = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(pRaw)) {
+          console.log("[Index] ⏭️ settings_updated for different device, ignoring");
+          return;
+        }
         console.log("[Index] 📲 Broadcast settings_updated received:", payload.payload);
-
         // ✅ 브로드캐스트 가드 활성화 — 10초간 metadata useEffect의 덮어쓰기 방지
         broadcastOverrideUntilRef.current = Date.now() + 10000;
 
@@ -812,7 +835,12 @@ const Index = ({ onExpired }: IndexProps) => {
         // 아직 반영되지 않은 이전 값을 읽어 깜빡임 발생
       });
 
-      channel.on('broadcast', { event: 'remote_alarm_off' }, () => {
+      channel.on('broadcast', { event: 'remote_alarm_off' }, (payload) => {
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ remote_alarm_off for different device, ignoring");
+          return;
+        }
         console.log("[Index] 📲 Broadcast remote_alarm_off received");
         stopAlarm();
         setCurrentEventType(undefined);
@@ -838,6 +866,10 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
         const raw = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(raw)) {
+          console.log("[Index] ⏭️ camouflage_toggle for different device, ignoring");
+          return;
+        }
         const camouflageRaw = raw?.camouflage_mode ?? raw?.camouflageMode;
 
         // ✅ payload에 명시적 boolean이 있을 때만 반영 (기본값 false로 강제 해제 금지)
@@ -864,6 +896,11 @@ const Index = ({ onExpired }: IndexProps) => {
 
       // 잠금 명령: PIN 입력 화면을 표시하여 기기 잠금
       channel.on('broadcast', { event: 'lock_command' }, (payload) => {
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ lock_command for different device, ignoring");
+          return;
+        }
         console.log("[Index] 🔒 Broadcast lock_command received:", payload);
         setShowPinKeypad(true);
         setIsCamouflageMode(true);
@@ -875,7 +912,12 @@ const Index = ({ onExpired }: IndexProps) => {
 
       // 마스코트 보기/숨기기 원격 제어
       channel.on('broadcast', { event: 'mascot_toggle' }, (payload) => {
-        const visible = payload.payload?.mascot_visible;
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ mascot_toggle for different device, ignoring");
+          return;
+        }
+        const visible = p?.mascot_visible;
         if (typeof visible !== "boolean") {
           console.warn("[Index] ⚠️ Ignoring malformed mascot_toggle payload:", payload.payload);
           return;
@@ -896,8 +938,13 @@ const Index = ({ onExpired }: IndexProps) => {
 
       // 메시지 명령: 토스트 알림으로 메시지 표시
       channel.on('broadcast', { event: 'message_command' }, (payload) => {
-        const message = payload.payload?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.");
-        const title = payload.payload?.title || (appLanguage === "en" ? "📩 Remote Message" : "📩 원격 메시지");
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ message_command for different device, ignoring");
+          return;
+        }
+        const message = (p?.message || (appLanguage === "en" ? "Message received." : "메시지가 도착했습니다.")) as string;
+        const title = (p?.title || (appLanguage === "en" ? "📩 Remote Message" : "📩 원격 메시지")) as string;
         console.log("[Index] 💬 Broadcast message_command received:", message);
         toast({
           title,
