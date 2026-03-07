@@ -151,6 +151,8 @@
   "help.s5.sensitivityContent": "**摄像头运动灵敏度：**\n• **敏感** — 检测微小运动（变化率约3%）\n• **正常** — 检测一般运动（默认，约15%）\n• **迟钝** — 仅检测大幅运动（约80%）\n\n**鼠标灵敏度：**\n• **敏感** — 检测5px以上移动\n• **正常** — 检测30px以上移动（默认）\n• **迟钝** — 检测100px以上移动\n\n灵敏度从**智能手机应用**更改。",
   "help.s5.pin": "PIN设置（警报解除密码）",
   "help.s5.pinContent": "解除警报时需要的**4位密码**。\n\n• **默认PIN**：1234\n• 可从智能手机应用更改。\n• **PC上是否需要PIN**设置：\n  - **启用（默认）**：在笔记本上解除警报时需要输入PIN\n  - **禁用**：无需PIN即可解除\n• 从智能手机远程解除**始终不需要PIN**。",
+  "help.s5.mascotDisplay": "角色显示",
+  "help.s5.mascotDisplayContent": "设置MeerCOP吉祥物角色和对话框的**显示/隐藏**。\n\n• **开启（默认）**：吉祥物角色和状态对话框显示在主屏幕上。\n• **关闭**：隐藏吉祥物和对话框。\n\n即使隐藏角色，底部的**MeerCOP 开/关状态栏**始终可见。\n设置自动保存，重启应用后仍保留。",
   "help.s5.language": "语言设置",
   "help.s5.languageContent": "MeerCOP支持**17种语言**：\n韩语、English、日本語、中文、Español、Français、Deutsch、Italiano、Português、Русский、العربية、हिन्दी、Tiếng Việt、ภาษาไทย、Bahasa Indonesia、Bahasa Melayu、Türkçe\n\n语言从**智能手机应用**更改，更改后立即反映到笔记本。\n在笔记本设置中只能查看当前选择的语言。",
 
