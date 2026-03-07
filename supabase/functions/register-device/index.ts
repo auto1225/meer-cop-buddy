@@ -93,17 +93,24 @@ Deno.serve(async (req) => {
     );
 
     // ── 시리얼 중복 사용 검증 (재검증 요청은 건너뜀) ──
+    // 같은 compositeDeviceId(=같은 기기)가 온라인인 경우는 재접속이므로 허용
+    // 다른 compositeDeviceId가 같은 시리얼로 온라인인 경우만 차단
     if (serial_key && !is_revalidation) {
-      const { data: sameDevice } = await supabase
+      const { data: allWithSerial } = await supabase
         .from("devices")
         .select("id, device_id, device_name, name, status")
-        .eq("device_id", compositeDeviceId)
-        .eq("status", "online")
-        .limit(1);
+        .eq("user_id", finalUserId)
+        .eq("status", "online");
 
-      if (sameDevice && sameDevice.length > 0) {
-        const activeName = sameDevice[0].device_name || sameDevice[0].name || "Unknown";
-        console.log(`[register-device] ❌ Serial ${serial_key} already online: ${activeName}`);
+      const otherOnline = (allWithSerial || []).find((d: any) => {
+        // metadata에서 serial_key 비교 또는 device_id 패턴에서 시리얼 추출
+        const dSerial = d.device_id?.split("_")?.[1];
+        return dSerial === serial_key && d.device_id !== compositeDeviceId;
+      });
+
+      if (otherOnline) {
+        const activeName = otherOnline.device_name || otherOnline.name || "Unknown";
+        console.log(`[register-device] ❌ Serial ${serial_key} already online on different device: ${activeName}`);
         return new Response(
           JSON.stringify({
             error: "serial_in_use",
