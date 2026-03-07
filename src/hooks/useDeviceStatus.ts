@@ -525,11 +525,8 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
         is_camera_connected: cameraStatusRef.current,
       };
 
-      // ★ 커스텀 이름이 있으면 heartbeat에 포함 → 스마트폰 DB 폴링으로도 이름 변경 감지 가능
-      if (currentName && !/^(Laptop\d*|My Laptop|Unknown)$/i.test(currentName.trim())) {
-        updates.name = currentName;
-        updates.device_name = currentName;
-      }
+      // 이름은 heartbeat에서 갱신하지 않음 (이름 변경은 DeviceNameBadge에서만 처리)
+      // 중복 이름 검증(409) 루프 방지
 
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
       const networkInfo: Record<string, unknown> = {
