@@ -8,6 +8,8 @@ import { HelpModal } from "@/components/HelpModal";
 import { useTranslation } from "@/lib/i18n";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 
+const BUILD_DATE = new Date(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now()).toLocaleDateString();
+
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
@@ -64,7 +66,9 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             <img src={meercopMascot} alt="MeerCOP" className="w-9 h-9 object-contain drop-shadow-lg" />
             <div>
               <h2 className="font-extrabold text-base drop-shadow">MeerCOP</h2>
-              <span className="text-[10px] text-white/60 font-semibold">ver 1.0.6</span>
+              <span className="text-[10px] text-white/60 font-semibold">
+                {t("menu.lastUpdated")}: {BUILD_DATE}
+              </span>
             </div>
           </div>
           <Button

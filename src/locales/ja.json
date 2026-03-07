@@ -63,6 +63,7 @@
   "menu.help": "Q&A / ヘルプ",
   "menu.installApp": "アプリをインストール",
   "menu.appInstalled": "インストール済み",
+  "menu.lastUpdated": "最終更新",
   "menu.logout": "ログアウト",
   "menu.guest": "ゲスト",
   "auth.checkSerial": "スマートフォンアプリ → 設定でシリアルナンバーを確認してください",

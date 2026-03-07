@@ -63,6 +63,7 @@
   "menu.help": "प्रश्नोत्तर / सहायता",
   "menu.installApp": "ऐप इंस्टॉल करें",
   "menu.appInstalled": "ऐप इंस्टॉल है",
+  "menu.lastUpdated": "अपडेट किया गया",
   "menu.logout": "लॉग आउट",
   "menu.guest": "अतिथि",
   "auth.checkSerial": "स्मार्टफोन ऐप → सेटिंग्स में सीरियल नंबर जांचें",

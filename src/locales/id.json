@@ -63,6 +63,7 @@
   "menu.help": "Tanya Jawab / Bantuan",
   "menu.installApp": "Instal Aplikasi",
   "menu.appInstalled": "Terinstal",
+  "menu.lastUpdated": "Diperbarui",
   "menu.logout": "Keluar",
   "menu.guest": "Tamu",
   "auth.checkSerial": "Periksa nomor seri di Aplikasi Smartphone → Pengaturan",

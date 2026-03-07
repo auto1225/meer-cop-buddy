@@ -63,6 +63,7 @@
   "menu.help": "Q&A / 도움말",
   "menu.installApp": "앱 설치",
   "menu.appInstalled": "설치 완료",
+  "menu.lastUpdated": "최근 업데이트",
   "menu.logout": "로그아웃",
   "menu.guest": "게스트",
   "auth.checkSerial": "스마트폰 앱 → 설정에서 시리얼 넘버를 확인하세요",

@@ -63,6 +63,7 @@
   "menu.help": "S&C / Yardım",
   "menu.installApp": "Uygulamayı Kur",
   "menu.appInstalled": "Kuruldu",
+  "menu.lastUpdated": "Güncellendi",
   "menu.logout": "Çıkış",
   "menu.guest": "Misafir",
   "auth.checkSerial": "Akıllı Telefon Uygulaması → Ayarlar'da seri numarasını kontrol edin",
