@@ -516,8 +516,6 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
     const sendHeartbeat = async () => {
       const now = new Date().toISOString();
       const savedAuth = getSavedAuth();
-      const currentName = savedAuth?.device_name || "";
-      
       const updates: Record<string, unknown> = {
         last_seen_at: now,
         updated_at: now,
