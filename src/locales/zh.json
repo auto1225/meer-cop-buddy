@@ -39,6 +39,7 @@
   "alert.lid": "检测到笔记本盖子变化！",
   "alert.screenTouch": "检测到屏幕触控！",
   "sensor.lidNotSupported": "此设备类型不支持盖子检测。",
+  "sensor.touchNotAvailable": "此功能在您当前的方案中不可用。",
   "alert.default": "检测到移动！",
   "pin.title": "解除警报",
   "pin.subtitle": "请输入4位PIN码",

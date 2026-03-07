@@ -39,6 +39,7 @@
   "alert.lid": "लैपटॉप ढक्कन परिवर्तन पाया गया!",
   "alert.screenTouch": "स्क्रीन टच पाया गया!",
   "sensor.lidNotSupported": "इस डिवाइस प्रकार पर ढक्कन पहचान समर्थित नहीं है।",
+  "sensor.touchNotAvailable": "यह सुविधा आपकी वर्तमान योजना में उपलब्ध नहीं है।",
   "alert.default": "मूवमेंट पाया गया!",
   "pin.title": "अलार्म बंद करें",
   "pin.subtitle": "4 अंकों का PIN दर्ज करें",

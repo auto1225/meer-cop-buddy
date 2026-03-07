@@ -39,6 +39,7 @@
   "alert.lid": "노트북 덮개 변화가 감지되었습니다!",
   "alert.screenTouch": "화면 터치가 감지되었습니다!",
   "sensor.lidNotSupported": "이 기기 타입에서는 덮개 감지를 지원하지 않습니다.",
+  "sensor.touchNotAvailable": "이 기능은 현재 플랜에서 사용할 수 없습니다.",
   "alert.default": "움직임이 감지되었습니다!",
   "pin.title": "경보 해제",
   "pin.subtitle": "4자리 비밀번호를 입력하세요",

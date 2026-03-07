@@ -39,6 +39,7 @@
   "alert.lid": "Phát hiện thay đổi nắp laptop!",
   "alert.screenTouch": "Phát hiện chạm màn hình!",
   "sensor.lidNotSupported": "Phát hiện nắp không được hỗ trợ trên loại thiết bị này.",
+  "sensor.touchNotAvailable": "Tính năng này không khả dụng trong gói hiện tại của bạn.",
   "alert.default": "Phát hiện chuyển động!",
   "pin.title": "Tắt báo động",
   "pin.subtitle": "Nhập mã PIN 4 chữ số",

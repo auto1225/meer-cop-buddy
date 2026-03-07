@@ -39,6 +39,7 @@
   "alert.lid": "Alteração na tampa do laptop detectada!",
   "alert.screenTouch": "Toque na tela detectado!",
   "sensor.lidNotSupported": "A detecção de tampa não é suportada neste tipo de dispositivo.",
+  "sensor.touchNotAvailable": "Este recurso não está disponível no seu plano atual.",
   "alert.default": "Movimento detectado!",
   "pin.title": "Desativar alarme",
   "pin.subtitle": "Digite o PIN de 4 dígitos",

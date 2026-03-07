@@ -39,6 +39,7 @@
   "alert.lid": "Cambio coperchio del laptop rilevato!",
   "alert.screenTouch": "Tocco dello schermo rilevato!",
   "sensor.lidNotSupported": "Il rilevamento del coperchio non è supportato su questo tipo di dispositivo.",
+  "sensor.touchNotAvailable": "Questa funzione non è disponibile nel tuo piano attuale.",
   "alert.default": "Movimento rilevato!",
   "pin.title": "Disattiva allarme",
   "pin.subtitle": "Inserisci PIN a 4 cifre",
