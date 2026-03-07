@@ -103,22 +103,34 @@ Deno.serve(async (req) => {
         .eq("status", "online");
 
       const otherOnline = (allWithSerial || []).find((d: any) => {
-        // metadata에서 serial_key 비교 또는 device_id 패턴에서 시리얼 추출
         const dSerial = d.device_id?.split("_")?.[1];
         return dSerial === serial_key && d.device_id !== compositeDeviceId;
       });
 
       if (otherOnline) {
-        const activeName = otherOnline.device_name || otherOnline.name || "Unknown";
-        console.log(`[register-device] ❌ Serial ${serial_key} already online on different device: ${activeName}`);
-        return new Response(
-          JSON.stringify({
-            error: "serial_in_use",
-            message: `이 시리얼은 현재 다른 기기(${activeName})에서 사용 중입니다. 해당 기기의 연결을 해제한 후 다시 시도해주세요.`,
-            active_device: activeName,
-          }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // ★ last_seen_at이 3분 이상 지난 기기는 stale → 자동 offline 처리 후 허용
+        const lastSeen = otherOnline.last_seen_at ? new Date(otherOnline.last_seen_at).getTime() : 0;
+        const staleThreshold = 3 * 60 * 1000; // 3분
+        const isStale = (Date.now() - lastSeen) > staleThreshold;
+
+        if (isStale) {
+          console.log(`[register-device] 🔄 Stale device "${otherOnline.device_name}" auto-offlined (last_seen: ${otherOnline.last_seen_at})`);
+          await supabase
+            .from("devices")
+            .update({ status: "offline", is_monitoring: false })
+            .eq("id", otherOnline.id);
+        } else {
+          const activeName = otherOnline.device_name || otherOnline.name || "Unknown";
+          console.log(`[register-device] ❌ Serial ${serial_key} already online on different device: ${activeName}`);
+          return new Response(
+            JSON.stringify({
+              error: "serial_in_use",
+              message: `이 시리얼은 현재 다른 기기(${activeName})에서 사용 중입니다. 해당 기기의 연결을 해제한 후 다시 시도해주세요.`,
+              active_device: activeName,
+            }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
     }
 
