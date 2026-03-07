@@ -11,6 +11,7 @@
   "settings.laptop": "Ноутбук",
   "settings.desktop": "Десктоп",
   "settings.tablet": "Планшет",
+  "settings.smartphone": "Смартфон",
   "settings.alarmSound": "Звук тревоги",
   "settings.volume": "Громкость",
   "settings.uploadSound": "Выбрать звук тревоги с устройства...",
