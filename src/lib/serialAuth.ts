@@ -24,6 +24,8 @@ function saveAuth(data: SerialAuthData): void {
   try { sessionStorage.setItem(STORAGE_KEY, json); } catch {}
   // localStorage에는 시리얼 키별로 저장하여 탭 간 충돌 방지
   try { localStorage.setItem(`${STORAGE_KEY}_${data.serial_key}`, json); } catch {}
+  // ★ 레거시 키도 항상 최신으로 유지 (loadAuth 폴백 시 최신 시리얼 보장)
+  try { localStorage.setItem(STORAGE_KEY, json); } catch {}
   // 마지막 사용 시리얼 키 기록 (폴백용)
   try { localStorage.setItem(`${STORAGE_KEY}_last`, data.serial_key); } catch {}
 }
