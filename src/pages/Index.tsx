@@ -863,7 +863,27 @@ const Index = ({ onExpired }: IndexProps) => {
         toast({
           title: appLanguage === "en" ? "🔒 Device Locked" : "🔒 기기 잠금",
           description: appLanguage === "en" ? "Remote lock activated from smartphone." : "스마트폰에서 원격 잠금이 활성화되었습니다.",
-        });
+      });
+
+      // 마스코트 보기/숨기기 원격 제어
+      channel.on('broadcast', { event: 'mascot_toggle' }, (payload) => {
+        const visible = payload.payload?.mascot_visible;
+        if (typeof visible !== "boolean") {
+          console.warn("[Index] ⚠️ Ignoring malformed mascot_toggle payload:", payload.payload);
+          return;
+        }
+        console.log("[Index] 📲 Broadcast mascot_toggle received:", visible);
+        setMascotVisible(visible);
+        localStorage.setItem('meercop-mascot-visible', String(visible));
+
+        // DB metadata에도 영속 저장
+        if (currentDevice?.id) {
+          updateDeviceViaEdge(currentDevice.id, {
+            metadata: { mascot_visible: visible },
+          })
+            .then(() => console.log("[Index] ✅ mascot_visible persisted to DB:", visible))
+            .catch((e) => console.warn("[Index] ⚠️ Failed to persist mascot_visible:", e));
+        }
       });
 
       // 메시지 명령: 토스트 알림으로 메시지 표시
