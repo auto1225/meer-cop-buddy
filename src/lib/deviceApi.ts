@@ -340,8 +340,8 @@ export async function updateDeviceViaEdge(
       headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
       body: JSON.stringify({ device_id: sharedId, updates: sharedUpdates }),
     })
-      .then(res => res.ok
-        ? console.log(`[deviceApi] ✅ Shared updated device ${sharedId}${sharedId !== deviceId ? ` (local: ${deviceId})` : ""}`)
+      .then(res => (res.ok || res.status === 409)
+        ? console.log(`[deviceApi] ✅ Shared updated device ${sharedId}${sharedId !== deviceId ? ` (local: ${deviceId})` : ""}${res.status === 409 ? " (409 ignored)" : ""}`)
         : res.text().then(t => console.warn("[deviceApi] ⚠️ Shared update failed:", t)))
       .catch(() => {});
   }
