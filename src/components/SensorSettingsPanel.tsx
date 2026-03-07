@@ -38,6 +38,8 @@ interface SensorSettingsPanelProps {
   appLanguage: string;
   onLanguageChange: (lang: string) => void;
   onBackgroundChange?: (bg: { id: string; value: string }) => void;
+  mascotVisible?: boolean;
+  onMascotToggle?: (visible: boolean) => void;
 }
 
 const SENSOR_ICONS: Record<string, React.ElementType> = {
