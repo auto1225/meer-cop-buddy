@@ -258,23 +258,34 @@ export async function registerDeviceViaEdge(
         const data = await res.json().catch(() => ({}));
         console.log("[deviceApi] ✅ Shared DB register OK:", data);
 
-        // 공유 DB가 반환한 이름과 요청한 이름이 다르면 → 즉시 이름 보정
+        // 공유 DB가 반환한 이름/타입과 요청한 값이 다르면 → 즉시 보정
         const returnedName = (data as any)?.device_name || (data as any)?.name || "";
+        const returnedType = (data as any)?.device_type || "";
         const requestedName = params.device_name;
+        const requestedType = params.device_type;
         const sharedDeviceId = (data as any)?.device_id || (data as any)?.id;
         const isDefault = (n: string) => !n || /^(Laptop\d*|My Laptop|Unknown)$/i.test(n.trim());
 
-        if (sharedDeviceId && requestedName && !isDefault(requestedName) && returnedName !== requestedName) {
-          console.log(`[deviceApi] 🔧 Shared DB name mismatch: "${returnedName}" → "${requestedName}", patching...`);
+        const patchPayload: Record<string, unknown> = {};
+        if (requestedName && !isDefault(requestedName) && returnedName !== requestedName) {
+          patchPayload.name = requestedName;
+        }
+        // ★ device_type 불일치도 보정 (시리얼을 다른 종류 기기에서 사용 시)
+        if (requestedType && returnedType && returnedType !== requestedType) {
+          patchPayload.device_type = requestedType;
+        }
+
+        if (sharedDeviceId && Object.keys(patchPayload).length > 0) {
+          console.log(`[deviceApi] 🔧 Shared DB mismatch patch:`, patchPayload);
           fetch(`${SHARED_SUPABASE_URL}/functions/v1/update-device`, {
             method: "POST",
             headers: { "Content-Type": "application/json", apikey: SHARED_SUPABASE_ANON_KEY },
-            body: JSON.stringify({ device_id: sharedDeviceId, name: requestedName }),
+            body: JSON.stringify({ device_id: sharedDeviceId, ...patchPayload }),
           })
             .then(r => (r.ok || r.status === 409)
-              ? console.log("[deviceApi] ✅ Shared DB name patched to:", requestedName, r.status === 409 ? "(409 ignored)" : "")
-              : r.text().then(t => console.warn("[deviceApi] ⚠️ Shared name patch failed:", t)))
-            .catch(e => console.warn("[deviceApi] ⚠️ Shared name patch error:", e));
+              ? console.log("[deviceApi] ✅ Shared DB patched:", patchPayload, r.status === 409 ? "(409 ignored)" : "")
+              : r.text().then(t => console.warn("[deviceApi] ⚠️ Shared patch failed:", t)))
+            .catch(e => console.warn("[deviceApi] ⚠️ Shared patch error:", e));
         }
       })
       .catch(err => console.warn("[deviceApi] ⚠️ Shared register error:", err));
