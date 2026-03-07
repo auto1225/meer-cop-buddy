@@ -5,15 +5,32 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+function isIos(): boolean {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function isInStandaloneMode(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as any).standalone === true
+  );
+}
+
 export function usePwaInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isIosDevice, setIsIosDevice] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
+    // Check if already installed (standalone mode)
+    if (isInStandaloneMode()) {
       setIsInstalled(true);
       return;
+    }
+
+    // Detect iOS
+    if (isIos()) {
+      setIsIosDevice(true);
     }
 
     const handler = (e: Event) => {
@@ -42,5 +59,10 @@ export function usePwaInstall() {
     return outcome === "accepted";
   };
 
-  return { canInstall: !!deferredPrompt && !isInstalled, isInstalled, install };
+  // canInstall is true if:
+  // 1) Android/Chrome: beforeinstallprompt fired, OR
+  // 2) iOS Safari: not yet installed (show manual instructions)
+  const canInstall = (!isInstalled) && (!!deferredPrompt || isIosDevice);
+
+  return { canInstall, isInstalled, isIosDevice, install };
 }

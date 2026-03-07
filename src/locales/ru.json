@@ -266,5 +266,7 @@
   "pwa.installTitle": "Установите MeerCOP!",
   "pwa.installDesc": "Добавьте на главный экран для быстрого доступа.",
   "pwa.installButton": "Установить",
-  "pwa.later": "Позже"
+  "pwa.later": "Позже",
+  "pwa.iosInstructions": "Нажмите кнопку «Поделиться» (□↑) внизу Safari, затем выберите «На экран Домой».",
+  "pwa.iosShareButton": "Поделиться → На экран Домой"
 }

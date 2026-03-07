@@ -266,5 +266,7 @@
   "pwa.installTitle": "MeerCOP इंस्टॉल करें!",
   "pwa.installDesc": "होम स्क्रीन पर जोड़ें, तेज़ और आसान एक्सेस के लिए।",
   "pwa.installButton": "अभी इंस्टॉल करें",
-  "pwa.later": "बाद में"
+  "pwa.later": "बाद में",
+  "pwa.iosInstructions": "Safari के नीचे शेयर बटन (□↑) दबाएं, फिर 'होम स्क्रीन पर जोड़ें' चुनें।",
+  "pwa.iosShareButton": "शेयर → होम स्क्रीन पर जोड़ें"
 }

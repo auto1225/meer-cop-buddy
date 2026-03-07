@@ -404,5 +404,7 @@
   "pwa.installTitle": "アプリをインストール！",
   "pwa.installDesc": "ホーム画面に追加して、より速く便利に使いましょう。",
   "pwa.installButton": "今すぐインストール",
-  "pwa.later": "後で"
+  "pwa.later": "後で",
+  "pwa.iosInstructions": "Safari下部の共有ボタン(□↑)をタップし、「ホーム画面に追加」を選択してください。",
+  "pwa.iosShareButton": "共有 → ホーム画面に追加"
 }

@@ -1,13 +1,13 @@
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 import { useTranslation } from "@/lib/i18n";
-import { Download, X } from "lucide-react";
+import { Download, Share, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import meercopMascot from "@/assets/meercop-mascot.png";
 
 const DISMISS_KEY = "meercop-pwa-install-dismissed";
 
 export function PwaInstallPopup() {
-  const { canInstall, isInstalled, install } = usePwaInstall();
+  const { canInstall, isInstalled, isIosDevice, install } = usePwaInstall();
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(() => {
     const val = localStorage.getItem(DISMISS_KEY);
@@ -31,6 +31,12 @@ export function PwaInstallPopup() {
   if (!visible) return null;
 
   const handleInstall = async () => {
+    if (isIosDevice) {
+      // Can't programmatically install on iOS — just dismiss
+      // The instructions are shown in the popup
+      handleDismiss();
+      return;
+    }
     await install();
     setVisible(false);
   };
@@ -67,19 +73,27 @@ export function PwaInstallPopup() {
             {t("pwa.installTitle")}
           </h3>
           <p className="text-white/70 text-sm leading-relaxed">
-            {t("pwa.installDesc")}
+            {isIosDevice ? t("pwa.iosInstructions") : t("pwa.installDesc")}
           </p>
         </div>
 
         {/* Buttons */}
         <div className="space-y-2.5">
-          <button
-            onClick={handleInstall}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-accent/90 hover:bg-accent text-white font-bold text-sm rounded-2xl transition-all hover:scale-[1.02] shadow-lg"
-          >
-            <Download className="w-5 h-5" />
-            {t("pwa.installButton")}
-          </button>
+          {!isIosDevice && (
+            <button
+              onClick={handleInstall}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-accent/90 hover:bg-accent text-white font-bold text-sm rounded-2xl transition-all hover:scale-[1.02] shadow-lg"
+            >
+              <Download className="w-5 h-5" />
+              {t("pwa.installButton")}
+            </button>
+          )}
+          {isIosDevice && (
+            <div className="flex items-center justify-center gap-2 py-3 bg-white/10 text-white/80 text-sm rounded-2xl">
+              <Share className="w-5 h-5" />
+              {t("pwa.iosShareButton")}
+            </div>
+          )}
           <button
             onClick={handleDismiss}
             className="w-full py-2.5 text-white/50 hover:text-white/70 text-xs font-semibold transition-colors"

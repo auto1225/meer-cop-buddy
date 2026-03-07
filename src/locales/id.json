@@ -266,5 +266,7 @@
   "pwa.installTitle": "Instal MeerCOP!",
   "pwa.installDesc": "Tambahkan ke layar utama untuk akses lebih cepat.",
   "pwa.installButton": "Instal Sekarang",
-  "pwa.later": "Nanti"
+  "pwa.later": "Nanti",
+  "pwa.iosInstructions": "Ketuk tombol Bagikan (□↑) di bagian bawah Safari, lalu pilih 'Tambahkan ke Layar Utama'.",
+  "pwa.iosShareButton": "Bagikan → Layar Utama"
 }
