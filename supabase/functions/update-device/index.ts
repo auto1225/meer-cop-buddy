@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
     const { device_id, updates, ...directUpdates } = body;
 
     const id = device_id;
-    // Support both { device_id, updates: {...} } and { device_id, key: val }
     const fieldsToUpdate: Record<string, unknown> = (updates || directUpdates) as Record<string, unknown>;
 
     if (!id) {
@@ -34,7 +33,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Remove device_id from updates if present
     delete fieldsToUpdate.device_id;
 
     const supabase = createClient(
@@ -42,7 +40,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Detect if id is a UUID or a composite ID (e.g. userId_serial_type)
+    // Detect if id is a UUID or a composite ID
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     const matchCol = isUuid ? "id" : "device_id";
 
@@ -80,7 +78,11 @@ Deno.serve(async (req) => {
       fieldsToUpdate.device_name = fieldsToUpdate.name;
     }
 
-    // Whitelist: only allow known columns to prevent schema cache errors
+    // ★ 기기명 변경 감지: licenses.device_name SSOT 동기화를 위해 플래그 설정
+    const nameChanged = !!(fieldsToUpdate.name || fieldsToUpdate.device_name);
+    const newDeviceName = (fieldsToUpdate.device_name || fieldsToUpdate.name) as string | undefined;
+
+    // Whitelist: only allow known columns
     const allowedColumns = new Set([
       "device_id", "device_type", "status", "name", "device_name",
       "is_monitoring", "is_camera_connected", "is_network_connected",
@@ -99,7 +101,6 @@ Deno.serve(async (req) => {
     let error: any = null;
 
     if (isUuid) {
-      // Try matching by UUID (id) first, then fall back to device_id column
       const result1 = await supabase
         .from("devices")
         .update(fieldsToUpdate)
@@ -121,7 +122,6 @@ Deno.serve(async (req) => {
         error = result2.error;
       }
     } else {
-      // Composite ID: match by device_id column directly (skip UUID column)
       const result = await supabase
         .from("devices")
         .update(fieldsToUpdate)
@@ -153,6 +153,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ★ SSOT 동기화: 기기명이 변경되었으면 licenses.device_name도 업데이트
+    if (nameChanged && newDeviceName && data) {
+      try {
+        const deviceUuid = data.id;
+        if (deviceUuid) {
+          const { data: updatedLicenses, error: licError } = await supabase
+            .from("licenses")
+            .update({ device_name: newDeviceName, updated_at: new Date().toISOString() })
+            .eq("device_id", deviceUuid);
+          
+          if (licError) {
+            console.warn("update-device: licenses sync error:", licError);
+          } else {
+            console.log(`update-device: ✅ licenses.device_name synced to "${newDeviceName}" for device ${deviceUuid}`);
+          }
+        }
+      } catch (licErr) {
+        console.warn("update-device: licenses sync failed:", licErr);
+      }
+    }
 
     return new Response(
       JSON.stringify({ device: data }),
