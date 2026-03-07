@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Mesmo após o furto do notebook, **rastreamento de localização e coleta de evidências** permanecem possíveis.\n\n• Ative o **modo de recuperação** pelo smartphone e o notebook transmitirá automaticamente localização e fotos.\n• Mais eficaz combinado com o modo camuflagem.\n• As informações coletadas podem ser usadas como evidência ao registrar um boletim de ocorrência.",
   "help.faq": "FAQ",
   "help.contact": "Contato",
+  "settings.mascotDisplay": "Exibir personagem",
+  "settings.mascotDisplayDesc": "Mostrar/ocultar personagem mascote e balão de fala",
   "camera.title": "Câmera",
   "camera.connecting": "Conectando câmera...",
   "camera.retry": "Tentar novamente",

@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Ngay cả sau khi laptop bị đánh cắp, **theo dõi vị trí và thu thập bằng chứng** vẫn khả thi.\n\n• Kích hoạt **chế độ khôi phục** từ điện thoại, laptop sẽ tự động truyền vị trí và ảnh.\n• Hiệu quả hơn khi kết hợp với chế độ ngụy trang.\n• Thông tin thu thập có thể dùng làm bằng chứng khi trình báo công an.",
   "help.faq": "Câu hỏi thường gặp",
   "help.contact": "Liên hệ",
+  "settings.mascotDisplay": "Hiển thị nhân vật",
+  "settings.mascotDisplayDesc": "Hiển thị/ẩn nhân vật linh vật và bong bóng hội thoại",
   "camera.title": "Camera",
   "camera.connecting": "Đang kết nối camera...",
   "camera.retry": "Thử lại",

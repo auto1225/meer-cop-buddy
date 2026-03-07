@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Anche dopo il furto del laptop, **tracciamento posizione e raccolta prove** rimangono possibili.\n\n• Attiva la **modalità recupero** dallo smartphone e il laptop trasmetterà automaticamente posizione e foto.\n• Ancora più efficace combinata con la modalità mimetica.\n• Le informazioni raccolte possono essere usate come prove per una denuncia alla polizia.",
   "help.faq": "FAQ",
   "help.contact": "Contatti",
+  "settings.mascotDisplay": "Mostra personaggio",
+  "settings.mascotDisplayDesc": "Mostra/nascondi personaggio mascotte e fumetto",
   "camera.title": "Fotocamera",
   "camera.connecting": "Connessione fotocamera...",
   "camera.retry": "Riprova",

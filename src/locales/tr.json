@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Dizüstü çalındıktan sonra bile **konum takibi ve kanıt toplama** mümkündür.\n\n• Akıllı telefondan **kurtarma modunu** etkinleştirin, dizüstü otomatik olarak konum ve fotoğraf iletir.\n• Kamuflaj moduyla birlikte kullanıldığında daha etkilidir.\n• Toplanan bilgiler polise başvururken kanıt olarak kullanılabilir.",
   "help.faq": "SSS",
   "help.contact": "İletişim",
+  "settings.mascotDisplay": "Karakter Gösterimi",
+  "settings.mascotDisplayDesc": "Maskot karakter ve konuşma balonunu göster/gizle",
   "camera.title": "Kamera",
   "camera.connecting": "Kamera bağlanıyor...",
   "camera.retry": "Tekrar dene",

@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Même après le vol du portable, le **suivi de position et la collecte de preuves** restent possibles.\n\n• Activez le **mode récupération** depuis le smartphone et le portable transmettra automatiquement sa position et des photos.\n• Encore plus efficace combiné au mode camouflage.\n• Les informations collectées peuvent servir de preuves lors d'un dépôt de plainte.",
   "help.faq": "FAQ",
   "help.contact": "Contact",
+  "settings.mascotDisplay": "Affichage du personnage",
+  "settings.mascotDisplayDesc": "Afficher/masquer le personnage mascotte et la bulle de dialogue",
   "camera.title": "Caméra",
   "camera.connecting": "Connexion de la caméra...",
   "camera.retry": "Réessayer",

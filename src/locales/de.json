@@ -116,6 +116,8 @@
   "help.stealRecoveryContent": "Auch nach dem Diebstahl des Laptops sind **Standortverfolgung und Beweissicherung** möglich.\n\n• Aktivieren Sie den **Wiederherstellungsmodus** vom Smartphone und der Laptop überträgt automatisch Standort und Fotos.\n• Noch effektiver in Kombination mit dem Tarnmodus.\n• Gesammelte Informationen können als Beweismittel bei der Polizei verwendet werden.",
   "help.faq": "FAQ",
   "help.contact": "Kontakt",
+  "settings.mascotDisplay": "Charakter anzeigen",
+  "settings.mascotDisplayDesc": "Maskottchen und Sprechblase ein-/ausblenden",
   "camera.title": "Kamera",
   "camera.connecting": "Kamera verbindet...",
   "camera.retry": "Wiederholen",
