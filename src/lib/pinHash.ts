@@ -22,13 +22,14 @@ export async function verifyPin(
   metadata: { alarm_pin_hash?: string; alarm_pin?: string } | null,
   localPin?: string
 ): Promise<boolean> {
+  const hasConfiguredPin = !!(metadata?.alarm_pin_hash || metadata?.alarm_pin || localPin);
+
   if (!metadata) return inputPin === (localPin || "1234");
 
   // 1순위: 해시 비교 (같은 device_id로 해싱된 경우)
   if (metadata.alarm_pin_hash) {
     const inputHash = await hashPin(inputPin, deviceId);
     if (inputHash === metadata.alarm_pin_hash) return true;
-    // 해시 불일치 → 다른 기기(스마트폰)에서 생성된 해시일 수 있음 → 폴백 진행
   }
 
   // 2순위: 평문 비교 (스마트폰에서 settings_updated로 전송된 PIN)
@@ -36,11 +37,14 @@ export async function verifyPin(
     if (inputPin === metadata.alarm_pin) return true;
   }
 
-  // 3순위: localStorage에 저장된 PIN (settings_updated 브로드캐스트로 수신)
+  // 3순위: localStorage에 저장된 PIN
   if (localPin && inputPin === localPin) {
     return true;
   }
 
-  // 기본 PIN
+  // PIN이 설정되어 있으면 기본값 폴백 차단
+  if (hasConfiguredPin) return false;
+
+  // PIN이 한 번도 설정된 적 없는 경우에만 기본값 허용
   return inputPin === "1234";
 }
