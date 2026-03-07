@@ -29,6 +29,7 @@ interface SensorSettingsPanelProps {
   onAlarmVolumeChange: (volume: number) => void;
   isMonitoring: boolean;
   deviceType?: string;
+  capabilities?: Record<string, boolean>;
   availableSounds: AlarmSoundConfig[];
   selectedSoundId: string;
   onSoundChange: (id: string) => void;
