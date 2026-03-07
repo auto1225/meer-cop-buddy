@@ -12,6 +12,7 @@ interface DeviceNameBadgeProps {
   deviceName: string;
   deviceId?: string;
   onNameChanged?: (newName: string) => void;
+  onDuplicateName?: (message: string) => void;
 }
 
 export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceNameBadgeProps) {
