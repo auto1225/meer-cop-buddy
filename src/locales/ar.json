@@ -268,5 +268,14 @@
   "pwa.installButton": "تثبيت الآن",
   "pwa.later": "لاحقًا",
   "pwa.iosInstructions": "اضغط على زر المشاركة (□↑) أسفل Safari، ثم اختر 'إضافة إلى الشاشة الرئيسية'.",
-  "pwa.iosShareButton": "مشاركة → الشاشة الرئيسية"
+  "pwa.iosShareButton": "مشاركة → الشاشة الرئيسية",
+  "bg.title": "الخلفية",
+  "bg.default": "افتراضي",
+  "bg.sunset": "غروب",
+  "bg.night": "ليل",
+  "bg.forest": "غابة",
+  "bg.ocean": "محيط",
+  "bg.aurora": "شفق",
+  "bg.custom": "مخصص",
+  "bg.upload": "رفع"
 }

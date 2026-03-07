@@ -406,5 +406,14 @@
   "pwa.installButton": "立即安装",
   "pwa.later": "稍后再说",
   "pwa.iosInstructions": "点击Safari底部的分享按钮(□↑)，然后选择'添加到主屏幕'。",
-  "pwa.iosShareButton": "分享 → 添加到主屏幕"
+  "pwa.iosShareButton": "分享 → 添加到主屏幕",
+  "bg.title": "背景设置",
+  "bg.default": "默认",
+  "bg.sunset": "日落",
+  "bg.night": "夜空",
+  "bg.forest": "森林",
+  "bg.ocean": "海洋",
+  "bg.aurora": "极光",
+  "bg.custom": "自定义",
+  "bg.upload": "上传"
 }

@@ -268,5 +268,14 @@
   "pwa.installButton": "Установить",
   "pwa.later": "Позже",
   "pwa.iosInstructions": "Нажмите кнопку «Поделиться» (□↑) внизу Safari, затем выберите «На экран Домой».",
-  "pwa.iosShareButton": "Поделиться → На экран Домой"
+  "pwa.iosShareButton": "Поделиться → На экран Домой",
+  "bg.title": "Фон",
+  "bg.default": "По умолчанию",
+  "bg.sunset": "Закат",
+  "bg.night": "Ночь",
+  "bg.forest": "Лес",
+  "bg.ocean": "Океан",
+  "bg.aurora": "Сияние",
+  "bg.custom": "Своё",
+  "bg.upload": "Загрузить"
 }

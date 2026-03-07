@@ -268,5 +268,14 @@
   "pwa.installButton": "Instalar Ahora",
   "pwa.later": "Más Tarde",
   "pwa.iosInstructions": "Toca el botón Compartir (□↑) en la parte inferior de Safari y selecciona 'Añadir a pantalla de inicio'.",
-  "pwa.iosShareButton": "Compartir → Pantalla de inicio"
+  "pwa.iosShareButton": "Compartir → Pantalla de inicio",
+  "bg.title": "Fondo",
+  "bg.default": "Predeterminado",
+  "bg.sunset": "Atardecer",
+  "bg.night": "Noche",
+  "bg.forest": "Bosque",
+  "bg.ocean": "Océano",
+  "bg.aurora": "Aurora",
+  "bg.custom": "Personalizado",
+  "bg.upload": "Subir"
 }

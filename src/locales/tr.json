@@ -268,5 +268,14 @@
   "pwa.installButton": "Şimdi Kur",
   "pwa.later": "Daha Sonra",
   "pwa.iosInstructions": "Safari'nin altındaki Paylaş düğmesine (□↑) dokunun, ardından 'Ana Ekrana Ekle'yi seçin.",
-  "pwa.iosShareButton": "Paylaş → Ana Ekrana Ekle"
+  "pwa.iosShareButton": "Paylaş → Ana Ekrana Ekle",
+  "bg.title": "Arka Plan",
+  "bg.default": "Varsayılan",
+  "bg.sunset": "Gün batımı",
+  "bg.night": "Gece",
+  "bg.forest": "Orman",
+  "bg.ocean": "Okyanus",
+  "bg.aurora": "Kutup ışığı",
+  "bg.custom": "Özel",
+  "bg.upload": "Yükle"
 }
