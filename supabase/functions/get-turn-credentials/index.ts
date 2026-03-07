@@ -50,15 +50,33 @@ serve(async (req) => {
 
       if (!createRes.ok) {
         const text = await createRes.text();
-        console.error("[get-turn-credentials] Create credential error:", createRes.status, text);
-        return new Response(
-          JSON.stringify({ error: "Failed to create TURN credential", status: createRes.status }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+        console.warn("[get-turn-credentials] Create credential error:", createRes.status, text);
 
-      cred = await createRes.json();
-      console.log("[get-turn-credentials] Created new credential for user:", cred!.username);
+        // 403 = max limit reached. Retry listing (concurrent request may have created one)
+        if (createRes.status === 403) {
+          const retryRes = await fetch(
+            `https://meercop.metered.live/api/v1/turn/credential?secretKey=${secretKey}`,
+            { method: "GET" }
+          );
+          if (retryRes.ok) {
+            const retryCreds = await retryRes.json();
+            if (Array.isArray(retryCreds) && retryCreds.length > 0) {
+              cred = retryCreds[retryCreds.length - 1];
+              console.log("[get-turn-credentials] Reused credential on retry for user:", cred!.username);
+            }
+          }
+        }
+
+        if (!cred) {
+          return new Response(
+            JSON.stringify({ error: "Failed to create TURN credential", status: createRes.status }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        cred = await createRes.json();
+        console.log("[get-turn-credentials] Created new credential for user:", cred!.username);
+      }
     }
 
     // Return ICE servers in RTCPeerConnection format
