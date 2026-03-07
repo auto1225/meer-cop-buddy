@@ -29,7 +29,11 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const consecutiveFalseRef = useRef(0);
   const checkIdRef = useRef(0); // 각 체크 사이클의 고유 ID
-  const DOWNGRADE_THRESHOLD = 3;
+  const isMobile = /Android|iPad|iPhone|iPod/i.test(navigator.userAgent);
+  // 모바일은 enumerateDevices가 불안정하므로 더 높은 threshold 사용
+  const DOWNGRADE_THRESHOLD = isMobile ? 6 : 3;
+  const RETRY_INTERVAL = isMobile ? 1000 : 500;
+  const DEVICECHANGE_DEBOUNCE = isMobile ? 2000 : 1000;
 
   const clearRetryTimer = useCallback(() => {
     if (retryTimerRef.current) {
