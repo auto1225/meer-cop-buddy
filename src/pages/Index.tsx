@@ -866,6 +866,10 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'camouflage_toggle' }, (payload) => {
         const raw = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(raw)) {
+          console.log("[Index] ⏭️ camouflage_toggle for different device, ignoring");
+          return;
+        }
         const camouflageRaw = raw?.camouflage_mode ?? raw?.camouflageMode;
 
         // ✅ payload에 명시적 boolean이 있을 때만 반영 (기본값 false로 강제 해제 금지)
