@@ -243,6 +243,13 @@ export function AutoBroadcaster({ deviceId, userId, sharedDeviceId: sharedDevice
   const SHARED_ID_STORAGE_KEY = `meercop_shared_device_id_${deviceId}`;
   const sharedIdResolvedOnceRef = useRef(false);
 
+  // deviceId가 바뀌면 이전 매칭 캐시 상태를 초기화 (시리얼 전환 시 ID 혼선 방지)
+  useEffect(() => {
+    sharedIdResolvedOnceRef.current = false;
+    sharedDeviceIdRef.current = "";
+    setSignalingDeviceId("");
+  }, [deviceId]);
+
   const resolveSharedDeviceId = useCallback(async (
     localDevice: any,
     sharedDevices: any[]
