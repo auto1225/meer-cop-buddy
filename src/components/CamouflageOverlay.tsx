@@ -54,8 +54,8 @@ export function CamouflageOverlay({ isActive }: CamouflageOverlayProps) {
     <div
       className="fixed inset-0 z-[9999] bg-black"
       style={{ cursor: "none" }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseMove={(e) => e.stopPropagation()}
+      onClick={(e) => e.preventDefault()}
+      onMouseMove={() => { /* allow propagation for sensor detection */ }}
     />
   );
 }
