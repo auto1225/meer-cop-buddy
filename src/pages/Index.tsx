@@ -38,6 +38,7 @@ import { setSharedDeviceId } from "@/lib/sharedDeviceIdMap";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useAppStabilizer } from "@/hooks/useAppStabilizer";
 import { I18nProvider, type Lang } from "@/lib/i18n";
+import { getSelectedBackground } from "@/components/BackgroundSettings";
 import mainBg from "@/assets/main-bg.png";
 
 interface IndexProps {
