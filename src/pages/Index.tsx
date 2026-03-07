@@ -912,7 +912,12 @@ const Index = ({ onExpired }: IndexProps) => {
 
       // 마스코트 보기/숨기기 원격 제어
       channel.on('broadcast', { event: 'mascot_toggle' }, (payload) => {
-        const visible = payload.payload?.mascot_visible;
+        const p = payload.payload as Record<string, unknown> | undefined;
+        if (!isForThisDevice(p)) {
+          console.log("[Index] ⏭️ mascot_toggle for different device, ignoring");
+          return;
+        }
+        const visible = p?.mascot_visible;
         if (typeof visible !== "boolean") {
           console.warn("[Index] ⚠️ Ignoring malformed mascot_toggle payload:", payload.payload);
           return;
