@@ -752,6 +752,7 @@ const Index = ({ onExpired }: IndexProps) => {
                   is_monitoring: enable,
                   device_id: currentDevice?.id,
                   device_name: currentDevice?.device_name,
+                  serial_key: savedAuth.serial_key,
                   acked_at: new Date().toISOString(),
                 },
               });
