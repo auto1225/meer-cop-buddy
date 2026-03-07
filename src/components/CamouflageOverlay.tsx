@@ -26,9 +26,9 @@ export function CamouflageOverlay({ isActive }: CamouflageOverlayProps) {
 
     const blockKeys = (e: KeyboardEvent) => {
       // Allow F11 for fullscreen toggle (browser native), block everything else
+      // ⚠️ DO NOT stopPropagation — sensors must still detect keyboard events
       if (e.key !== "F11") {
         e.preventDefault();
-        e.stopPropagation();
       }
     };
 
