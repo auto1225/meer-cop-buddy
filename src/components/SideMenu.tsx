@@ -65,7 +65,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
             <div>
               <h2 className="font-extrabold text-base drop-shadow">MeerCOP</h2>
               <span className="text-[10px] text-white/60 font-semibold">
-                {t("menu.lastUpdated")}: {new Date().toLocaleDateString()}
+                {t("menu.lastUpdated")}: {BUILD_DATE}
               </span>
             </div>
           </div>
