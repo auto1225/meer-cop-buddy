@@ -15,7 +15,7 @@ interface DeviceNameBadgeProps {
   onDuplicateName?: (message: string) => void;
 }
 
-export function DeviceNameBadge({ deviceName, deviceId, onNameChanged }: DeviceNameBadgeProps) {
+export function DeviceNameBadge({ deviceName, deviceId, onNameChanged, onDuplicateName }: DeviceNameBadgeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(deviceName);
   const [isSaving, setIsSaving] = useState(false);
