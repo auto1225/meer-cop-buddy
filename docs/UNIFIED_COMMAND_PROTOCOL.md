@@ -19,6 +19,7 @@
 | 경보 해제 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
 | 잠금 명령 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
 | 메시지 전송 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
+| 마스코트 보기/숨기기 | **Broadcast** | `user-commands-${userId}` | 📱→💻 |
 | 위치 요청 | **DB metadata** | `devices.metadata.locate_requested` | 📱→💻 |
 | 네트워크 요청 | **DB metadata** | `devices.metadata.network_info_requested` | 📱→💻 |
 | 경보 발생/해제 | **Presence** | `user-alerts-${userId}` | 💻→📱 |
@@ -118,6 +119,26 @@ await commandChannel.send({
   payload: { title: "📩 메시지", message: "여기 있어요?" }
 });
 ```
+
+### 마스코트(캐릭터) 보기/숨기기
+```typescript
+await commandChannel.send({
+  type: 'broadcast',
+  event: 'mascot_toggle',
+  payload: { mascot_visible: false }  // true: 표시, false: 숨김
+});
+
+// DB metadata에도 동기화 (영속성)
+await updateDeviceViaEdge(deviceId, {
+  metadata: { ...currentMeta, mascot_visible: false }
+});
+```
+
+**노트북 수신 처리:**
+- `mascot_visible` 값을 `localStorage('meercop-mascot-visible')`에 저장
+- `LaptopMascotSection` 컴포넌트의 `mascotVisible` 상태를 즉시 갱신
+- 마스코트 이미지와 말풍선이 함께 숨겨지거나 표시됨
+- 숨김 상태에서도 하단 상태바를 통해 보안 상태 확인 가능
 
 ---
 
