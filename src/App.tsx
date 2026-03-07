@@ -11,12 +11,46 @@ import Landing from "./pages/Landing";
 import MotionTest from "./pages/MotionTest";
 import NotFound from "./pages/NotFound";
 import { getSavedAuth, clearAuth } from "@/lib/serialAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const queryClient = new QueryClient();
+
+const BUILD_TIMESTAMP = Number(import.meta.env.VITE_BUILD_TIMESTAMP || Date.now());
+
+/** Register current build version in app_versions table (once per build) */
+const registerBuildVersion = async () => {
+  const registeredKey = `meercop_build_registered_${BUILD_TIMESTAMP}`;
+  if (localStorage.getItem(registeredKey)) return;
+
+  try {
+    // Check if this build_timestamp already exists
+    const { data } = await supabase
+      .from("app_versions")
+      .select("id")
+      .eq("build_timestamp", BUILD_TIMESTAMP)
+      .limit(1);
+
+    if (!data || data.length === 0) {
+      await supabase.from("app_versions").insert({
+        build_timestamp: BUILD_TIMESTAMP,
+        version_code: new Date(BUILD_TIMESTAMP).toISOString().slice(0, 16).replace("T", " "),
+      });
+    }
+
+    localStorage.setItem(registeredKey, "1");
+  } catch {
+    // silent fail — non-critical
+  }
+};
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!getSavedAuth());
   
+
+  // Register current build version on startup
+  useEffect(() => {
+    registerBuildVersion();
+  }, []);
 
   // Global error handler for unhandled promise rejections
   useEffect(() => {
