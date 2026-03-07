@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle, Download, CheckCircle } from "lucide-react";
+import { ArrowLeft, User, HelpCircle, LogOut, Key, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { getSavedAuth } from "@/lib/serialAuth";
