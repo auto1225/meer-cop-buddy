@@ -347,6 +347,22 @@ export function SensorSettingsPanel({
           <BackgroundSettings onBackgroundChange={onBackgroundChange || (() => {})} />
         </section>
 
+        {/* Mascot Display Toggle */}
+        <section className={`${glassCard} px-3 py-2.5`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Eye className="w-3 h-3 text-white/80" />
+              <p className="text-[10px] font-extrabold text-white/80 drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{t("settings.mascotDisplay")}</p>
+            </div>
+            <Switch
+              checked={mascotVisible ?? true}
+              onCheckedChange={(checked) => onMascotToggle?.(checked)}
+              className="scale-75"
+            />
+          </div>
+          <p className="text-[9px] text-white/40 mt-1">{t("settings.mascotDisplayDesc")}</p>
+        </section>
+
         {/* Language Setting - Display only (set from smartphone) */}
         <section className={`${glassCard} px-3 py-2.5`}>
           <div className="flex items-center gap-1.5 mb-1.5">
