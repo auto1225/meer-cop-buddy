@@ -26,6 +26,7 @@
   "sensor.mouse": "Mouse",
   "sensor.usb": "USB",
   "sensor.power": "Power Cable",
+  "sensor.screenTouch": "Screen Touch",
   "sensor.motionTest": "Motion Test",
   "language.title": "Language",
   "language.changeFromPhone": "Changeable from smartphone app",
