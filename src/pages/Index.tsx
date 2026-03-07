@@ -925,7 +925,7 @@ const Index = ({ onExpired }: IndexProps) => {
       // 마스코트 보기/숨기기 원격 제어
       channel.on('broadcast', { event: 'mascot_toggle' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ mascot_toggle for different device, ignoring");
           return;
         }
