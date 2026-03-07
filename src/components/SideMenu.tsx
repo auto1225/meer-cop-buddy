@@ -165,8 +165,19 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
           <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-4 space-y-3">
             {/* Avatar + Name row */}
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-white/15 backdrop-blur rounded-full flex items-center justify-center border border-white/25 shadow-lg shrink-0">
-                <User className="w-5 h-5 text-white/80" />
+              <div className="w-11 h-11 bg-white/15 backdrop-blur rounded-full flex items-center justify-center border border-white/25 shadow-lg shrink-0 overflow-hidden">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    onError={() => setAvatarUrl(null)}
+                  />
+                ) : (
+                  <span className="text-base font-extrabold text-white/80">
+                    {(deviceName || "?").charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
               <p className="text-sm font-extrabold drop-shadow truncate">{deviceName}</p>
             </div>
