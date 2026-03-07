@@ -849,7 +849,7 @@ const Index = ({ onExpired }: IndexProps) => {
 
       channel.on('broadcast', { event: 'remote_alarm_off' }, (payload) => {
         const p = payload.payload as Record<string, unknown> | undefined;
-        if (!isForThisDevice(p)) {
+        if (!isForThisDevice(p, chName)) {
           console.log("[Index] ⏭️ remote_alarm_off for different device, ignoring");
           return;
         }
