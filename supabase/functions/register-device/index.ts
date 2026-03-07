@@ -13,6 +13,56 @@ function isDefaultName(name: string | null | undefined): boolean {
   return !n || ["my laptop", "my smartphone", "unknown", "laptop", "laptop1"].includes(n);
 }
 
+/**
+ * 동일 user_id 내에서 이름 중복을 방지합니다.
+ * 중복 시 시리얼 키 앞 4자리를 접미사로 붙여 고유 이름을 생성합니다.
+ * 예: "2221" → "2221 (EE03)"
+ */
+async function deduplicateName(
+  supabase: any,
+  userId: string,
+  candidateName: string,
+  myCompositeId: string,
+  serialKey: string | null
+): Promise<string> {
+  if (isDefaultName(candidateName)) return candidateName;
+
+  // 같은 user_id, 같은 이름, 다른 device_id를 가진 기기가 있는지 확인
+  const { data: sameNameDevices } = await supabase
+    .from("devices")
+    .select("device_id, device_name, name")
+    .eq("user_id", userId)
+    .neq("device_id", myCompositeId);
+
+  if (!sameNameDevices || sameNameDevices.length === 0) return candidateName;
+
+  const conflicting = sameNameDevices.filter((d: any) => {
+    const dName = (d.device_name || d.name || "").trim().toLowerCase();
+    return dName === candidateName.trim().toLowerCase();
+  });
+
+  if (conflicting.length === 0) return candidateName;
+
+  // 중복 발견 → 시리얼 키 접미사 추가
+  if (serialKey && serialKey.length >= 4) {
+    const suffix = serialKey.slice(-4).toUpperCase();
+    const newName = `${candidateName} (${suffix})`;
+    console.log(`[register-device] 🔄 Name conflict: "${candidateName}" → "${newName}"`);
+    return newName;
+  }
+
+  // 시리얼 키 없으면 숫자 접미사
+  let counter = 2;
+  let newName = `${candidateName} (${counter})`;
+  const allNames = new Set(sameNameDevices.map((d: any) => (d.device_name || d.name || "").trim().toLowerCase()));
+  while (allNames.has(newName.toLowerCase())) {
+    counter++;
+    newName = `${candidateName} (${counter})`;
+  }
+  console.log(`[register-device] 🔄 Name conflict: "${candidateName}" → "${newName}"`);
+  return newName;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -77,15 +127,10 @@ Deno.serve(async (req) => {
 
     if (existing) {
       // ── 기존 기기: 이름 보존 규칙 ──
-      // 원칙: DB에 저장된 비기본 이름은 절대 덮어쓰지 않음
       const existingName = existing.device_name || existing.name || "";
       const existingHasCustomName = !isDefaultName(existingName);
       const requestHasCustomName = !isDefaultName(finalName);
 
-      // 최종 이름 결정 로직:
-      // 1) 기존에 커스텀 이름이 있으면 → 무조건 보존
-      // 2) 기존이 기본값이고 요청도 기본값 → 기존 유지
-      // 3) 기존이 기본값이고 요청이 커스텀 → 요청 값 사용
       let resolvedName: string;
       if (existingHasCustomName) {
         resolvedName = existingName;
@@ -94,6 +139,9 @@ Deno.serve(async (req) => {
       } else {
         resolvedName = existingName || finalName;
       }
+
+      // ★ 중복 이름 검사 및 자동 교정
+      resolvedName = await deduplicateName(supabase, finalUserId, resolvedName, compositeDeviceId, serial_key);
 
       const updateFields: Record<string, unknown> = {
         last_seen_at: new Date().toISOString(),
@@ -120,16 +168,18 @@ Deno.serve(async (req) => {
         last_seen_at: updateFields.last_seen_at,
       };
 
-      console.log(`[register-device] ♻️ Existing device updated: name="${resolvedName}" (was="${existingName}", requested="${finalName}")`);
+      console.log(`[register-device] ♻️ Existing device updated: name="${resolvedName}" (was="${existingName}", requested="${finalName}", serial="${serial_key || 'none'}")`);
     } else {
-      // Insert new device
+      // ★ 새 기기: 중복 이름 검사 후 삽입
+      const dedupedName = await deduplicateName(supabase, finalUserId, finalName, compositeDeviceId, serial_key);
+
       const { data: inserted, error } = await supabase
         .from("devices")
         .insert({
           device_id: compositeDeviceId,
           user_id: finalUserId,
-          device_name: finalName,
-          name: finalName,
+          device_name: dedupedName,
+          name: dedupedName,
           device_type: finalType,
           status: "online",
           is_monitoring: false,
@@ -149,7 +199,7 @@ Deno.serve(async (req) => {
         );
       }
       resultDevice = inserted;
-      console.log(`[register-device] 🆕 New device inserted: name="${finalName}"`);
+      console.log(`[register-device] 🆕 New device inserted: name="${dedupedName}" (requested="${finalName}", serial="${serial_key || 'none'}")`);
     }
 
     // ── Upsert into licenses table if serial_key is provided ──
