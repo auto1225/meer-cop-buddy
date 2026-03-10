@@ -184,8 +184,7 @@
   "help.s6.screenTouchContent": "Detects **touch screen input** on touchscreen devices (tablets, touch laptops, etc.).\n\n• Alert triggers immediately when the screen is touched during monitoring.\n• Not available on devices without a touchscreen.\n• Alert screen shows \"Screen touch detected!\" message.\n\n⚠️ This feature is only available on the Premium plan.",
   "help.s6.lid": "💻 Lid Detection",
   "help.s6.lidContent": "Detects **laptop lid open/close changes**.\n\n• Alert triggers when a closed laptop is opened.\n• Also detects when an open laptop is closed.\n• Alert screen shows \"Laptop lid change detected!\" message.\n\n⚠️ Only supported on laptop device type.\n⚠️ Uses Page Visibility API due to technical constraints; may not be supported in all browsers.",
-  "help.s6.lid": "💻 Lid Detection",
-  "help.s6.lidContent": "Detects **laptop lid open/close changes**.\n\n• Alert triggers when a closed laptop is opened.\n• Also detects when an open laptop is closed.\n• Alert screen shows \"Laptop lid change detected!\" message.\n\n⚠️ May not be supported in all browsers.",
+
 
   "help.s7.title": "Alerts & Notifications",
   "help.s7.alertFlow": "Alert Flow",
