@@ -169,7 +169,7 @@
 
   "help.s6.title": "Detection Sensors Details",
   "help.s6.sensorTypes": "Sensor Types Overview",
-  "help.s6.sensorTypesContent": "MeerCOP uses **6 sensors** to detect unauthorized access:\n\n📷 Camera Motion | 💻 Lid | ⌨️ Keyboard | 🖱️ Mouse | 🔌 USB | ⚡ Power\n\nEach sensor can be individually toggled ON/OFF from the smartphone app.\nOnly enabled sensors operate when monitoring starts.",
+  "help.s6.sensorTypesContent": "MeerCOP uses **8 sensors** to detect unauthorized access:\n\n📷 Camera Motion | 💻 Lid | ⌨️ Keyboard | 🖱️ Mouse | 🔌 USB | ⚡ Power | 👆 Screen Touch | 🎤 Microphone\n\nEach sensor can be individually toggled ON/OFF from the smartphone app.\nOnly enabled sensors operate when monitoring starts.",
   "help.s6.cameraMotion": "📷 Camera Motion Detection",
   "help.s6.cameraMotionContent": "**Analyzes frame-to-frame changes** in webcam video in real-time.\n\n• Alert triggers when change rate exceeds the sensitivity threshold.\n• **Auto-captures photos** as evidence when alert triggers.\n• **Consecutive frame check**: Filters out single-frame noise by requiring consecutive detections.\n• **Cooldown**: Prevents duplicate alerts for a period after triggering.\n\n💡 Use the **Motion Test** feature (Settings → Camera Motion → 🔬 Motion Test) to preview sensitivity.",
   "help.s6.keyboard": "⌨️ Keyboard Detection",
@@ -179,7 +179,11 @@
   "help.s6.usb": "🔌 USB Detection",
   "help.s6.usbContent": "Detects when **USB devices are connected or disconnected**.\n\n• Covers USB drives, external HDDs, keyboards, mice, and all USB devices.\n• Catches thieves connecting USB devices to the laptop.\n• Alert screen shows \"USB device change detected!\" message.",
   "help.s6.power": "⚡ Power Cable Detection",
-  "help.s6.powerContent": "Detects **charger cable connection/disconnection changes**.\n\n• Catches cable being unplugged during laptop theft.\n• Detects both charging→battery and battery→charging transitions.\n• Especially useful in libraries or cafes when someone grabs a charging laptop.",
+  "help.s6.powerContent": "Detects **charger cable connection/disconnection changes**.\n\n• Catches cable being unplugged during laptop theft.\n• Detects both charging→battery and battery→charging transitions.\n• Especially useful in libraries or cafes when someone grabs a charging laptop.\n• Uses Battery Status API with **chargingchange** event and **levelchange** fallback for reliable detection.\n\n⚠️ **iOS Safari** and **Firefox** do not support the Battery API, so this feature is unavailable. **Chrome** or **Edge** browser recommended.",
+  "help.s6.screenTouch": "👆 Screen Touch Detection",
+  "help.s6.screenTouchContent": "Detects **touch screen input** on touchscreen devices (tablets, touch laptops, etc.).\n\n• Alert triggers immediately when the screen is touched during monitoring.\n• Not available on devices without a touchscreen.\n• Alert screen shows \"Screen touch detected!\" message.\n\n⚠️ This feature is only available on the Premium plan.",
+  "help.s6.lid": "💻 Lid Detection",
+  "help.s6.lidContent": "Detects **laptop lid open/close changes**.\n\n• Alert triggers when a closed laptop is opened.\n• Also detects when an open laptop is closed.\n• Alert screen shows \"Laptop lid change detected!\" message.\n\n⚠️ Only supported on laptop device type.\n⚠️ Uses Page Visibility API due to technical constraints; may not be supported in all browsers.",
   "help.s6.lid": "💻 Lid Detection",
   "help.s6.lidContent": "Detects **laptop lid open/close changes**.\n\n• Alert triggers when a closed laptop is opened.\n• Also detects when an open laptop is closed.\n• Alert screen shows \"Laptop lid change detected!\" message.\n\n⚠️ May not be supported in all browsers.",
 
