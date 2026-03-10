@@ -298,6 +298,7 @@ export function SensorSettingsPanel({
               const isLidRestricted = key === "lid" && !isLidSupported;
               const isTouchRestricted = key === "screenTouch" && !isTouchCapable;
               const isRestricted = isLidRestricted || isTouchRestricted;
+              const showPowerWarning = key === "power";
               return (
                 <div key={key}>
                   <div
@@ -331,6 +332,12 @@ export function SensorSettingsPanel({
                       🔬 {t("sensor.motionTest")}
                       <ChevronRight className="w-2.5 h-2.5" />
                     </Link>
+                  )}
+
+                  {showPowerWarning && (
+                    <p className="ml-[34px] -mt-0.5 mb-1 text-[8px] text-white/35 leading-tight">
+                      ⚠️ {t("sensor.powerBrowserWarning")}
+                    </p>
                   )}
 
                   {idx < SENSOR_KEYS.length - 1 && (
