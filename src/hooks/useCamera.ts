@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { waitForVideoFrames } from "@/lib/webrtc/qualityPresets";
 
 interface UseCameraOptions {
   onStatusChange?: (isAvailable: boolean) => void;
@@ -26,34 +27,63 @@ export function useCamera({ onStatusChange }: UseCameraOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const intentionalStopRef = useRef(false);
 
+  const isMobile = useRef(/Android|iPad|iPhone|iPod/i.test(navigator.userAgent));
+
   // Attach stream to video element and ensure playback
   useEffect(() => {
     const video = videoRef.current;
     if (!stream || !video) return;
 
+    let cancelled = false;
+
     // Cancel any pending play before changing source
     video.pause();
     video.srcObject = stream;
 
-    const attemptPlay = async () => {
+    // Android 태블릿에서 필수 — 일부 WebView에서 인라인 재생 보장
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+
+    const attemptPlay = async (retryCount = 0) => {
+      if (cancelled) return;
       try {
         await video.play();
         console.log("[Camera] ✅ Video play() succeeded");
+
+        // Android 태블릿: 카메라 워밍업 대기 — 검정 프레임 방지
+        if (isMobile.current) {
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack) {
+            console.log("[Camera] 📱 Waiting for real video frames (mobile)...");
+            await waitForVideoFrames(videoTrack, 6000);
+            console.log("[Camera] ✅ Video frames ready");
+          }
+        }
       } catch (err: any) {
+        if (cancelled) return;
         if (err.name === "AbortError") {
-          // Stream was replaced before play completed — safe to ignore
           console.log("[Camera] ⏭️ play() AbortError (stream replaced), ignoring");
         } else if (err.name === "NotAllowedError") {
           console.warn("[Camera] ⚠️ Autoplay blocked, user gesture required");
         } else {
           console.error("[Camera] ❌ play() failed:", err);
+          // 모바일에서 play() 실패 시 재시도 (최대 3회, 점점 긴 딜레이)
+          if (isMobile.current && retryCount < 3) {
+            const delay = (retryCount + 1) * 500;
+            console.log(`[Camera] 🔄 Retrying play() in ${delay}ms (attempt ${retryCount + 1}/3)`);
+            setTimeout(() => attemptPlay(retryCount + 1), delay);
+          }
         }
       }
     };
 
-    // Small delay to let the video element process the new srcObject
-    const timer = setTimeout(attemptPlay, 50);
-    return () => clearTimeout(timer);
+    // 모바일은 카메라 하드웨어 초기화에 더 긴 시간 필요
+    const initialDelay = isMobile.current ? 300 : 50;
+    const timer = setTimeout(() => attemptPlay(0), initialDelay);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [stream]);
 
   // Handle stream track ended (camera physically disconnected or spurious)

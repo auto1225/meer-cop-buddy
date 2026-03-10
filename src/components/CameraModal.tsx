@@ -414,8 +414,13 @@ export function CameraModal({ isOpen, onClose, deviceId, signalingDeviceId }: Ca
             </div>
           ) : (
             <div className="relative">
+              {/* eslint-disable-next-line */}
               <video
-                ref={videoRef}
+                ref={(el) => {
+                  // videoRef 연결 + Android WebView 호환 속성 설정
+                  (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = el;
+                  if (el) el.setAttribute("webkit-playsinline", "true");
+                }}
                 autoPlay
                 playsInline
                 muted
