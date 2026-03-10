@@ -258,7 +258,7 @@ export function DeviceNameBadge({ deviceName, deviceId, onNameChanged, onDuplica
         if (!sharedOk) {
           toast({
             title: t("device.nameChanged"),
-            description: "공유 동기화가 지연되고 있어요. 잠시 후 다시 시도해주세요.",
+            description: t("device.syncDelayed"),
           });
         }
       }
