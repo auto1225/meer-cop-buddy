@@ -40,6 +40,7 @@
   "alert.screenTouch": "Screen touch detected!",
   "sensor.lidNotSupported": "Lid detection is not supported on this device type.",
   "sensor.touchNotAvailable": "This feature is not available on your current plan.",
+  "sensor.powerBrowserWarning": "Not supported on iOS Safari or Firefox (Chrome/Edge recommended)",
   "alert.default": "Movement detected!",
   "pin.title": "Dismiss Alert",
   "pin.subtitle": "Enter 4-digit PIN",

@@ -40,6 +40,7 @@
   "alert.screenTouch": "ตรวจพบการสัมผัสหน้าจอ!",
   "sensor.lidNotSupported": "การตรวจจับฝาไม่รองรับบนอุปกรณ์ประเภทนี้",
   "sensor.touchNotAvailable": "ฟีเจอร์นี้ไม่สามารถใช้งานได้ในแผนปัจจุบันของคุณ",
+  "sensor.powerBrowserWarning": "ไม่รองรับบน iOS Safari หรือ Firefox (แนะนำ Chrome/Edge)",
   "alert.default": "ตรวจพบการเคลื่อนไหว!",
   "pin.title": "ปิดสัญญาณเตือน",
   "pin.subtitle": "กรอก PIN 4 หลัก",

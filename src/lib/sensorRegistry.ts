@@ -161,8 +161,10 @@ export function createLidSensor(): SensorHandler {
 export function createPowerSensor(): SensorHandler {
   let attached = false;
   let battery: any = null;
-  let batteryHandler: (() => void) | null = null;
+  let chargingHandler: (() => void) | null = null;
+  let levelHandler: (() => void) | null = null;
   let lastChargingState: boolean | null = null;
+  let lastLevel: number | null = null;
 
   return {
     name: "power",
@@ -174,24 +176,39 @@ export function createPowerSensor(): SensorHandler {
       const setup = async () => {
         try {
           if (!navigator.getBattery) {
-            console.warn("[Sensor] ⚠️ Battery API not supported");
+            console.warn("[Sensor] ⚠️ Battery API not supported (iOS Safari / Firefox)");
             return;
           }
           battery = await navigator.getBattery();
           lastChargingState = battery.charging;
+          lastLevel = battery.level;
 
-          batteryHandler = () => {
+          // 1) chargingchange — 충전 상태 변경 감지
+          chargingHandler = () => {
             const nowCharging = battery.charging;
-            // 충전 상태 변경 감지 (연결 또는 해제 모두)
             if (lastChargingState !== null && lastChargingState !== nowCharging) {
               console.log("[Sensor] 🔌 Power cable state changed:", lastChargingState, "→", nowCharging);
               onTrigger();
             }
             lastChargingState = nowCharging;
           };
+          battery.addEventListener("chargingchange", chargingHandler);
 
-          battery.addEventListener("chargingchange", batteryHandler);
-          console.log("[Sensor] ✅ power attached (charging:", battery.charging, ")");
+          // 2) levelchange — 배터리 레벨 변화로 간접 감지 (일부 기기에서 chargingchange가 불안정할 때 보완)
+          levelHandler = () => {
+            const nowLevel = battery.level;
+            const nowCharging = battery.charging;
+            // 충전 상태가 바뀌었는데 chargingchange가 안 왔을 경우 보완
+            if (lastChargingState !== null && lastChargingState !== nowCharging) {
+              console.log("[Sensor] 🔋 Power change detected via levelchange:", lastChargingState, "→", nowCharging);
+              onTrigger();
+              lastChargingState = nowCharging;
+            }
+            lastLevel = nowLevel;
+          };
+          battery.addEventListener("levelchange", levelHandler);
+
+          console.log("[Sensor] ✅ power attached (charging:", battery.charging, ", level:", Math.round(battery.level * 100) + "%)");
         } catch (err) {
           console.warn("[Sensor] ⚠️ Battery API error:", err);
         }
@@ -199,12 +216,15 @@ export function createPowerSensor(): SensorHandler {
       setup();
     },
     detach() {
-      if (battery && batteryHandler) {
-        battery.removeEventListener("chargingchange", batteryHandler);
+      if (battery) {
+        if (chargingHandler) battery.removeEventListener("chargingchange", chargingHandler);
+        if (levelHandler) battery.removeEventListener("levelchange", levelHandler);
       }
       battery = null;
-      batteryHandler = null;
+      chargingHandler = null;
+      levelHandler = null;
       lastChargingState = null;
+      lastLevel = null;
       attached = false;
     },
     isAttached: () => attached,

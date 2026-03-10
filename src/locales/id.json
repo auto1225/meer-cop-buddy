@@ -40,6 +40,7 @@
   "alert.screenTouch": "Sentuhan layar terdeteksi!",
   "sensor.lidNotSupported": "Deteksi tutup tidak didukung pada jenis perangkat ini.",
   "sensor.touchNotAvailable": "Fitur ini tidak tersedia pada paket Anda saat ini.",
+  "sensor.powerBrowserWarning": "Tidak didukung di iOS Safari atau Firefox (Chrome/Edge disarankan)",
   "alert.default": "Gerakan terdeteksi!",
   "pin.title": "Matikan alarm",
   "pin.subtitle": "Masukkan PIN 4 digit",

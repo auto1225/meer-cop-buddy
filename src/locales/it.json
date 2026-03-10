@@ -40,6 +40,7 @@
   "alert.screenTouch": "Tocco dello schermo rilevato!",
   "sensor.lidNotSupported": "Il rilevamento del coperchio non è supportato su questo tipo di dispositivo.",
   "sensor.touchNotAvailable": "Questa funzione non è disponibile nel tuo piano attuale.",
+  "sensor.powerBrowserWarning": "Non supportato su iOS Safari o Firefox (Chrome/Edge consigliato)",
   "alert.default": "Movimento rilevato!",
   "pin.title": "Disattiva allarme",
   "pin.subtitle": "Inserisci PIN a 4 cifre",
