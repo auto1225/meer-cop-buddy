@@ -679,14 +679,21 @@ const Index = ({ onExpired }: IndexProps) => {
     });
   }, [currentDevice]);
 
-  // 스마트폰 online/offline 변경 시 즉시 DB 재조회 (Presence LEAVE → DB 최신 상태 반영)
+  // 스마트폰 online/offline 변경 시 DB 재조회 (디바운스된 안정 상태 기준)
   const prevSmartphoneOnlineRef = useRef<boolean | undefined>(undefined);
+  const smartphoneRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (prevSmartphoneOnlineRef.current !== undefined && prevSmartphoneOnlineRef.current !== smartphoneOnline) {
-      console.log("[Index] 📱 Smartphone online changed:", smartphoneOnline, "→ refetching devices");
-      refetch();
+      console.log("[Index] 📱 Smartphone online changed (stable):", smartphoneOnline, "→ scheduling refetch");
+      // refetch도 3초 디바운스하여 연쇄 반응 방지
+      if (smartphoneRefetchTimerRef.current) clearTimeout(smartphoneRefetchTimerRef.current);
+      smartphoneRefetchTimerRef.current = setTimeout(() => {
+        refetch();
+        smartphoneRefetchTimerRef.current = null;
+      }, 3000);
     }
     prevSmartphoneOnlineRef.current = smartphoneOnline;
+    return () => { if (smartphoneRefetchTimerRef.current) clearTimeout(smartphoneRefetchTimerRef.current); };
   }, [smartphoneOnline, refetch]);
 
   // Subscribe to broadcast commands from smartphone (instant, no polling)
