@@ -203,6 +203,26 @@ export function useSecuritySurveillance({
     [getBufferPhotos]
   );
 
+  // ── 감시 활성 중 센서 토글 변경 → 즉시 리스너 재구성 ──
+  useEffect(() => {
+    if (isMonitoringRef.current && sensorRegistryRef.current) {
+      const enabledSensors: string[] = [];
+      if (sensorToggles.keyboard) enabledSensors.push("keyboard");
+      if (sensorToggles.mouse) enabledSensors.push("mouse");
+      if (sensorToggles.lid) enabledSensors.push("lid");
+      if (sensorToggles.power) enabledSensors.push("power");
+      if (sensorToggles.usb) enabledSensors.push("usb");
+      if (sensorToggles.screenTouch) enabledSensors.push("screenTouch");
+
+      sensorRegistryRef.current.attachSensors(enabledSensors, (eventType) => {
+        if (isMonitoringRef.current) {
+          triggerEvent(eventType);
+        }
+      });
+      console.log("[Surveillance] 🔄 Sensor toggles updated live:", enabledSensors);
+    }
+  }, [sensorToggles, triggerEvent]);
+
   // ── 카메라 재획득 (지수 백오프) ──
   const reacquireCamera = useCallback(async (): Promise<boolean> => {
     const retryCount = cameraRetryCountRef.current;
