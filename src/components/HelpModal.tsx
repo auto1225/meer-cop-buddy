@@ -204,6 +204,8 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
     { titleKey: "help.faq.q11", contentKey: "help.faq.a11" },
     { titleKey: "help.faq.q12", contentKey: "help.faq.a12" },
     { titleKey: "help.faq.q13", contentKey: "help.faq.a13" },
+    { titleKey: "help.faq.q14", contentKey: "help.faq.a14" },
+    { titleKey: "help.faq.q15", contentKey: "help.faq.a15" },
   ];
 
   const scrollToSection = (index: number) => {
