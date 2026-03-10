@@ -118,6 +118,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         { titleKey: "help.s6.mouse", contentKey: "help.s6.mouseContent" },
         { titleKey: "help.s6.usb", contentKey: "help.s6.usbContent" },
         { titleKey: "help.s6.power", contentKey: "help.s6.powerContent" },
+        { titleKey: "help.s6.screenTouch", contentKey: "help.s6.screenTouchContent" },
         { titleKey: "help.s6.lid", contentKey: "help.s6.lidContent" },
       ],
     },
