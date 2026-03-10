@@ -418,8 +418,11 @@ export function CameraModal({ isOpen, onClose, deviceId, signalingDeviceId }: Ca
                 ref={videoRef}
                 autoPlay
                 playsInline
+                // @ts-ignore — Android WebView 호환
+                webkit-playsinline="true"
                 muted
                 className="w-full rounded-xl bg-black aspect-video object-cover"
+              />
               />
 
               {/* Camera disconnected overlay */}
