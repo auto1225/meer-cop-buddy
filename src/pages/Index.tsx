@@ -1163,6 +1163,7 @@ const Index = ({ onExpired }: IndexProps) => {
           onMenuClick={() => setIsSideMenuOpen(true)}
           soundEnabled={isAlarmEnabled}
           onSoundToggle={toggleAlarmEnabled}
+          deviceType={deviceType}
         />
 
         {/* Duplicate Name Alert Banner */}
