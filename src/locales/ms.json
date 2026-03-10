@@ -40,6 +40,7 @@
   "alert.screenTouch": "Sentuhan skrin dikesan!",
   "sensor.lidNotSupported": "Pengesanan penutup tidak disokong pada jenis peranti ini.",
   "sensor.touchNotAvailable": "Ciri ini tidak tersedia dalam pelan semasa anda.",
+  "sensor.powerBrowserWarning": "Tidak disokong pada iOS Safari atau Firefox (Chrome/Edge disyorkan)",
   "alert.default": "Gerakan dikesan!",
   "pin.title": "Matikan penggera",
   "pin.subtitle": "Masukkan PIN 4 digit",

@@ -40,6 +40,7 @@
   "alert.screenTouch": "Toque na tela detectado!",
   "sensor.lidNotSupported": "A detecção de tampa não é suportada neste tipo de dispositivo.",
   "sensor.touchNotAvailable": "Este recurso não está disponível no seu plano atual.",
+  "sensor.powerBrowserWarning": "Não suportado no iOS Safari ou Firefox (Chrome/Edge recomendado)",
   "alert.default": "Movimento detectado!",
   "pin.title": "Desativar alarme",
   "pin.subtitle": "Digite o PIN de 4 dígitos",
