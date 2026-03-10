@@ -27,8 +27,8 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
       },
       manifest: {
-        name: "MeerCOP - Security Guard",
-        short_name: "MeerCOP",
+        name: "MeerCOP Device - Security Guard",
+        short_name: "MeerCOP Device",
         description: "Laptop anti-theft security surveillance app",
         theme_color: "#1a9de0",
         background_color: "#1a9de0",
