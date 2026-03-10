@@ -106,7 +106,27 @@ export function useSecuritySurveillance({
 
   // Sync refs
   useEffect(() => { onEventDetectedRef.current = onEventDetected; }, [onEventDetected]);
-  useEffect(() => { sensorTogglesRef.current = sensorToggles; }, [sensorToggles]);
+  useEffect(() => {
+    sensorTogglesRef.current = sensorToggles;
+
+    // 감시 활성 중 센서 토글 변경 → 즉시 리스너 재구성
+    if (isMonitoringRef.current && sensorRegistryRef.current) {
+      const enabledSensors: string[] = [];
+      if (sensorToggles.keyboard) enabledSensors.push("keyboard");
+      if (sensorToggles.mouse) enabledSensors.push("mouse");
+      if (sensorToggles.lid) enabledSensors.push("lid");
+      if (sensorToggles.power) enabledSensors.push("power");
+      if (sensorToggles.usb) enabledSensors.push("usb");
+      if (sensorToggles.screenTouch) enabledSensors.push("screenTouch");
+
+      sensorRegistryRef.current.attachSensors(enabledSensors, (eventType) => {
+        if (isMonitoringRef.current) {
+          triggerEvent(eventType);
+        }
+      });
+      console.log("[Surveillance] 🔄 Sensor toggles updated live:", enabledSensors);
+    }
+  }, [sensorToggles, triggerEvent]);
   useEffect(() => { captureIntervalValRef.current = captureInterval; }, [captureInterval]);
   useEffect(() => { mouseSensitivityRef.current = mouseSensitivity; }, [mouseSensitivity]);
   useEffect(() => { motionThresholdRef.current = motionThreshold; }, [motionThreshold]);
