@@ -40,6 +40,7 @@
   "alert.screenTouch": "Bildschirmberührung erkannt!",
   "sensor.lidNotSupported": "Deckelerkennung wird auf diesem Gerätetyp nicht unterstützt.",
   "sensor.touchNotAvailable": "Diese Funktion ist in Ihrem aktuellen Plan nicht verfügbar.",
+  "sensor.powerBrowserWarning": "Nicht unterstützt auf iOS Safari oder Firefox (Chrome/Edge empfohlen)",
   "alert.default": "Bewegung erkannt!",
   "pin.title": "Alarm deaktivieren",
   "pin.subtitle": "4-stellige PIN eingeben",

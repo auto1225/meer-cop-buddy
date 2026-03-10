@@ -40,6 +40,7 @@
   "alert.screenTouch": "Обнаружено касание экрана!",
   "sensor.lidNotSupported": "Обнаружение крышки не поддерживается на этом типе устройства.",
   "sensor.touchNotAvailable": "Эта функция недоступна в вашем текущем плане.",
+  "sensor.powerBrowserWarning": "Не поддерживается в iOS Safari и Firefox (рекомендуется Chrome/Edge)",
   "alert.default": "Обнаружено движение!",
   "pin.title": "Отключить тревогу",
   "pin.subtitle": "Введите 4-значный PIN",
