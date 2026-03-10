@@ -46,6 +46,7 @@
   "pin.subtitle": "Введите 4-значный PIN",
   "pin.wrong": "Неверный PIN",
   "device.duplicateName": "Дублирующееся имя",
+  "device.syncDelayed": "Синхронизация задерживается. Пожалуйста, попробуйте позже.",
   "device.duplicateDesc": "Это имя уже используется другим устройством.",
   "device.nameChanged": "Имя изменено",
   "device.nameChangedDesc": "Имя устройства изменено.",

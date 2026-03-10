@@ -46,6 +46,7 @@
   "pin.subtitle": "4 haneli PIN girin",
   "pin.wrong": "Yanlış PIN",
   "device.duplicateName": "Yinelenen ad",
+  "device.syncDelayed": "Senkronizasyon gecikiyor. Lütfen bir süre sonra tekrar deneyin.",
   "device.duplicateDesc": "Bu ad başka bir cihaz tarafından kullanılıyor.",
   "device.nameChanged": "Ad değiştirildi",
   "device.nameChangedDesc": "Cihaz adı değiştirildi.",
