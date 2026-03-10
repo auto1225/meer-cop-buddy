@@ -1147,7 +1147,10 @@ const Index = ({ onExpired }: IndexProps) => {
           isOpen={showPinKeypad && isAlarming}
           correctPin={alarmPin}
           deviceId={currentDevice?.id}
-          metadata={currentDevice?.metadata as { alarm_pin_hash?: string; alarm_pin?: string } | null}
+          metadata={{
+            ...(currentDevice?.metadata as { alarm_pin_hash?: string; alarm_pin?: string } | null),
+            alarm_pin: alarmPin,
+          }}
           onSuccess={handleAlarmDismiss}
           onClose={() => setShowPinKeypad(false)}
         />
@@ -1163,6 +1166,7 @@ const Index = ({ onExpired }: IndexProps) => {
           onMenuClick={() => setIsSideMenuOpen(true)}
           soundEnabled={isAlarmEnabled}
           onSoundToggle={toggleAlarmEnabled}
+          deviceType={deviceType}
         />
 
         {/* Duplicate Name Alert Banner */}
