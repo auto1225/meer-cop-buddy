@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { waitForVideoFrames } from "@/lib/webrtc/qualityPresets";
 
 interface UseCameraOptions {
   onStatusChange?: (isAvailable: boolean) => void;
