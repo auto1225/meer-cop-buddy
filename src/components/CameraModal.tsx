@@ -426,7 +426,6 @@ export function CameraModal({ isOpen, onClose, deviceId, signalingDeviceId }: Ca
                 muted
                 className="w-full rounded-xl bg-black aspect-video object-cover"
               />
-              />
 
               {/* Camera disconnected overlay */}
               {isCameraLost && (
