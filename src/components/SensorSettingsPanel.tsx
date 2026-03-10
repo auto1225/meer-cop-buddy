@@ -307,7 +307,7 @@ export function SensorSettingsPanel({
                       if (isLidRestricted) {
                         toast.info(t("sensor.lidNotSupported"));
                       } else if (isTouchRestricted) {
-                        toast.info(t("sensor.touchNotAvailable") || "이 기능은 현재 플랜에서 사용할 수 없습니다.");
+                        toast.info(t("sensor.touchNotAvailable"));
                       }
                     }}
                   >

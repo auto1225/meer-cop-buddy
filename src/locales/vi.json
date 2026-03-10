@@ -46,6 +46,7 @@
   "pin.subtitle": "Nhập mã PIN 4 chữ số",
   "pin.wrong": "Mã PIN sai",
   "device.duplicateName": "Tên trùng",
+  "device.syncDelayed": "Đồng bộ đang bị chậm. Vui lòng thử lại sau.",
   "device.duplicateDesc": "Tên này đã được sử dụng bởi thiết bị khác.",
   "device.nameChanged": "Đã đổi tên",
   "device.nameChangedDesc": "Tên thiết bị đã được thay đổi.",

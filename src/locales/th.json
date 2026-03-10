@@ -46,6 +46,7 @@
   "pin.subtitle": "กรอก PIN 4 หลัก",
   "pin.wrong": "PIN ไม่ถูกต้อง",
   "device.duplicateName": "ชื่อซ้ำ",
+  "device.syncDelayed": "การซิงค์ล่าช้า กรุณาลองใหม่ในอีกสักครู่",
   "device.duplicateDesc": "ชื่อนี้ถูกใช้โดยอุปกรณ์อื่นแล้ว",
   "device.nameChanged": "เปลี่ยนชื่อแล้ว",
   "device.nameChangedDesc": "ชื่ออุปกรณ์ถูกเปลี่ยนแล้ว",

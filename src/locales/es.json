@@ -46,6 +46,7 @@
   "pin.subtitle": "Ingrese PIN de 4 dígitos",
   "pin.wrong": "PIN incorrecto",
   "device.duplicateName": "Nombre duplicado",
+  "device.syncDelayed": "La sincronización está retrasada. Inténtelo de nuevo en un momento.",
   "device.duplicateDesc": "Este nombre ya está en uso por otro dispositivo.",
   "device.nameChanged": "Nombre cambiado",
   "device.nameChangedDesc": "El nombre del dispositivo ha sido cambiado.",

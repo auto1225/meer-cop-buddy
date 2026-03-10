@@ -46,6 +46,7 @@
   "pin.subtitle": "أدخل رمز PIN المكون من 4 أرقام",
   "pin.wrong": "رمز PIN خاطئ",
   "device.duplicateName": "اسم مكرر",
+  "device.syncDelayed": "المزامنة متأخرة. يرجى المحاولة مرة أخرى بعد قليل.",
   "device.duplicateDesc": "هذا الاسم مستخدم بالفعل من قبل جهاز آخر.",
   "device.nameChanged": "تم تغيير الاسم",
   "device.nameChangedDesc": "تم تغيير اسم الجهاز.",

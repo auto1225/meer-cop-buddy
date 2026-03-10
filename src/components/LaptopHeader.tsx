@@ -15,7 +15,13 @@ interface LaptopHeaderProps {
 export function LaptopHeader({ onMenuClick, soundEnabled = true, onSoundToggle, deviceType = "laptop" }: LaptopHeaderProps) {
   const { t } = useTranslation();
 
-  const typeLabel = deviceType === "laptop" ? "Laptop" : deviceType === "smartphone" ? "Phone" : deviceType;
+  const typeLabelMap: Record<string, string> = {
+    laptop: t("settings.laptop"),
+    desktop: t("settings.desktop"),
+    tablet: t("settings.tablet"),
+    smartphone: t("settings.smartphone"),
+  };
+  const typeLabel = typeLabelMap[deviceType] || t("settings.laptop");
 
   return (
     <header className="relative z-20 px-3 py-1.5">

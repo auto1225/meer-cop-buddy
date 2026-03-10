@@ -105,6 +105,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         { titleKey: "help.s5.sensitivity", contentKey: "help.s5.sensitivityContent" },
         { titleKey: "help.s5.pin", contentKey: "help.s5.pinContent" },
         { titleKey: "help.s5.mascotDisplay", contentKey: "help.s5.mascotDisplayContent" },
+        { titleKey: "help.s5.background", contentKey: "help.s5.backgroundContent" },
         { titleKey: "help.s5.language", contentKey: "help.s5.languageContent" },
       ],
     },
@@ -117,6 +118,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         { titleKey: "help.s6.mouse", contentKey: "help.s6.mouseContent" },
         { titleKey: "help.s6.usb", contentKey: "help.s6.usbContent" },
         { titleKey: "help.s6.power", contentKey: "help.s6.powerContent" },
+        { titleKey: "help.s6.screenTouch", contentKey: "help.s6.screenTouchContent" },
         { titleKey: "help.s6.lid", contentKey: "help.s6.lidContent" },
       ],
     },
@@ -202,6 +204,8 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
     { titleKey: "help.faq.q11", contentKey: "help.faq.a11" },
     { titleKey: "help.faq.q12", contentKey: "help.faq.a12" },
     { titleKey: "help.faq.q13", contentKey: "help.faq.a13" },
+    { titleKey: "help.faq.q14", contentKey: "help.faq.a14" },
+    { titleKey: "help.faq.q15", contentKey: "help.faq.a15" },
   ];
 
   const scrollToSection = (index: number) => {

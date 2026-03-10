@@ -46,6 +46,7 @@
   "pin.subtitle": "Masukkan PIN 4 digit",
   "pin.wrong": "PIN salah",
   "device.duplicateName": "Nama duplikat",
+  "device.syncDelayed": "Sinkronisasi tertunda. Silakan coba lagi nanti.",
   "device.duplicateDesc": "Nama ini sudah digunakan oleh perangkat lain.",
   "device.nameChanged": "Nama diubah",
   "device.nameChangedDesc": "Nama perangkat telah diubah.",

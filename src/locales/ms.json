@@ -46,6 +46,7 @@
   "pin.subtitle": "Masukkan PIN 4 digit",
   "pin.wrong": "PIN salah",
   "device.duplicateName": "Nama pendua",
+  "device.syncDelayed": "Penyegerakan ditangguhkan. Sila cuba lagi sebentar.",
   "device.duplicateDesc": "Nama ini sudah digunakan oleh peranti lain.",
   "device.nameChanged": "Nama ditukar",
   "device.nameChangedDesc": "Nama peranti telah ditukar.",

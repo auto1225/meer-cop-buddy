@@ -46,6 +46,7 @@
   "pin.subtitle": "4 अंकों का PIN दर्ज करें",
   "pin.wrong": "गलत PIN",
   "device.duplicateName": "डुप्लिकेट नाम",
+  "device.syncDelayed": "सिंक में देरी हो रही है। कृपया कुछ देर बाद पुनः प्रयास करें।",
   "device.duplicateDesc": "यह नाम पहले से किसी अन्य डिवाइस द्वारा उपयोग में है।",
   "device.nameChanged": "नाम बदला गया",
   "device.nameChangedDesc": "डिवाइस का नाम बदल दिया गया है।",
