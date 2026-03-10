@@ -105,6 +105,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         { titleKey: "help.s5.sensitivity", contentKey: "help.s5.sensitivityContent" },
         { titleKey: "help.s5.pin", contentKey: "help.s5.pinContent" },
         { titleKey: "help.s5.mascotDisplay", contentKey: "help.s5.mascotDisplayContent" },
+        { titleKey: "help.s5.background", contentKey: "help.s5.backgroundContent" },
         { titleKey: "help.s5.language", contentKey: "help.s5.languageContent" },
       ],
     },
