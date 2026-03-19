@@ -94,6 +94,7 @@
   "auth.serialError": "Sila masukkan nombor siri penuh.",
   "auth.nameError": "Sila masukkan nama peranti.",
   "auth.authFailed": "Pengesahan gagal.",
+  "auth.serialInUse": "Nombor siri ini sedang digunakan pada peranti lain. Sila log keluar dari peranti tersebut terlebih dahulu.",
   "deviceName.prompt": "Sila masukkan nama untuk peranti ini",
   "deviceName.required": "Sila masukkan nama peranti.",
   "deviceName.confirm": "Sahkan",

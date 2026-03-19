@@ -16,6 +16,7 @@ export interface SerialAuthData {
   expires_at: string | null;
   remaining_days: number | null;
   capabilities?: Record<string, boolean>;
+  session_token?: string;
 }
 
 // ── Storage 유틸 (sessionStorage 우선, localStorage는 복구용 폴백) ──
@@ -166,6 +167,9 @@ export async function validateSerial(
   const s = data.serial || data;
   const userId = s.user_id || "";
 
+  // ── 세션 토큰 생성 (물리적 브라우저/탭 구분용) ──
+  const sessionToken = crypto.randomUUID();
+
   let registeredDevice: any = null;
   try {
     registeredDevice = await registerDeviceViaEdge({
@@ -173,6 +177,7 @@ export async function validateSerial(
       device_name: deviceName,
       device_type: "laptop",
       serial_key: key,
+      session_token: sessionToken,
     });
     console.log("[serialAuth] ✅ 공유 DB 기기 등록 완료:", registeredDevice);
   } catch (err: any) {
@@ -220,6 +225,7 @@ export async function validateSerial(
     expires_at: s.expires_at || null,
     remaining_days: s.remaining_days ?? null,
     capabilities: Object.keys(capabilities).length > 0 ? capabilities : undefined,
+    session_token: sessionToken,
   };
 
   saveAuth(authData);

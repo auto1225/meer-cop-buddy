@@ -95,6 +95,7 @@
   "auth.serialError": "Please enter the full serial number.",
   "auth.nameError": "Please enter a device name.",
   "auth.authFailed": "Authentication failed.",
+  "auth.serialInUse": "This serial number is currently in use on another device. Please log out from that device first.",
   "deviceName.prompt": "Please enter a name for this device",
   "deviceName.required": "Please enter a device name.",
   "deviceName.confirm": "Confirm",

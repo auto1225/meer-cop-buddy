@@ -94,6 +94,7 @@
   "auth.serialError": "Veuillez entrer le numéro de série complet.",
   "auth.nameError": "Veuillez entrer un nom d'appareil.",
   "auth.authFailed": "Échec de l'authentification.",
+  "auth.serialInUse": "Ce numéro de série est actuellement utilisé sur un autre appareil. Veuillez d'abord vous déconnecter de cet appareil.",
   "deviceName.prompt": "Veuillez entrer un nom pour cet appareil",
   "deviceName.required": "Veuillez entrer un nom d'appareil.",
   "deviceName.confirm": "Confirmer",

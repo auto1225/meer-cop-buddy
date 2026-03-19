@@ -67,7 +67,12 @@ function SerialAuthInner({ onSuccess }: SerialAuthProps) {
       const authData = await validateSerial(serialKey);
       onSuccess(authData.device_id, authData.user_id);
     } catch (err: any) {
-      setError(err.message || t("auth.authFailed"));
+      const msg = err.message || "";
+      if (msg.includes("serial_in_use") || msg.includes("사용 중")) {
+        setError(t("auth.serialInUse"));
+      } else {
+        setError(msg || t("auth.authFailed"));
+      }
     } finally {
       setLoading(false);
     }

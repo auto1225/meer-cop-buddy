@@ -94,6 +94,7 @@
   "auth.serialError": "يرجى إدخال الرقم التسلسلي كاملاً.",
   "auth.nameError": "يرجى إدخال اسم الجهاز.",
   "auth.authFailed": "فشل المصادقة.",
+  "auth.serialInUse": "هذا الرقم التسلسلي مستخدم حالياً على جهاز آخر. يرجى تسجيل الخروج من ذلك الجهاز أولاً.",
   "deviceName.prompt": "يرجى إدخال اسم لهذا الجهاز",
   "deviceName.required": "يرجى إدخال اسم الجهاز.",
   "deviceName.confirm": "تأكيد",

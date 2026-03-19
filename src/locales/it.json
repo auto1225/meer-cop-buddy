@@ -94,6 +94,7 @@
   "auth.serialError": "Inserisci il numero di serie completo.",
   "auth.nameError": "Inserisci un nome per il dispositivo.",
   "auth.authFailed": "Autenticazione fallita.",
+  "auth.serialInUse": "Questo numero di serie è attualmente in uso su un altro dispositivo. Effettua prima il logout da quel dispositivo.",
   "deviceName.prompt": "Inserisci un nome per questo dispositivo",
   "deviceName.required": "Inserisci un nome per il dispositivo.",
   "deviceName.confirm": "Conferma",
