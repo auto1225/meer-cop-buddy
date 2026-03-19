@@ -209,6 +209,9 @@ export async function registerDeviceViaEdge(
   if (params.serial_key) {
     body.serial_key = params.serial_key;
   }
+  if (params.session_token) {
+    body.session_token = params.session_token;
+  }
   if (params.is_revalidation) {
     body.is_revalidation = true;
   }
