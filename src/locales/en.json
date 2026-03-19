@@ -72,6 +72,7 @@
   "menu.appInstalled": "App Installed",
   "menu.lastUpdated": "Updated",
   "menu.logout": "Logout",
+  "menu.logoutWhileMonitoring": "Please disable monitoring before logging out.",
   "menu.guest": "Guest",
   "menu.checkUpdate": "Check for Updates",
   "menu.updating": "Updating...",

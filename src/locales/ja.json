@@ -72,6 +72,7 @@
   "menu.appInstalled": "インストール済み",
   "menu.lastUpdated": "最終更新",
   "menu.logout": "ログアウト",
+  "menu.logoutWhileMonitoring": "監視を解除してからログアウトしてください。",
   "menu.guest": "ゲスト",
   "menu.checkUpdate": "最新アップデートを確認",
   "menu.updating": "更新中...",

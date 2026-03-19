@@ -72,6 +72,7 @@
   "menu.appInstalled": "تم التثبيت",
   "menu.lastUpdated": "آخر تحديث",
   "menu.logout": "تسجيل الخروج",
+  "menu.logoutWhileMonitoring": "يرجى إيقاف المراقبة قبل تسجيل الخروج.",
   "menu.guest": "ضيف",
   "menu.checkUpdate": "التحقق من التحديثات",
   "menu.updating": "جارٍ التحديث...",

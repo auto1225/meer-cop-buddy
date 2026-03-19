@@ -72,6 +72,7 @@
   "menu.appInstalled": "Установлено",
   "menu.lastUpdated": "Обновлено",
   "menu.logout": "Выйти",
+  "menu.logoutWhileMonitoring": "Отключите наблюдение перед выходом из системы.",
   "menu.guest": "Гость",
   "menu.checkUpdate": "Проверить обновления",
   "menu.updating": "Обновление...",

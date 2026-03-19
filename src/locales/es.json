@@ -72,6 +72,7 @@
   "menu.appInstalled": "App Instalada",
   "menu.lastUpdated": "Actualizado",
   "menu.logout": "Cerrar sesión",
+  "menu.logoutWhileMonitoring": "Desactive la vigilancia antes de cerrar sesión.",
   "menu.guest": "Invitado",
   "menu.checkUpdate": "Buscar actualizaciones",
   "menu.updating": "Actualizando...",

@@ -72,6 +72,7 @@
   "menu.appInstalled": "App Installata",
   "menu.lastUpdated": "Aggiornato",
   "menu.logout": "Esci",
+  "menu.logoutWhileMonitoring": "Disattiva il monitoraggio prima di uscire.",
   "menu.guest": "Ospite",
   "menu.checkUpdate": "Controlla aggiornamenti",
   "menu.updating": "Aggiornamento...",

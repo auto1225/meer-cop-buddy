@@ -72,6 +72,7 @@
   "menu.appInstalled": "App installiert",
   "menu.lastUpdated": "Aktualisiert",
   "menu.logout": "Abmelden",
+  "menu.logoutWhileMonitoring": "Bitte deaktivieren Sie die Überwachung, bevor Sie sich abmelden.",
   "menu.guest": "Gast",
   "menu.checkUpdate": "Nach Updates suchen",
   "menu.updating": "Aktualisierung...",

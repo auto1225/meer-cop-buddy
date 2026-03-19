@@ -72,6 +72,7 @@
   "menu.appInstalled": "Kuruldu",
   "menu.lastUpdated": "Güncellendi",
   "menu.logout": "Çıkış",
+  "menu.logoutWhileMonitoring": "Çıkış yapmadan önce izlemeyi devre dışı bırakın.",
   "menu.guest": "Misafir",
   "menu.checkUpdate": "Güncellemeleri Kontrol Et",
   "menu.updating": "Güncelleniyor...",
