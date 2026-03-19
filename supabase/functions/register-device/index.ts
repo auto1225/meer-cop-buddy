@@ -166,19 +166,25 @@ Deno.serve(async (req) => {
     let resultDevice: any;
 
     if (existing) {
-      // ── 세션 토큰 검증: 같은 compositeDeviceId이지만 다른 브라우저/컴퓨터에서 접근 시 차단 ──
-      if (finalSessionToken && !is_revalidation && existing.status === "online") {
+      // ── 세션 검증: 같은 compositeDeviceId라도 "같은 session_token"일 때만 동일 세션으로 간주 ──
+      if (!is_revalidation && existing.status === "online") {
         const existingMeta = existing.metadata || {};
-        const existingSessionToken = (existingMeta as any).session_token;
-        
-        if (existingSessionToken && existingSessionToken !== finalSessionToken) {
+        const existingSessionToken = typeof (existingMeta as any).session_token === "string"
+          ? (existingMeta as any).session_token
+          : null;
+        const incomingSessionToken = typeof finalSessionToken === "string"
+          ? finalSessionToken
+          : null;
+        const isSameSession = !!existingSessionToken && !!incomingSessionToken && existingSessionToken === incomingSessionToken;
+
+        if (!isSameSession) {
           const lastSeen = existing.last_seen_at ? new Date(existing.last_seen_at).getTime() : 0;
           const staleThreshold = 3 * 60 * 1000; // 3분
           const isStale = (Date.now() - lastSeen) > staleThreshold;
 
           if (!isStale) {
             const activeName = existing.device_name || existing.name || "Unknown";
-            console.log(`[register-device] 🚫 Session token mismatch for ${compositeDeviceId}: existing="${existingSessionToken}" new="${finalSessionToken}"`);
+            console.log(`[register-device] 🚫 Active session already exists for ${compositeDeviceId}: existing="${existingSessionToken ?? 'missing'}" incoming="${incomingSessionToken ?? 'missing'}"`);
             return new Response(
               JSON.stringify({
                 error: "serial_in_use",
@@ -187,9 +193,9 @@ Deno.serve(async (req) => {
               }),
               { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
-          } else {
-            console.log(`[register-device] 🔄 Stale session detected (${compositeDeviceId}), allowing new session`);
           }
+
+          console.log(`[register-device] 🔄 Stale session detected (${compositeDeviceId}), allowing new session`);
         }
       }
 
