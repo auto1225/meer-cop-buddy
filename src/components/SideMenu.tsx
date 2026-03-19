@@ -23,6 +23,7 @@ const BUILD_DATE = `${_buildDate.toLocaleDateString()} ${_buildDate.toLocaleTime
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  isMonitoring?: boolean;
 }
 
 export function SideMenu({ isOpen, onClose }: SideMenuProps) {
