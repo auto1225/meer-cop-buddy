@@ -94,6 +94,7 @@
   "auth.serialError": "Vui lòng nhập đầy đủ số sê-ri.",
   "auth.nameError": "Vui lòng nhập tên thiết bị.",
   "auth.authFailed": "Xác thực thất bại.",
+  "auth.serialInUse": "Số sê-ri này đang được sử dụng trên thiết bị khác. Vui lòng đăng xuất khỏi thiết bị đó trước.",
   "deviceName.prompt": "Vui lòng nhập tên cho thiết bị này",
   "deviceName.required": "Vui lòng nhập tên thiết bị.",
   "deviceName.confirm": "Xác nhận",

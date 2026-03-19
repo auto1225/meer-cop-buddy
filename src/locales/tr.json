@@ -94,6 +94,7 @@
   "auth.serialError": "Lütfen tam seri numarasını girin.",
   "auth.nameError": "Lütfen bir cihaz adı girin.",
   "auth.authFailed": "Kimlik doğrulama başarısız.",
+  "auth.serialInUse": "Bu seri numarası şu anda başka bir cihazda kullanılıyor. Lütfen önce o cihazdan çıkış yapın.",
   "deviceName.prompt": "Bu cihaz için bir ad girin",
   "deviceName.required": "Lütfen bir cihaz adı girin.",
   "deviceName.confirm": "Onayla",

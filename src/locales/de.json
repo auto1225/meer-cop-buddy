@@ -94,6 +94,7 @@
   "auth.serialError": "Bitte geben Sie die vollständige Seriennummer ein.",
   "auth.nameError": "Bitte geben Sie einen Gerätenamen ein.",
   "auth.authFailed": "Authentifizierung fehlgeschlagen.",
+  "auth.serialInUse": "Diese Seriennummer wird derzeit auf einem anderen Gerät verwendet. Bitte melden Sie sich zuerst von diesem Gerät ab.",
   "deviceName.prompt": "Bitte geben Sie einen Namen für dieses Gerät ein",
   "deviceName.required": "Bitte geben Sie einen Gerätenamen ein.",
   "deviceName.confirm": "Bestätigen",

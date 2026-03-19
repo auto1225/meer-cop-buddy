@@ -94,6 +94,7 @@
   "auth.serialError": "Masukkan nomor seri lengkap.",
   "auth.nameError": "Masukkan nama perangkat.",
   "auth.authFailed": "Autentikasi gagal.",
+  "auth.serialInUse": "Nomor seri ini sedang digunakan di perangkat lain. Silakan logout dari perangkat tersebut terlebih dahulu.",
   "deviceName.prompt": "Masukkan nama untuk perangkat ini",
   "deviceName.required": "Masukkan nama perangkat.",
   "deviceName.confirm": "Konfirmasi",

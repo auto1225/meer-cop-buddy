@@ -95,6 +95,7 @@
   "auth.serialError": "シリアルナンバーをすべて入力してください。",
   "auth.nameError": "デバイス名を入力してください。",
   "auth.authFailed": "認証に失敗しました。",
+  "auth.serialInUse": "このシリアルナンバーは現在別のデバイスで使用中です。先にそのデバイスからログアウトしてください。",
   "deviceName.prompt": "このデバイスの名前を入力してください",
   "deviceName.required": "デバイス名を入力してください。",
   "deviceName.confirm": "確認",

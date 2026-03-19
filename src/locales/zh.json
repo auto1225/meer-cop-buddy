@@ -95,6 +95,7 @@
   "auth.serialError": "请输入完整的序列号。",
   "auth.nameError": "请输入设备名称。",
   "auth.authFailed": "认证失败。",
+  "auth.serialInUse": "此序列号正在其他设备上使用中。请先从该设备注销。",
   "deviceName.prompt": "请输入此设备的名称",
   "deviceName.required": "请输入设备名称。",
   "deviceName.confirm": "确认",
