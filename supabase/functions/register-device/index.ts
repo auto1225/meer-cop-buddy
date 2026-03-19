@@ -166,13 +166,39 @@ Deno.serve(async (req) => {
     let resultDevice: any;
 
     if (existing) {
+      // ── 세션 토큰 검증: 같은 compositeDeviceId이지만 다른 브라우저/컴퓨터에서 접근 시 차단 ──
+      if (finalSessionToken && !is_revalidation && existing.status === "online") {
+        const existingMeta = existing.metadata || {};
+        const existingSessionToken = (existingMeta as any).session_token;
+        
+        if (existingSessionToken && existingSessionToken !== finalSessionToken) {
+          const lastSeen = existing.last_seen_at ? new Date(existing.last_seen_at).getTime() : 0;
+          const staleThreshold = 3 * 60 * 1000; // 3분
+          const isStale = (Date.now() - lastSeen) > staleThreshold;
+
+          if (!isStale) {
+            const activeName = existing.device_name || existing.name || "Unknown";
+            console.log(`[register-device] 🚫 Session token mismatch for ${compositeDeviceId}: existing="${existingSessionToken}" new="${finalSessionToken}"`);
+            return new Response(
+              JSON.stringify({
+                error: "serial_in_use",
+                message: `이 시리얼은 현재 다른 기기(${activeName})에서 사용 중입니다.`,
+                active_device: activeName,
+              }),
+              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          } else {
+            console.log(`[register-device] 🔄 Stale session detected (${compositeDeviceId}), allowing new session`);
+          }
+        }
+      }
+
       // ── 기존 기기: SSOT 이름 우선 적용 ──
       // 우선순위: 1. licenses.device_name(SSOT) → 2. 기존 DB 이름(custom) → 3. 요청 이름
       const existingName = existing.device_name || existing.name || "";
       
       let resolvedName: string;
       if (ssotName) {
-        // ★ licenses에 저장된 이름이 최우선 (SSOT)
         resolvedName = ssotName;
       } else if (!isDefaultName(existingName)) {
         resolvedName = existingName;
@@ -182,7 +208,6 @@ Deno.serve(async (req) => {
         resolvedName = existingName || finalName;
       }
 
-      // 중복 이름 검사 및 자동 교정
       resolvedName = await deduplicateName(supabase, finalUserId, resolvedName, compositeDeviceId, serial_key);
 
       const updateFields: Record<string, unknown> = {
@@ -191,13 +216,17 @@ Deno.serve(async (req) => {
         status: "online",
       };
 
-      // ★ device_type이 변경된 경우 업데이트 (시리얼을 다른 종류의 기기에서 사용)
+      // ★ 세션 토큰을 metadata에 저장
+      if (finalSessionToken) {
+        const existingMeta = existing.metadata || {};
+        updateFields.metadata = { ...(existingMeta as Record<string, unknown>), session_token: finalSessionToken };
+      }
+
       if (existing.device_type !== finalType) {
         updateFields.device_type = finalType;
         console.log(`[register-device] 🔄 device_type changed: "${existing.device_type}" → "${finalType}"`);
       }
 
-      // 이름이 실제로 변경되었을 때만 업데이트
       if (resolvedName !== existingName) {
         updateFields.device_name = resolvedName;
         updateFields.name = resolvedName;
