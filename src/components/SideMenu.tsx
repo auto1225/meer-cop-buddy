@@ -26,7 +26,7 @@ interface SideMenuProps {
   isMonitoring?: boolean;
 }
 
-export function SideMenu({ isOpen, onClose }: SideMenuProps) {
+export function SideMenu({ isOpen, onClose, isMonitoring = false }: SideMenuProps) {
   const { signOut } = useAuth();
   const savedAuth = getSavedAuth();
   const [helpOpen, setHelpOpen] = useState(false);
