@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user_id, name, device_name, device_type, status, metadata, serial_key, is_revalidation } =
+    const { user_id, name, device_name, device_type, status, metadata, serial_key, is_revalidation, session_token } =
       await req.json();
 
     const finalName = device_name || name || "My Laptop";
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     const compositeDeviceId = serial_key
       ? `${finalUserId}_${serial_key}_${finalType}`
       : `${finalUserId}_${finalType}`;
-
+    const finalSessionToken = session_token || null;
     if (!finalUserId) {
       return new Response(
         JSON.stringify({ error: "user_id is required" }),
