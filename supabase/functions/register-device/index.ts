@@ -252,6 +252,11 @@ Deno.serve(async (req) => {
       const nameToUse = ssotName || finalName;
       const dedupedName = await deduplicateName(supabase, finalUserId, nameToUse, compositeDeviceId, serial_key);
 
+      const insertMetadata = metadata || {};
+      if (finalSessionToken) {
+        insertMetadata.session_token = finalSessionToken;
+      }
+
       const { data: inserted, error } = await supabase
         .from("devices")
         .insert({
@@ -265,7 +270,7 @@ Deno.serve(async (req) => {
           is_camera_connected: false,
           is_network_connected: false,
           is_streaming_requested: false,
-          metadata: metadata || {},
+          metadata: insertMetadata,
         })
         .select()
         .single();
