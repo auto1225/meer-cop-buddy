@@ -72,6 +72,7 @@
   "menu.appInstalled": "App installée",
   "menu.lastUpdated": "Mis à jour",
   "menu.logout": "Déconnexion",
+  "menu.logoutWhileMonitoring": "Veuillez désactiver la surveillance avant de vous déconnecter.",
   "menu.guest": "Invité",
   "menu.checkUpdate": "Vérifier les mises à jour",
   "menu.updating": "Mise à jour...",

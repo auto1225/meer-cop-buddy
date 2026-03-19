@@ -72,6 +72,7 @@
   "menu.appInstalled": "Đã cài đặt",
   "menu.lastUpdated": "Cập nhật",
   "menu.logout": "Đăng xuất",
+  "menu.logoutWhileMonitoring": "Vui lòng tắt giám sát trước khi đăng xuất.",
   "menu.guest": "Khách",
   "menu.checkUpdate": "Kiểm tra cập nhật",
   "menu.updating": "Đang cập nhật...",

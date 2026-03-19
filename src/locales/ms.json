@@ -72,6 +72,7 @@
   "menu.appInstalled": "Telah Dipasang",
   "menu.lastUpdated": "Dikemas kini",
   "menu.logout": "Log keluar",
+  "menu.logoutWhileMonitoring": "Sila nyahaktifkan pemantauan sebelum log keluar.",
   "menu.guest": "Tetamu",
   "menu.checkUpdate": "Semak Kemas Kini",
   "menu.updating": "Mengemas kini...",

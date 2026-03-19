@@ -23,9 +23,10 @@ const BUILD_DATE = `${_buildDate.toLocaleDateString()} ${_buildDate.toLocaleTime
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  isMonitoring?: boolean;
 }
 
-export function SideMenu({ isOpen, onClose }: SideMenuProps) {
+export function SideMenu({ isOpen, onClose, isMonitoring = false }: SideMenuProps) {
   const { signOut } = useAuth();
   const savedAuth = getSavedAuth();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -66,6 +67,10 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    if (isMonitoring) {
+      toast.warning(t("menu.logoutWhileMonitoring"));
+      return;
+    }
     setIsSigningOut(true);
     try {
       // Clean up persisted device selection

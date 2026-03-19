@@ -72,6 +72,7 @@
   "menu.appInstalled": "已安装",
   "menu.lastUpdated": "最近更新",
   "menu.logout": "退出登录",
+  "menu.logoutWhileMonitoring": "请先关闭监控再退出登录。",
   "menu.guest": "访客",
   "menu.checkUpdate": "检查更新",
   "menu.updating": "更新中...",

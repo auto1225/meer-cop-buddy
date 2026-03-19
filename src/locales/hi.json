@@ -72,6 +72,7 @@
   "menu.appInstalled": "ऐप इंस्टॉल है",
   "menu.lastUpdated": "अपडेट किया गया",
   "menu.logout": "लॉग आउट",
+  "menu.logoutWhileMonitoring": "लॉग आउट करने से पहले निगरानी बंद करें।",
   "menu.guest": "अतिथि",
   "menu.checkUpdate": "अपडेट की जाँच करें",
   "menu.updating": "अपडेट हो रहा है...",

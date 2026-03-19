@@ -1185,6 +1185,7 @@ const Index = ({ onExpired }: IndexProps) => {
         <SideMenu
           isOpen={isSideMenuOpen}
           onClose={() => setIsSideMenuOpen(false)}
+          isMonitoring={isMonitoring}
         />
 
         {/* Header */}

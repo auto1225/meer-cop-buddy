@@ -72,6 +72,7 @@
   "menu.appInstalled": "ติดตั้งแล้ว",
   "menu.lastUpdated": "อัปเดตล่าสุด",
   "menu.logout": "ออกจากระบบ",
+  "menu.logoutWhileMonitoring": "กรุณาปิดการเฝ้าระวังก่อนออกจากระบบ",
   "menu.guest": "ผู้เยี่ยมชม",
   "menu.checkUpdate": "ตรวจสอบการอัปเดต",
   "menu.updating": "กำลังอัปเดต...",
