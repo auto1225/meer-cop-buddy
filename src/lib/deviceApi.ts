@@ -184,6 +184,7 @@ export async function registerDeviceViaEdge(
     device_type: string;
     serial_key?: string;
     is_revalidation?: boolean;
+    session_token?: string;
   },
   options?: { throwOnFailure?: boolean }
 ): Promise<DeviceRow | null> {
