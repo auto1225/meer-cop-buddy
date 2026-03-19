@@ -16,6 +16,7 @@ export interface SerialAuthData {
   expires_at: string | null;
   remaining_days: number | null;
   capabilities?: Record<string, boolean>;
+  session_token?: string;
 }
 
 // ── Storage 유틸 (sessionStorage 우선, localStorage는 복구용 폴백) ──
