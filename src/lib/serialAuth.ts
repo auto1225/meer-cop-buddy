@@ -225,6 +225,7 @@ export async function validateSerial(
     expires_at: s.expires_at || null,
     remaining_days: s.remaining_days ?? null,
     capabilities: Object.keys(capabilities).length > 0 ? capabilities : undefined,
+    session_token: sessionToken,
   };
 
   saveAuth(authData);
