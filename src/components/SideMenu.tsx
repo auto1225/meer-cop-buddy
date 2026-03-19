@@ -67,6 +67,10 @@ export function SideMenu({ isOpen, onClose, isMonitoring = false }: SideMenuProp
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    if (isMonitoring) {
+      toast.warning(t("menu.logoutWhileMonitoring"));
+      return;
+    }
     setIsSigningOut(true);
     try {
       // Clean up persisted device selection
