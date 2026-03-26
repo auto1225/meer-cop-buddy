@@ -1,8 +1,11 @@
 import { fetchDevicesViaEdge, registerDeviceViaEdge } from "./deviceApi";
 
-// 시리얼 검증은 웹사이트 프로젝트(peqgmuicrorjvvburqly)의 Edge Function을 사용
-const SUPABASE_URL = "https://peqgmuicrorjvvburqly.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcWdtdWljcm9yanZ2YnVycWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDA1NzQsImV4cCI6MjA4NzUxNjU3NH0.e5HYG3dSMqhm4ahT-en-nNX2mD95KM_TdKIlfuzdMc4";
+// Serial verification is handled by the web project. Keep env-driven for self-hosted migration.
+const SUPABASE_URL =
+  import.meta.env.VITE_WEB_SUPABASE_URL || "https://peqgmuicrorjvvburqly.supabase.co";
+const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_WEB_SUPABASE_PUBLISHABLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcWdtdWljcm9yanZ2YnVycWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDA1NzQsImV4cCI6MjA4NzUxNjU3NH0.e5HYG3dSMqhm4ahT-en-nNX2mD95KM_TdKIlfuzdMc4";
 
 const STORAGE_KEY = "meercop_serial_auth";
 
@@ -90,6 +93,37 @@ function isDefaultDeviceName(name: string | null | undefined): boolean {
   return !n || ["my laptop", "my smartphone", "unknown", "laptop", "laptop1"].includes(n);
 }
 
+function createSessionToken(): string {
+  const cryptoApi = globalThis.crypto as Crypto | undefined;
+  if (cryptoApi?.randomUUID) {
+    return cryptoApi.randomUUID();
+  }
+
+  if (cryptoApi?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    cryptoApi.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      hex.slice(12, 16),
+      hex.slice(16, 20),
+      hex.slice(20),
+    ].join("-");
+  }
+
+  const fallback = `${Date.now().toString(16)}${Math.random().toString(16).slice(2).padEnd(16, "0")}`;
+  return [
+    fallback.slice(0, 8),
+    fallback.slice(8, 12) || "0000",
+    `4${(fallback.slice(13, 16) || "000").slice(0, 3)}`,
+    `a${(fallback.slice(17, 20) || "000").slice(0, 3)}`,
+    (fallback.slice(20) || "").padEnd(12, "0").slice(0, 12),
+  ].join("-");
+}
+
 async function callVerifySerial(serialKey: string) {
   // 1차: verify-serial 시도
   const endpoints = ["verify-serial", "validate-serial"];
@@ -168,7 +202,7 @@ export async function validateSerial(
   const userId = s.user_id || "";
 
   // ── 세션 토큰 생성 (물리적 브라우저/탭 구분용) ──
-  const sessionToken = crypto.randomUUID();
+  const sessionToken = createSessionToken();
 
   let registeredDevice: any = null;
   try {

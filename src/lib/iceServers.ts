@@ -35,11 +35,12 @@ export async function getIceServers(): Promise<RTCConfiguration> {
   }
 
   try {
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const baseUrl =
+      import.meta.env.VITE_SUPABASE_URL || "https://dmvbwyfzueywuwxkjuuy.supabase.co";
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
     const res = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/get-turn-credentials`,
+      `${baseUrl}/functions/v1/get-turn-credentials`,
       {
         headers: {
           apikey: anonKey,

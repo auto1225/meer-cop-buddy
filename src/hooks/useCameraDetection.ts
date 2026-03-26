@@ -35,6 +35,10 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
   const RETRY_INTERVAL = isMobile ? 1000 : 500;
   const DEVICECHANGE_DEBOUNCE = isMobile ? 2000 : 1000;
 
+  const getMediaDevices = useCallback(() => {
+    return navigator.mediaDevices;
+  }, []);
+
   const clearRetryTimer = useCallback(() => {
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
@@ -50,7 +54,13 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
         return true;
       }
 
-      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mediaDevices = getMediaDevices();
+      if (!mediaDevices?.enumerateDevices) {
+        console.warn("[CameraDetection] mediaDevices API unavailable in this browser/context");
+        return false;
+      }
+
+      const devices = await mediaDevices.enumerateDevices();
       const hasVideo = devices.some(device => device.kind === "videoinput");
       console.log("[CameraDetection] enumerateDevices →", hasVideo, `(${devices.filter(d => d.kind === "videoinput").length} videoinput)`);
       return hasVideo;
@@ -58,7 +68,7 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       console.error("[CameraDetection] Error:", error);
       return false;
     }
-  }, []);
+  }, [getMediaDevices]);
 
   const updateCameraStatus = useCallback(async (isConnected: boolean) => {
     if (lastStatusRef.current === isConnected) return;
@@ -172,15 +182,25 @@ export const useCameraDetection = ({ deviceId }: CameraDetectionOptions) => {
       }, DEVICECHANGE_DEBOUNCE);
     };
     
-    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+    const mediaDevices = getMediaDevices();
+    if (!mediaDevices?.addEventListener || !mediaDevices?.removeEventListener) {
+      console.warn("[CameraDetection] devicechange listener unavailable in this browser/context");
+      return () => {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        clearRetryTimer();
+        checkIdRef.current++;
+      };
+    }
+
+    mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
     return () => {
-      navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+      mediaDevices.removeEventListener("devicechange", handleDeviceChange);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       clearRetryTimer();
       checkIdRef.current++; // cleanup 시 진행 중인 체크 무효화
     };
-  }, [deviceId, checkAndUpdate, clearRetryTimer]);
+  }, [deviceId, checkAndUpdate, clearRetryTimer, getMediaDevices]);
 
   return { checkAndUpdate };
 };

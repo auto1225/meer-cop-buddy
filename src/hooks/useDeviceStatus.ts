@@ -378,13 +378,14 @@ export function useDeviceStatus(deviceId?: string, isAuthenticated?: boolean, us
       }
 
       // 2) 로컬 DB
-      const localProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";
+      const localBaseUrl =
+        import.meta.env.VITE_SUPABASE_URL || "https://dmvbwyfzueywuwxkjuuy.supabase.co";
       const localBlob = new Blob(
         [JSON.stringify({ device_id: deviceId, updates })],
         { type: "application/json" }
       );
       navigator.sendBeacon(
-        `https://${localProjectId}.supabase.co/functions/v1/update-device`, localBlob
+        `${localBaseUrl}/functions/v1/update-device`, localBlob
       );
 
       console.log(`[DeviceStatus] 🚪 sendBeacon offline: shared=${sharedId} local=${deviceId}`);

@@ -43,8 +43,8 @@ function isDuplicateDeviceNameResponse(status: number, payload: any): boolean {
 }
 
 function getLocalFunctionUrl(fnName: string): string {
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "dmvbwyfzueywuwxkjuuy";
-  return `https://${projectId}.supabase.co/functions/v1/${fnName}`;
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL || "https://dmvbwyfzueywuwxkjuuy.supabase.co";
+  return `${baseUrl}/functions/v1/${fnName}`;
 }
 
 function getLocalAnonKey(): string {
